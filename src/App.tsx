@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { type ChatMessage, continueStory, startStory, titleStory } from "./ai";
 import { type Genre, genres } from "./genres";
 import Menu from "./Menu";
+import { consumePreparedOpening, prepareMissingOpenings } from "./openings";
 import StoryView, { type StoryPhase, type StorySegment } from "./StoryView";
 import {
 	deleteSavedStory,
@@ -28,6 +29,7 @@ export default function App() {
 	const [savedStories, setSavedStories] = useState<SavedStorySummary[]>([]);
 	const [savesError, setSavesError] = useState<string | null>(null);
 	const activeSaveIdRef = useRef<string | null>(null);
+	const preparingOpeningsRef = useRef(false);
 
 	useEffect(() => {
 		activeSaveIdRef.current = activeSaveId;
@@ -57,9 +59,28 @@ export default function App() {
 		}
 	}, []);
 
+	const prepareOpeningsInBackground = useCallback(async () => {
+		if (preparingOpeningsRef.current) return;
+		preparingOpeningsRef.current = true;
+		try {
+			await prepareMissingOpenings();
+		} catch (err) {
+			console.warn("Could not prepare story openings.", err);
+		} finally {
+			preparingOpeningsRef.current = false;
+		}
+	}, []);
+
 	useEffect(() => {
-		void refreshSavedStories();
-	}, [refreshSavedStories]);
+		void (async () => {
+			await refreshSavedStories();
+			void prepareOpeningsInBackground();
+		})();
+	}, [refreshSavedStories, prepareOpeningsInBackground]);
+
+	useEffect(() => {
+		if (view === "menu") void prepareOpeningsInBackground();
+	}, [view, prepareOpeningsInBackground]);
 
 	async function persistStory(
 		save: Omit<SavedStory, "updatedAt">,
@@ -114,7 +135,20 @@ export default function App() {
 		setPhase("loading");
 		setView("story");
 		try {
-			const { text, messages: seeded } = await startStory(selected);
+			let opening: { text: string; messages: ChatMessage[] } | null = null;
+			try {
+				opening = await consumePreparedOpening(selected.id);
+			} catch (err) {
+				console.warn("Could not consume a prepared opening.", err);
+			}
+
+			if (!opening) {
+				opening = await startStory(selected);
+			} else {
+				void prepareOpeningsInBackground();
+			}
+
+			const { text, messages: seeded } = opening;
 			setMessages(seeded);
 			setCurrentTarget(text);
 			setPhase("typing");

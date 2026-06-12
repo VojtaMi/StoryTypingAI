@@ -8,6 +8,7 @@ dist
 dist-ssr
 *.local
 saves/
+openings/
 
 # Editor directories and files
 .claude/
