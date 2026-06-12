@@ -1,7 +1,8 @@
 import type { ChatMessage } from "./ai";
 import type { GenreId } from "./genres";
+import type { StoryBackgroundImage } from "./storyBackground";
 
-export interface PreparedOpening {
+export interface PreparedOpening extends Partial<StoryBackgroundImage> {
 	genreId: GenreId;
 	text: string;
 	messages: ChatMessage[];

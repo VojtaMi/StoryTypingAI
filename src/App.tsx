@@ -12,6 +12,7 @@ import {
 	type SavedStorySummary,
 	saveStory,
 } from "./saves";
+import type { StoryBackgroundImage } from "./storyBackground";
 import type { TypingStats } from "./TypingExercise";
 
 type View = "menu" | "story";
@@ -26,6 +27,8 @@ export default function App() {
 	const [error, setError] = useState<string | null>(null);
 	const [activeSaveId, setActiveSaveId] = useState<string | null>(null);
 	const [activeTitle, setActiveTitle] = useState<string | null>(null);
+	const [backgroundImage, setBackgroundImage] =
+		useState<StoryBackgroundImage | null>(null);
 	const [savedStories, setSavedStories] = useState<SavedStorySummary[]>([]);
 	const [savesError, setSavesError] = useState<string | null>(null);
 	const activeSaveIdRef = useRef<string | null>(null);
@@ -42,11 +45,20 @@ export default function App() {
 		} else {
 			delete document.body.dataset.genre;
 		}
+		if (view === "story" && backgroundImage?.backgroundImageUrl) {
+			document.body.style.setProperty(
+				"--story-background-image",
+				`url("${backgroundImage.backgroundImageUrl}")`,
+			);
+		} else {
+			document.body.style.removeProperty("--story-background-image");
+		}
 		return () => {
 			delete document.body.dataset.view;
 			delete document.body.dataset.genre;
+			document.body.style.removeProperty("--story-background-image");
 		};
-	}, [view, genre]);
+	}, [view, genre, backgroundImage]);
 
 	function describeError(err: unknown): string {
 		const message = err instanceof Error ? err.message : String(err);
@@ -60,6 +72,41 @@ export default function App() {
 	function createSaveId() {
 		if (crypto.randomUUID) return crypto.randomUUID();
 		return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+	}
+
+	function fallbackBackgroundImage(selected: Genre): StoryBackgroundImage {
+		return {
+			backgroundImageUrl: `/images/fallback-${selected.id}.webp`,
+			backgroundImageSource: "fallback",
+		};
+	}
+
+	function backgroundFromOpening(
+		opening: {
+			backgroundImageUrl?: string;
+			backgroundImagePrompt?: string;
+			backgroundImageSource?: string;
+			text?: string;
+			messages?: ChatMessage[];
+		},
+		selected: Genre,
+	): StoryBackgroundImage {
+		if (
+			opening.backgroundImageUrl &&
+			(opening.backgroundImageSource === "generated" ||
+				opening.backgroundImageSource === "fallback")
+		) {
+			return {
+				backgroundImageUrl: opening.backgroundImageUrl,
+				backgroundImagePrompt: opening.backgroundImagePrompt,
+				backgroundImageSource: opening.backgroundImageSource,
+			};
+		}
+		return fallbackBackgroundImage(selected);
+	}
+
+	function saveBackgroundFields() {
+		return backgroundImage ?? undefined;
 	}
 
 	const refreshSavedStories = useCallback(async () => {
@@ -162,8 +209,10 @@ export default function App() {
 			}
 
 			const { text, messages: seeded } = opening;
+			const nextBackgroundImage = backgroundFromOpening(opening, selected);
 			setMessages(seeded);
 			setCurrentTarget(text);
+			setBackgroundImage(nextBackgroundImage);
 			setPhase("typing");
 			void persistStory(
 				{
@@ -174,6 +223,7 @@ export default function App() {
 					segments: [],
 					currentTarget: text,
 					phase: "typing",
+					...nextBackgroundImage,
 				},
 				{ generateTitle: true },
 			);
@@ -200,6 +250,7 @@ export default function App() {
 				segments: nextSegments,
 				currentTarget: null,
 				phase: "authoring",
+				...saveBackgroundFields(),
 			});
 		}
 	}
@@ -228,6 +279,7 @@ export default function App() {
 			segments: nextSegments,
 			currentTarget: null,
 			phase: "loading",
+			...saveBackgroundFields(),
 		});
 
 		try {
@@ -247,6 +299,7 @@ export default function App() {
 					segments: nextSegments,
 					currentTarget: text,
 					phase: "typing",
+					...saveBackgroundFields(),
 				},
 				{ generateTitle: true },
 			);
@@ -265,6 +318,7 @@ export default function App() {
 				segments,
 				currentTarget,
 				phase,
+				...saveBackgroundFields(),
 			});
 		}
 		setView("menu");
@@ -274,6 +328,7 @@ export default function App() {
 		setCurrentTarget(null);
 		setError(null);
 		setPhase("loading");
+		setBackgroundImage(null);
 		activeSaveIdRef.current = null;
 		setActiveSaveId(null);
 		setActiveTitle(null);
@@ -295,6 +350,17 @@ export default function App() {
 			setSegments(save.segments);
 			setCurrentTarget(save.currentTarget);
 			setPhase(save.phase);
+			setBackgroundImage(
+				save.backgroundImageUrl &&
+					(save.backgroundImageSource === "generated" ||
+						save.backgroundImageSource === "fallback")
+					? {
+							backgroundImageUrl: save.backgroundImageUrl,
+							backgroundImagePrompt: save.backgroundImagePrompt,
+							backgroundImageSource: save.backgroundImageSource,
+						}
+					: fallbackBackgroundImage(selected),
+			);
 			setError(null);
 			setView("story");
 		} catch (err) {

@@ -9,6 +9,7 @@ dist-ssr
 *.local
 saves/
 openings/
+story-images/
 
 # Editor directories and files
 .claude/

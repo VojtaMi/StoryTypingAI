@@ -3,11 +3,13 @@ import { join } from "node:path";
 import OpenAI from "openai";
 import type { Plugin } from "vite";
 import { type Genre, type GenreId, genres } from "../genres";
+import type { StoryBackgroundImage } from "../storyBackground";
 import { normalizeStoryText, sendJson } from "./http";
 
 const openingsDir = join(process.cwd(), "openings");
+const storyImagesDir = join(process.cwd(), "story-images");
 
-interface PreparedOpening {
+interface PreparedOpening extends Partial<StoryBackgroundImage> {
 	genreId: GenreId;
 	text: string;
 	messages: Array<{
@@ -16,6 +18,8 @@ interface PreparedOpening {
 	}>;
 	createdAt: string;
 }
+
+const imageFilePattern = /^[a-zA-Z0-9_-]+\.webp$/;
 
 export function openingsApi(apiKey: string): Plugin {
 	let preparePromise: Promise<void> | null = null;
@@ -99,7 +103,14 @@ async function prepareMissingOpenings(openai: OpenAI) {
 
 	for (const genre of genres) {
 		const existing = await readPreparedOpening(genre.id);
-		if (existing) continue;
+		if (existing) {
+			if (existing.backgroundImageUrl) continue;
+			await writePreparedOpening({
+				...existing,
+				...(await createBackgroundImage(openai, genre, existing.text)),
+			});
+			continue;
+		}
 
 		const opening = await createPreparedOpening(openai, genre);
 		await writePreparedOpening(opening);
@@ -127,8 +138,63 @@ async function createPreparedOpening(
 		genreId: genre.id,
 		text,
 		messages: [...messages, { role: "assistant", content: text }],
+		...(await createBackgroundImage(openai, genre, text)),
 		createdAt: new Date().toISOString(),
 	};
+}
+
+async function createBackgroundImage(
+	openai: OpenAI,
+	genre: Genre,
+	openingText: string,
+): Promise<StoryBackgroundImage> {
+	const prompt = buildBackgroundPrompt(genre, openingText);
+	try {
+		const response = await openai.images.generate({
+			model: "gpt-image-2",
+			prompt,
+			size: "1536x1024",
+			quality: "low",
+			output_format: "webp",
+			n: 1,
+		});
+		const encoded = response.data?.[0]?.b64_json;
+		if (!encoded) throw new Error("The image API returned no image data.");
+
+		await mkdir(storyImagesDir, { recursive: true });
+		const filename = `${genre.id}-${Date.now()}-${Math.random()
+			.toString(36)
+			.slice(2)}.webp`;
+		await writeFile(
+			join(storyImagesDir, filename),
+			Buffer.from(encoded, "base64"),
+		);
+		return {
+			backgroundImageUrl: `/api/story-images/${filename}`,
+			backgroundImagePrompt: prompt,
+			backgroundImageSource: "generated",
+		};
+	} catch (err) {
+		console.warn(`Could not generate ${genre.label} background image.`, err);
+		return {
+			backgroundImageUrl: fallbackBackgroundUrl(genre.id),
+			backgroundImagePrompt: prompt,
+			backgroundImageSource: "fallback",
+		};
+	}
+}
+
+function buildBackgroundPrompt(genre: Genre, openingText: string) {
+	return [
+		"Create a cinematic full-page background image for a typing story app.",
+		`Genre: ${genre.label}.`,
+		`Story opening: ${openingText}`,
+		"Use a 3:2 landscape composition suitable for a 1536x1024 desktop background.",
+		"Make the scene feel specific to the opening while preserving room for imagination.",
+		"Keep the center area moderately low contrast so a translucent text panel remains readable.",
+		"Put brighter highlights and intricate details toward the edges rather than behind the central text.",
+		"No text, letters, logos, signage, UI, watermark, signature, or captions.",
+	].join("\n");
 }
 
 async function readPreparedOpening(
@@ -166,4 +232,40 @@ function openingPath(genreId: GenreId) {
 
 function findGenre(genreId: GenreId) {
 	return genres.find((genre) => genre.id === genreId);
+}
+
+export function storyImagesApi(): Plugin {
+	return {
+		name: "story-images-api",
+		configureServer(server) {
+			server.middlewares.use(async (req, res, next) => {
+				if (!req.url?.startsWith("/api/story-images/")) {
+					next();
+					return;
+				}
+
+				try {
+					const url = new URL(req.url, "http://localhost");
+					const parts = url.pathname.split("/");
+					const filename = decodeURIComponent(parts[parts.length - 1] ?? "");
+					if (!imageFilePattern.test(filename)) {
+						sendJson(res, 404, { error: "Image not found." });
+						return;
+					}
+
+					const file = await readFile(join(storyImagesDir, filename));
+					res.statusCode = 200;
+					res.setHeader("Content-Type", "image/webp");
+					res.setHeader("Cache-Control", "no-store");
+					res.end(file);
+				} catch {
+					sendJson(res, 404, { error: "Image not found." });
+				}
+			});
+		},
+	};
+}
+
+function fallbackBackgroundUrl(genreId: GenreId) {
+	return `/images/fallback-${genreId}.webp`;
 }

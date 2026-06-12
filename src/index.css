@@ -33,10 +33,16 @@ body {
 	transition: background-image 0.2s ease;
 }
 
-body[data-view="story"][data-genre="scifi"] {
+body[data-view="menu"] {
+	background-image:
+		linear-gradient(rgba(10, 12, 18, 0.7), rgba(10, 12, 18, 0.82)),
+		url("/images/menu-background.webp");
+}
+
+body[data-view="story"] {
 	background-image:
 		linear-gradient(rgba(10, 12, 18, 0.46), rgba(10, 12, 18, 0.68)),
-		url("/images/story-scifi-background.png");
+		var(--story-background-image);
 }
 
 .app {
