@@ -2,15 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { type ChatMessage, continueStory, startStory, titleStory } from "./ai";
 import { type Genre, genres } from "./genres";
 import Menu from "./Menu";
+import StoryView, { type StoryPhase, type StorySegment } from "./StoryView";
 import {
 	deleteSavedStory,
 	listSavedStories,
 	loadSavedStory,
-	saveStory,
 	type SavedStory,
 	type SavedStorySummary,
+	saveStory,
 } from "./saves";
-import StoryView, { type StoryPhase, type StorySegment } from "./StoryView";
 import type { TypingStats } from "./TypingExercise";
 
 type View = "menu" | "story";
@@ -187,7 +187,10 @@ export default function App() {
 		});
 
 		try {
-			const { text, messages: updated } = await continueStory(messages, userText);
+			const { text, messages: updated } = await continueStory(
+				messages,
+				userText,
+			);
 			setMessages(updated);
 			setCurrentTarget(text);
 			setPhase("typing");
@@ -236,7 +239,9 @@ export default function App() {
 		try {
 			setSavesError(null);
 			const save = await loadSavedStory(id);
-			const selected = genres.find((candidate) => candidate.id === save.genreId);
+			const selected = genres.find(
+				(candidate) => candidate.id === save.genreId,
+			);
 			if (!selected) throw new Error(`Unknown genre: ${save.genreId}`);
 			activeSaveIdRef.current = save.id;
 			setActiveSaveId(save.id);

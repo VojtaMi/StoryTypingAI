@@ -42,7 +42,10 @@ export default function StoryView({
 			{segments.length > 0 && (
 				<div className="story__log">
 					{segments.map((segment) => (
-						<p key={segment.id} className={`segment segment--${segment.author}`}>
+						<p
+							key={segment.id}
+							className={`segment segment--${segment.author}`}
+						>
 							{segment.text}
 						</p>
 					))}
@@ -89,7 +92,9 @@ export default function StoryView({
 			{error && <p className="story__error">{error}</p>}
 
 			<div className="controls">
-				<button type="button" onClick={onBackToMenu}>← Back to menu</button>
+				<button type="button" onClick={onBackToMenu}>
+					← Back to menu
+				</button>
 			</div>
 		</div>
 	);
