@@ -66,3 +66,23 @@ export async function continueStory(
 	messages.push({ role: "assistant", content: text });
 	return { text, messages };
 }
+
+/** Creates a short title for a saved story without changing the story history. */
+export async function titleStory(history: ChatMessage[]): Promise<string> {
+	const storyText = history
+		.filter((message) => message.role !== "system")
+		.map((message) => message.content)
+		.join("\n\n")
+		.slice(-3000);
+
+	const text = await complete([
+		{
+			role: "system",
+			content:
+				"Create a concise title for this interactive story. Return only the title, with no quotes or punctuation at the end.",
+		},
+		{ role: "user", content: storyText },
+	]);
+
+	return text.replace(/^["']|["'.!?]$/g, "").trim();
+}

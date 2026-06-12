@@ -14,7 +14,8 @@ story and a typing drill at once.
 4. When you finish, write your own continuation in your own words.
 5. The AI reads your continuation and writes the next segment, which becomes
    your next typing target.
-6. Repeat for as long as you like. **Back to menu** starts a fresh story.
+6. Repeat for as long as you like. Stories save as local JSON files, so you can
+   return to the menu and resume them later.
 
 ## Features
 
@@ -27,12 +28,15 @@ story and a typing drill at once.
 - **Progress bar** — shows how far through the current segment you are.
 - **Free authoring** — your continuations are written freely (typing practice
   happens on the AI's text; the creative input is yours).
+- **Local file saves** — while running the Vite dev server, saved stories are
+  written to `saves/*.json` and shown on the menu for resume/delete.
 - Hidden input keeps focus on the passage; click the passage to refocus.
 
 ## Tech
 
 React 19 + TypeScript + Vite, with the [`openai`](https://www.npmjs.com/package/openai)
 SDK for story generation (model `gpt-4o-mini`, configurable in `src/ai.ts`).
+The dev server also exposes local `/api/saves` endpoints for JSON file saves.
 
 ## Getting started
 
@@ -48,6 +52,10 @@ npm run dev      # start the dev server
 npm run build    # type-check and build for production
 npm run preview  # preview the production build
 ```
+
+Saved stories are local development files under `saves/`, which is git-ignored.
+The file-save API is provided by Vite during `npm run dev`; a static production
+build does not include that local filesystem backend.
 
 > **Security:** This app calls OpenAI **directly from the browser**, so the key
 > is bundled into the shipped JavaScript and is visible to anyone who loads the
