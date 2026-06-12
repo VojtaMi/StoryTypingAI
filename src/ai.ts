@@ -1,43 +1,23 @@
-import OpenAI from "openai";
 import type { Genre } from "./genres";
-
-// SECURITY: This calls OpenAI directly from the browser, so VITE_OPENAI_API_KEY
-// is bundled into the shipped JS and visible to anyone loading the page.
-// Fine for local practice only — DO NOT deploy publicly. To deploy, move these
-// calls behind a small backend proxy that holds the key server-side.
-const client = new OpenAI({
-	apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-	dangerouslyAllowBrowser: true,
-});
-
-// Swappable: gpt-4o-mini is fast and cheap; bump to a larger model for richer prose.
-const MODEL = "gpt-4o-mini";
 
 export type ChatMessage = {
 	role: "system" | "user" | "assistant";
 	content: string;
 };
 
-// Replace typographic characters that keyboards can't easily type with their
-// plain ASCII equivalents, so the typing exercise stays typeable.
-function normalize(text: string): string {
-	return text
-		.replace(/[‘’‚‛]/g, "'") // curly single quotes → '
-		.replace(/[“”„‟]/g, '"') // curly double quotes → "
-		.replace(/–/g, "-") // en dash → -
-		.replace(/—/g, "--") // em dash → --
-		.replace(/…/g, "..."); // ellipsis → ...
-}
-
-async function complete(messages: ChatMessage[]): Promise<string> {
-	const response = await client.chat.completions.create({
-		model: MODEL,
-		max_tokens: 150,
-		messages,
+async function complete(
+	messages: ChatMessage[],
+	maxTokens = 150,
+): Promise<string> {
+	const res = await fetch("/api/ai/complete", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ messages, maxTokens }),
 	});
-	const text = response.choices[0]?.message?.content?.trim();
+	if (!res.ok) throw new Error(`AI request failed: ${res.status}`);
+	const { text } = await res.json();
 	if (!text) throw new Error("The AI returned an empty response.");
-	return normalize(text);
+	return text;
 }
 
 /** Begins a new story for the given genre. Returns the opening and the seeded history. */

@@ -35,8 +35,9 @@ story and a typing drill at once.
 ## Tech
 
 React 19 + TypeScript + Vite, with the [`openai`](https://www.npmjs.com/package/openai)
-SDK for story generation (model `gpt-4o-mini`, configurable in `src/ai.ts`).
-The dev server also exposes local `/api/saves` endpoints for JSON file saves.
+SDK for story generation (model `gpt-4o-mini`, configurable in `vite.config.ts`).
+The dev server exposes local `/api/saves` endpoints for JSON file saves and a
+`/api/ai/complete` endpoint that proxies OpenAI calls server-side.
 
 ## Getting started
 
@@ -45,8 +46,8 @@ This app calls the OpenAI API, so it needs an API key.
 ```bash
 npm install
 
-# Add your OpenAI key (Vite only exposes vars prefixed with VITE_):
-echo 'VITE_OPENAI_API_KEY=sk-...' > .env.local
+# Add your OpenAI key — kept server-side, never sent to the browser:
+echo 'OPENAI_API_KEY=sk-...' > .env.local
 
 npm run dev      # start the dev server
 npm run build    # type-check and build for production
@@ -54,14 +55,10 @@ npm run preview  # preview the production build
 ```
 
 Saved stories are local development files under `saves/`, which is git-ignored.
-The file-save API is provided by Vite during `npm run dev`; a static production
-build does not include that local filesystem backend.
+The file-save and AI proxy APIs are provided by Vite during `npm run dev`; a
+static production build does not include that local filesystem backend.
 
-> **Security:** This app calls OpenAI **directly from the browser**, so the key
-> is bundled into the shipped JavaScript and is visible to anyone who loads the
-> page. This is fine for local practice but **must not be deployed publicly**.
-> To deploy, move the API calls behind a small backend proxy that keeps the key
-> server-side. `.env.local` is git-ignored (via `*.local`); never commit your key.
+`.env.local` is git-ignored (via `*.local`); never commit your key.
 
 ## Project layout
 
@@ -69,7 +66,8 @@ build does not include that local filesystem backend.
 - `src/Menu.tsx` — the genre-selection circles.
 - `src/StoryView.tsx` — the story log, active typing target, and authoring box.
 - `src/TypingExercise.tsx` — the reusable typing engine (stats, caret, progress).
-- `src/ai.ts` — OpenAI client and the `startStory` / `continueStory` calls.
+- `src/ai.ts` — `startStory` / `continueStory` / `titleStory` calls via the dev server proxy.
 - `src/genres.ts` — genre definitions and their system prompts.
 - `src/index.css` — theme and layout.
+- `vite.config.ts` — Vite plugins: `savesApi` (local file saves) and `aiApi` (OpenAI proxy).
 - `aichat_reference/` — the original Node CLI chat reference the AI loop is based on.

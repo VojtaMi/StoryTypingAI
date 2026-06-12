@@ -2,7 +2,8 @@ import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import react from "@vitejs/plugin-react";
-import { defineConfig, type Plugin } from "vite";
+import OpenAI from "openai";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 
 const savesDir = join(process.cwd(), "saves");
 const saveIdPattern = /^[a-zA-Z0-9_-]+$/;
@@ -141,7 +142,52 @@ function sendJson(res: ServerResponse, statusCode: number, body: unknown) {
 	res.end(JSON.stringify(body));
 }
 
+function normalize(text: string): string {
+	return text
+		.replace(/[''‚‛]/g, "'")
+		.replace(/[""„‟]/g, '"')
+		.replace(/–/g, "-")
+		.replace(/—/g, "--")
+		.replace(/…/g, "...");
+}
+
+function aiApi(apiKey: string): Plugin {
+	return {
+		name: "ai-proxy-api",
+		configureServer(server) {
+			const openai = new OpenAI({ apiKey });
+			server.middlewares.use(async (req, res, next) => {
+				if (req.url !== "/api/ai/complete" || req.method !== "POST") {
+					next();
+					return;
+				}
+
+				try {
+					const { messages, maxTokens = 150 } = JSON.parse(await readBody(req));
+					const response = await openai.chat.completions.create({
+						model: "gpt-4o-mini",
+						max_tokens: maxTokens,
+						messages,
+					});
+					const raw = response.choices[0]?.message?.content?.trim();
+					if (!raw) {
+						sendJson(res, 502, { error: "The AI returned an empty response." });
+						return;
+					}
+					sendJson(res, 200, { text: normalize(raw) });
+				} catch (err) {
+					const message = err instanceof Error ? err.message : String(err);
+					sendJson(res, 500, { error: message });
+				}
+			});
+		},
+	};
+}
+
 // https://vite.dev/config/
-export default defineConfig({
-	plugins: [react(), savesApi()],
+export default defineConfig(({ mode }) => {
+	const env = loadEnv(mode, process.cwd(), "");
+	return {
+		plugins: [react(), savesApi(), aiApi(env.OPENAI_API_KEY)],
+	};
 });

@@ -34,9 +34,6 @@ export default function App() {
 	}, [activeSaveId]);
 
 	function describeError(err: unknown): string {
-		if (!import.meta.env.VITE_OPENAI_API_KEY) {
-			return "No API key found. Add VITE_OPENAI_API_KEY to .env.local and restart the dev server.";
-		}
 		const message = err instanceof Error ? err.message : String(err);
 		return `Something went wrong reaching the AI: ${message}`;
 	}
