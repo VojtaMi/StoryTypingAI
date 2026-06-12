@@ -28,3 +28,4 @@ story-images/
 
 # Playwright MCP session snapshots
 .playwright-mcp/
+.rostistate

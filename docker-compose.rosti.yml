@@ -1,0 +1,18 @@
+services:
+  app:
+    image: app:latest
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - saves:/app/saves
+      - openings:/app/openings
+      - story-images:/app/story-images
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PORT=80
+
+volumes:
+  saves:
+  openings:
+  story-images:
