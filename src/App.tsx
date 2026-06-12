@@ -35,6 +35,19 @@ export default function App() {
 		activeSaveIdRef.current = activeSaveId;
 	}, [activeSaveId]);
 
+	useEffect(() => {
+		document.body.dataset.view = view;
+		if (genre) {
+			document.body.dataset.genre = genre.id;
+		} else {
+			delete document.body.dataset.genre;
+		}
+		return () => {
+			delete document.body.dataset.view;
+			delete document.body.dataset.genre;
+		};
+	}, [view, genre]);
+
 	function describeError(err: unknown): string {
 		const message = err instanceof Error ? err.message : String(err);
 		return `Something went wrong reaching the AI: ${message}`;
@@ -302,7 +315,7 @@ export default function App() {
 	}
 
 	return (
-		<div className="app">
+		<div className={`app app--${view}`}>
 			<header className="header">
 				<h1>Story Typing Practice</h1>
 				<p className="subtitle">

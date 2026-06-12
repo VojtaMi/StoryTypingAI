@@ -26,13 +26,29 @@ body {
 	justify-content: center;
 	align-items: flex-start;
 	background: var(--bg);
+	background-attachment: fixed;
+	background-position: center;
+	background-size: cover;
 	color: var(--text);
+	transition: background-image 0.2s ease;
+}
+
+body[data-view="story"][data-genre="scifi"] {
+	background-image:
+		linear-gradient(rgba(10, 12, 18, 0.46), rgba(10, 12, 18, 0.68)),
+		url("/images/story-scifi-background.png");
 }
 
 .app {
 	width: 100%;
 	max-width: 760px;
 	padding: 3rem 1.5rem;
+}
+
+.app--story {
+	max-width: 920px;
+	min-height: 100vh;
+	padding-top: 2rem;
 }
 
 .header {
@@ -49,6 +65,10 @@ body {
 	margin: 0.25rem 0 0;
 	color: var(--accent);
 	font-size: 1rem;
+}
+
+.app--story .header {
+	text-shadow: 0 2px 18px rgba(0, 0, 0, 0.85);
 }
 
 .stats {
@@ -327,6 +347,12 @@ body {
 }
 
 /* ---- Story ---- */
+.story {
+	--story-panel: rgba(20, 23, 34, 0.74);
+	--story-panel-strong: rgba(20, 23, 34, 0.86);
+	--story-border: rgba(192, 202, 245, 0.16);
+}
+
 .story__log {
 	margin-bottom: 1.5rem;
 	display: flex;
@@ -334,28 +360,73 @@ body {
 	gap: 0.75rem;
 }
 
+.story__current,
+.authoring {
+	padding: 1.15rem;
+	border: 1px solid var(--story-border);
+	border-radius: 12px;
+	background: var(--story-panel);
+	box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+	backdrop-filter: blur(14px) saturate(125%);
+}
+
 .segment {
 	margin: 0;
 	padding: 0.85rem 1.1rem;
 	border-radius: 10px;
 	line-height: 1.6;
+	box-shadow: 0 12px 34px rgba(0, 0, 0, 0.25);
+	backdrop-filter: blur(12px) saturate(120%);
 }
 
 .segment--ai {
-	background: var(--surface);
+	background: var(--story-panel);
 	border-left: 3px solid var(--accent);
 }
 
 .segment--user {
-	background: rgba(158, 206, 106, 0.1);
+	background: rgba(40, 59, 44, 0.72);
 	border-left: 3px solid var(--correct);
 	color: var(--correct);
 }
 
 .story__hint {
-	color: var(--muted);
+	color: #a9b4e5;
 	font-size: 0.85rem;
 	margin: 0 0 0.75rem;
+}
+
+.story .stat,
+.story .progress-bar,
+.story .passage {
+	background: var(--story-panel-strong);
+	border: 1px solid var(--story-border);
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+	backdrop-filter: blur(12px) saturate(120%);
+}
+
+.story .progress-bar {
+	border: 0;
+}
+
+.story .passage {
+	color: #dbe3ff;
+}
+
+.story .char {
+	color: #8f9bc7;
+}
+
+.story .char--correct {
+	color: #b9f08a;
+}
+
+.story .char--incorrect {
+	color: #ff92a4;
+}
+
+.story .char--current {
+	color: #f2f5ff;
 }
 
 .story__error {
@@ -386,10 +457,15 @@ body {
 	resize: vertical;
 	padding: 1rem;
 	border-radius: 10px;
-	border: 1px solid var(--muted);
-	background: var(--surface);
 	color: var(--text);
 	line-height: 1.6;
+}
+
+.story .authoring__input {
+	background: var(--story-panel-strong);
+	border: 1px solid var(--story-border);
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+	backdrop-filter: blur(12px) saturate(120%);
 }
 
 .authoring__input:focus {
@@ -416,6 +492,37 @@ body {
 }
 
 @media (max-width: 620px) {
+	.app {
+		padding-inline: 0.5rem;
+	}
+
+	.app--story {
+		padding-top: 1.6rem;
+	}
+
+	.stats {
+		gap: 0.5rem;
+	}
+
+	.stat {
+		padding: 0.65rem 0.35rem;
+	}
+
+	.stat__value {
+		font-size: 1.35rem;
+	}
+
+	.story__current,
+	.authoring {
+		padding: 1rem;
+	}
+
+	.passage {
+		padding: 1.35rem;
+		font-size: 1.18rem;
+		line-height: 1.75rem;
+	}
+
 	.saved-story {
 		grid-template-columns: 1fr;
 	}
