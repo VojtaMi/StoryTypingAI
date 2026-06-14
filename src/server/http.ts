@@ -24,8 +24,9 @@ export function sendJson(
 
 export function normalizeStoryText(text: string): string {
 	return text
-		.replace(/[''‚‛]/g, "'")
-		.replace(/[""„‟]/g, '"')
+		.replace(/[‘’‚‛]/g, "'")
+		.replace(/[“”„‟]/g, '"')
+		.replace(/\*\*([^*\n]+)\*\*/g, "$1")
 		.replace(/–/g, "-")
 		.replace(/—/g, "--")
 		.replace(/…/g, "...");

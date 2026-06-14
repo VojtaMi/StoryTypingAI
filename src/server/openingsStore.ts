@@ -88,12 +88,12 @@ async function createPreparedOpening(
 	};
 }
 
-async function createBackgroundImage(
+export async function createBackgroundImage(
 	openai: OpenAI,
 	genre: Genre,
-	openingText: string,
+	storyText: string,
 ): Promise<StoryBackgroundImage> {
-	const prompt = buildBackgroundPrompt(genre, openingText);
+	const prompt = buildBackgroundPrompt(genre, storyText);
 	try {
 		const response = await openai.images.generate({
 			model: "gpt-image-2",

@@ -30,7 +30,6 @@ body {
 	background-position: center;
 	background-size: cover;
 	color: var(--text);
-	transition: background-image 0.2s ease;
 }
 
 body[data-view="menu"] {
@@ -39,13 +38,9 @@ body[data-view="menu"] {
 		url("/images/menu-background.webp");
 }
 
-body[data-view="story"] {
-	background-image:
-		linear-gradient(rgba(10, 12, 18, 0.46), rgba(10, 12, 18, 0.68)),
-		var(--story-background-image);
-}
-
 .app {
+	position: relative;
+	z-index: 1;
 	width: 100%;
 	max-width: 760px;
 	padding: 3rem 1.5rem;
@@ -75,6 +70,43 @@ body[data-view="story"] {
 
 .app--story .header {
 	text-shadow: 0 2px 18px rgba(0, 0, 0, 0.85);
+}
+
+.header,
+.menu,
+.story {
+	position: relative;
+	z-index: 1;
+}
+
+.story-background {
+	position: fixed;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+	background-image:
+		linear-gradient(rgba(10, 12, 18, 0.46), rgba(10, 12, 18, 0.68)),
+		var(--background-url);
+	background-position: center;
+	background-size: cover;
+}
+
+.story-background--current {
+	opacity: 1;
+}
+
+.story-background--current.story-background--fading {
+	animation: story-background-fade 1.2s ease forwards;
+}
+
+@keyframes story-background-fade {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
 }
 
 .stats {

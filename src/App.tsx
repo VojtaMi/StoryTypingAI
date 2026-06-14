@@ -1,5 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { type ChatMessage, continueStory, startStory, titleStory } from "./ai";
+import {
+	type CSSProperties,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
+import {
+	type ChatMessage,
+	continueStory,
+	generateStoryBackgroundImage,
+	startStory,
+	titleStory,
+} from "./ai";
 import { type Genre, genres } from "./genres";
 import Menu from "./Menu";
 import { consumePreparedOpening, prepareMissingOpenings } from "./openings";
@@ -29,14 +41,47 @@ export default function App() {
 	const [activeTitle, setActiveTitle] = useState<string | null>(null);
 	const [backgroundImage, setBackgroundImage] =
 		useState<StoryBackgroundImage | null>(null);
+	const [visibleBackgroundUrl, setVisibleBackgroundUrl] = useState<
+		string | null
+	>(null);
+	const [previousBackgroundUrl, setPreviousBackgroundUrl] = useState<
+		string | null
+	>(null);
+	const [isBackgroundFading, setIsBackgroundFading] = useState(false);
 	const [savedStories, setSavedStories] = useState<SavedStorySummary[]>([]);
 	const [savesError, setSavesError] = useState<string | null>(null);
 	const activeSaveIdRef = useRef<string | null>(null);
+	const activeTitleRef = useRef<string | null>(null);
+	const messagesRef = useRef<ChatMessage[]>([]);
+	const segmentsRef = useRef<StorySegment[]>([]);
+	const currentTargetRef = useRef<string | null>(null);
+	const phaseRef = useRef<StoryPhase>("loading");
+	const backgroundFadeTimeoutRef = useRef<number | null>(null);
 	const preparingOpeningsRef = useRef(false);
 
 	useEffect(() => {
 		activeSaveIdRef.current = activeSaveId;
 	}, [activeSaveId]);
+
+	useEffect(() => {
+		activeTitleRef.current = activeTitle;
+	}, [activeTitle]);
+
+	useEffect(() => {
+		messagesRef.current = messages;
+	}, [messages]);
+
+	useEffect(() => {
+		segmentsRef.current = segments;
+	}, [segments]);
+
+	useEffect(() => {
+		currentTargetRef.current = currentTarget;
+	}, [currentTarget]);
+
+	useEffect(() => {
+		phaseRef.current = phase;
+	}, [phase]);
 
 	useEffect(() => {
 		document.body.dataset.view = view;
@@ -45,20 +90,53 @@ export default function App() {
 		} else {
 			delete document.body.dataset.genre;
 		}
-		if (view === "story" && backgroundImage?.backgroundImageUrl) {
-			document.body.style.setProperty(
-				"--story-background-image",
-				`url("${backgroundImage.backgroundImageUrl}")`,
-			);
-		} else {
-			document.body.style.removeProperty("--story-background-image");
-		}
 		return () => {
 			delete document.body.dataset.view;
 			delete document.body.dataset.genre;
-			document.body.style.removeProperty("--story-background-image");
 		};
-	}, [view, genre, backgroundImage]);
+	}, [view, genre]);
+
+	useEffect(() => {
+		const nextUrl =
+			view === "story" ? (backgroundImage?.backgroundImageUrl ?? null) : null;
+
+		if (backgroundFadeTimeoutRef.current !== null) {
+			window.clearTimeout(backgroundFadeTimeoutRef.current);
+			backgroundFadeTimeoutRef.current = null;
+		}
+
+		if (!nextUrl) {
+			setVisibleBackgroundUrl(null);
+			setPreviousBackgroundUrl(null);
+			setIsBackgroundFading(false);
+			return;
+		}
+
+		if (!visibleBackgroundUrl) {
+			setVisibleBackgroundUrl(nextUrl);
+			setPreviousBackgroundUrl(null);
+			setIsBackgroundFading(false);
+			return;
+		}
+
+		if (visibleBackgroundUrl === nextUrl) return;
+
+		setPreviousBackgroundUrl(visibleBackgroundUrl);
+		setVisibleBackgroundUrl(nextUrl);
+		setIsBackgroundFading(true);
+		backgroundFadeTimeoutRef.current = window.setTimeout(() => {
+			setPreviousBackgroundUrl(null);
+			setIsBackgroundFading(false);
+			backgroundFadeTimeoutRef.current = null;
+		}, 1200);
+
+		return () => {
+			if (backgroundFadeTimeoutRef.current !== null) {
+				window.clearTimeout(backgroundFadeTimeoutRef.current);
+				backgroundFadeTimeoutRef.current = null;
+			}
+		};
+	}, [view, backgroundImage, visibleBackgroundUrl]);
 
 	function describeError(err: unknown): string {
 		const message = err instanceof Error ? err.message : String(err);
@@ -107,6 +185,52 @@ export default function App() {
 
 	function saveBackgroundFields() {
 		return backgroundImage ?? undefined;
+	}
+
+	function backgroundLayerStyle(url: string): CSSProperties {
+		return { "--background-url": `url("${url}")` } as CSSProperties;
+	}
+
+	function shouldGenerateNextBackground(storyMessages: ChatMessage[]) {
+		const assistantCount = storyMessages.filter(
+			(message) => message.role === "assistant",
+		).length;
+		return assistantCount > 1 && assistantCount % 2 === 1;
+	}
+
+	async function refreshStoryBackground(
+		selected: Genre,
+		saveId: string,
+		storyMessages: ChatMessage[],
+	) {
+		if (!shouldGenerateNextBackground(storyMessages)) return;
+
+		try {
+			const nextBackgroundImage = await generateStoryBackgroundImage(
+				selected.id,
+				storyMessages,
+			);
+			if (
+				activeSaveIdRef.current !== saveId ||
+				nextBackgroundImage.backgroundImageSource !== "generated"
+			) {
+				return;
+			}
+
+			setBackgroundImage(nextBackgroundImage);
+			void persistStory({
+				id: saveId,
+				genreId: selected.id,
+				title: activeTitleRef.current ?? fallbackTitle(selected),
+				messages: messagesRef.current,
+				segments: segmentsRef.current,
+				currentTarget: currentTargetRef.current,
+				phase: phaseRef.current,
+				...nextBackgroundImage,
+			});
+		} catch (err) {
+			console.warn("Could not refresh the story background image.", err);
+		}
 	}
 
 	const refreshSavedStories = useCallback(async () => {
@@ -303,6 +427,7 @@ export default function App() {
 				},
 				{ generateTitle: true },
 			);
+			void refreshStoryBackground(genre, activeSaveId, updated);
 		} catch (err) {
 			setError(describeError(err));
 		}
@@ -382,6 +507,23 @@ export default function App() {
 
 	return (
 		<div className={`app app--${view}`}>
+			{view === "story" && visibleBackgroundUrl && (
+				<>
+					{previousBackgroundUrl && (
+						<div
+							className="story-background story-background--previous"
+							style={backgroundLayerStyle(previousBackgroundUrl)}
+						/>
+					)}
+					<div
+						className={`story-background story-background--current${
+							isBackgroundFading ? " story-background--fading" : ""
+						}`}
+						style={backgroundLayerStyle(visibleBackgroundUrl)}
+					/>
+				</>
+			)}
+
 			<header className="header">
 				<h1>Story Typing Practice</h1>
 				<p className="subtitle">

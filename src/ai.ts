@@ -1,4 +1,5 @@
-import type { Genre } from "./genres";
+import type { Genre, GenreId } from "./genres";
+import type { StoryBackgroundImage } from "./storyBackground";
 
 export type ChatMessage = {
 	role: "system" | "user" | "assistant";
@@ -45,6 +46,19 @@ export async function continueStory(
 	const text = await complete(messages);
 	messages.push({ role: "assistant", content: text });
 	return { text, messages };
+}
+
+export async function generateStoryBackgroundImage(
+	genreId: GenreId,
+	messages: ChatMessage[],
+): Promise<StoryBackgroundImage> {
+	const res = await fetch("/api/ai/background-image", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ genreId, messages }),
+	});
+	if (!res.ok) throw new Error(`Image request failed: ${res.status}`);
+	return res.json() as Promise<StoryBackgroundImage>;
 }
 
 /** Creates a short title for a saved story without changing the story history. */

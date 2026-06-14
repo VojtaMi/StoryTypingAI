@@ -1,7 +1,9 @@
 import OpenAI from "openai";
 import type { Plugin } from "vite";
+import type { ChatMessage } from "../ai";
 import { completeAi } from "./aiService";
 import { readBody, sendJson } from "./http";
+import { createBackgroundImage, findGenre } from "./openingsStore";
 
 export function aiApi(apiKey: string): Plugin {
 	return {
@@ -9,12 +11,35 @@ export function aiApi(apiKey: string): Plugin {
 		configureServer(server) {
 			const openai = new OpenAI({ apiKey });
 			server.middlewares.use(async (req, res, next) => {
-				if (req.url !== "/api/ai/complete" || req.method !== "POST") {
+				if (
+					(req.url !== "/api/ai/complete" &&
+						req.url !== "/api/ai/background-image") ||
+					req.method !== "POST"
+				) {
 					next();
 					return;
 				}
 
 				try {
+					if (req.url === "/api/ai/background-image") {
+						const { genreId, messages } = JSON.parse(await readBody(req));
+						const genre = findGenre(genreId);
+						if (!genre) {
+							sendJson(res, 404, { error: "Genre not found." });
+							return;
+						}
+						sendJson(
+							res,
+							200,
+							await createBackgroundImage(
+								openai,
+								genre,
+								storyTextFromMessages(messages),
+							),
+						);
+						return;
+					}
+
 					const { messages, maxTokens = 150 } = JSON.parse(await readBody(req));
 					sendJson(res, 200, {
 						text: await completeAi(openai, messages, maxTokens),
@@ -26,4 +51,12 @@ export function aiApi(apiKey: string): Plugin {
 			});
 		},
 	};
+}
+
+function storyTextFromMessages(messages: ChatMessage[]) {
+	return messages
+		.filter((message) => message.role !== "system")
+		.map((message) => message.content)
+		.join("\n\n")
+		.slice(-3000);
 }

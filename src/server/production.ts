@@ -3,11 +3,13 @@ import { createServer } from "node:http";
 import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import OpenAI from "openai";
+import type { ChatMessage } from "../ai";
 import type { GenreId } from "../genres";
 import { completeAi } from "./aiService";
 import { readBody, sendJson } from "./http";
 import {
 	consumePreparedOpening,
+	createBackgroundImage,
 	findGenre,
 	imageFilePattern,
 	listPreparedOpenings,
@@ -180,6 +182,25 @@ const server = createServer(async (req, res) => {
 			return;
 		}
 
+		if (pathname === "/api/ai/background-image" && req.method === "POST") {
+			const { genreId, messages } = JSON.parse(await readBody(req));
+			const genre = findGenre(genreId);
+			if (!genre) {
+				sendJson(res, 404, { error: "Genre not found." });
+				return;
+			}
+			sendJson(
+				res,
+				200,
+				await createBackgroundImage(
+					openai,
+					genre,
+					storyTextFromMessages(messages),
+				),
+			);
+			return;
+		}
+
 		await serveStatic(res, pathname);
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
@@ -191,3 +212,11 @@ const server = createServer(async (req, res) => {
 server.listen(PORT, () => {
 	console.log(`Listening on port ${PORT}`);
 });
+
+function storyTextFromMessages(messages: ChatMessage[]) {
+	return messages
+		.filter((message) => message.role !== "system")
+		.map((message) => message.content)
+		.join("\n\n")
+		.slice(-3000);
+}
