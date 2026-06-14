@@ -15,7 +15,7 @@ async function complete(
 		body: JSON.stringify({ messages, maxTokens }),
 	});
 	if (!res.ok) throw new Error(`AI request failed: ${res.status}`);
-	const { text } = await res.json();
+	const { text } = (await res.json()) as { text?: string };
 	if (!text) throw new Error("The AI returned an empty response.");
 	return text;
 }
