@@ -5,6 +5,7 @@ import type { StoryBackgroundImage } from "./storyBackground";
 export interface PreparedOpening extends Partial<StoryBackgroundImage> {
 	genreId: GenreId;
 	text: string;
+	backgroundIntro?: string;
 	messages: ChatMessage[];
 	createdAt: string;
 }

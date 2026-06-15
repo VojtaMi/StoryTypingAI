@@ -5,11 +5,11 @@ import { normalizeStoryText } from "./http";
 export async function completeAi(
 	openai: OpenAI,
 	messages: ChatMessage[],
-	maxTokens = 150,
+	max_completion_tokens = 200,
 ) {
 	const response = await openai.chat.completions.create({
-		model: "gpt-4o-mini",
-		max_tokens: maxTokens,
+		model: "gpt-5.4-mini",
+		max_completion_tokens: max_completion_tokens,
 		messages,
 	});
 	const raw = response.choices[0]?.message?.content?.trim();

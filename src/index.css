@@ -385,6 +385,19 @@ body[data-view="menu"] {
 }
 
 /* ---- Story ---- */
+.story__intro {
+	margin: 0 0 1.25rem;
+	padding: 0.85rem 1.1rem;
+	border-radius: 10px;
+	line-height: 1.6;
+	white-space: pre-wrap;
+	box-shadow: 0 12px 34px rgba(0, 0, 0, 0.25);
+	backdrop-filter: blur(12px) saturate(120%);
+	background: var(--story-panel);
+	border-left: 3px solid var(--muted);
+	color: #a9b4d6;
+}
+
 .story {
 	--story-panel: rgba(20, 23, 34, 0.74);
 	--story-panel-strong: rgba(20, 23, 34, 0.86);

@@ -9,6 +9,7 @@ import {
 	type ChatMessage,
 	continueStory,
 	generateStoryBackgroundImage,
+	generateStoryIntro,
 	startStory,
 	titleStory,
 } from "./ai";
@@ -39,6 +40,7 @@ export default function App() {
 	const [error, setError] = useState<string | null>(null);
 	const [activeSaveId, setActiveSaveId] = useState<string | null>(null);
 	const [activeTitle, setActiveTitle] = useState<string | null>(null);
+	const [backgroundIntro, setBackgroundIntro] = useState<string | null>(null);
 	const [backgroundImage, setBackgroundImage] =
 		useState<StoryBackgroundImage | null>(null);
 	const [visibleBackgroundUrl, setVisibleBackgroundUrl] = useState<
@@ -319,7 +321,11 @@ export default function App() {
 		setPhase("loading");
 		setView("story");
 		try {
-			let opening: { text: string; messages: ChatMessage[] } | null = null;
+			let opening: {
+				text: string;
+				messages: ChatMessage[];
+				backgroundIntro?: string;
+			} | null = null;
 			try {
 				opening = await consumePreparedOpening(selected.id);
 			} catch (err) {
@@ -333,9 +339,13 @@ export default function App() {
 			}
 
 			const { text, messages: seeded } = opening;
+			const intro =
+				opening.backgroundIntro ||
+				(await generateStoryIntro(selected.label, text).catch(() => ""));
 			const nextBackgroundImage = backgroundFromOpening(opening, selected);
 			setMessages(seeded);
 			setCurrentTarget(text);
+			setBackgroundIntro(intro);
 			setBackgroundImage(nextBackgroundImage);
 			setPhase("typing");
 			void persistStory(
@@ -347,6 +357,7 @@ export default function App() {
 					segments: [],
 					currentTarget: text,
 					phase: "typing",
+					backgroundIntro: intro,
 					...nextBackgroundImage,
 				},
 				{ generateTitle: true },
@@ -374,6 +385,7 @@ export default function App() {
 				segments: nextSegments,
 				currentTarget: null,
 				phase: "authoring",
+				backgroundIntro: backgroundIntro ?? undefined,
 				...saveBackgroundFields(),
 			});
 		}
@@ -403,6 +415,7 @@ export default function App() {
 			segments: nextSegments,
 			currentTarget: null,
 			phase: "loading",
+			backgroundIntro: backgroundIntro ?? undefined,
 			...saveBackgroundFields(),
 		});
 
@@ -423,6 +436,7 @@ export default function App() {
 					segments: nextSegments,
 					currentTarget: text,
 					phase: "typing",
+					backgroundIntro: backgroundIntro ?? undefined,
 					...saveBackgroundFields(),
 				},
 				{ generateTitle: true },
@@ -443,6 +457,7 @@ export default function App() {
 				segments,
 				currentTarget,
 				phase,
+				backgroundIntro: backgroundIntro ?? undefined,
 				...saveBackgroundFields(),
 			});
 		}
@@ -453,6 +468,7 @@ export default function App() {
 		setCurrentTarget(null);
 		setError(null);
 		setPhase("loading");
+		setBackgroundIntro(null);
 		setBackgroundImage(null);
 		activeSaveIdRef.current = null;
 		setActiveSaveId(null);
@@ -475,6 +491,7 @@ export default function App() {
 			setSegments(save.segments);
 			setCurrentTarget(save.currentTarget);
 			setPhase(save.phase);
+			setBackgroundIntro(save.backgroundIntro ?? null);
 			setBackgroundImage(
 				save.backgroundImageUrl &&
 					(save.backgroundImageSource === "generated" ||
@@ -549,6 +566,7 @@ export default function App() {
 					currentTarget={currentTarget}
 					phase={phase}
 					error={error}
+					backgroundIntro={backgroundIntro ?? undefined}
 					onTypingComplete={handleTypingComplete}
 					onSubmitContinuation={submitContinuation}
 					onBackToMenu={backToMenu}

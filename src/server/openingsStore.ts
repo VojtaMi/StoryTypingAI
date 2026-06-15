@@ -13,6 +13,7 @@ export const imageFilePattern = /^[a-zA-Z0-9_-]+\.webp$/;
 interface PreparedOpening extends Partial<StoryBackgroundImage> {
 	genreId: GenreId;
 	text: string;
+	backgroundIntro?: string;
 	messages: Array<{
 		role: "system" | "user" | "assistant";
 		content: string;
@@ -74,18 +75,56 @@ async function createPreparedOpening(
 	openai: OpenAI,
 	genre: Genre,
 ): Promise<PreparedOpening> {
+	const seed = genre.seeds[Math.floor(Math.random() * genre.seeds.length)];
+	const userContent = seed
+		? `Begin the story. Seed element: ${seed}.`
+		: "Begin the story.";
 	const messages: PreparedOpening["messages"] = [
 		{ role: "system", content: genre.systemPrompt },
-		{ role: "user", content: "Begin the story." },
+		{ role: "user", content: userContent },
 	];
 	const text = await completeAi(openai, messages);
+	const [backgroundIntro, backgroundImage] = await Promise.all([
+		createBackgroundIntro(openai, genre, text),
+		createBackgroundImage(openai, genre, text),
+	]);
 	return {
 		genreId: genre.id,
 		text,
+		backgroundIntro,
 		messages: [...messages, { role: "assistant", content: text }],
-		...(await createBackgroundImage(openai, genre, text)),
+		...backgroundImage,
 		createdAt: new Date().toISOString(),
 	};
+}
+
+async function createBackgroundIntro(
+	openai: OpenAI,
+	genre: Genre,
+	openingText: string,
+): Promise<string> {
+	try {
+		return await completeAi(
+			openai,
+			[
+				{
+					role: "system",
+					content:
+						"Write a 1-2 sentence second-person character introduction for an interactive story. " +
+						"State concretely who the player character is and what brought them to this place. " +
+						"Start with 'You'. Output only the introduction — no quotes, no headings.",
+				},
+				{
+					role: "user",
+					content: `${genre.label} story opening:\n${openingText}`,
+				},
+			],
+			100,
+		);
+	} catch (err) {
+		console.warn("Could not generate background intro.", err);
+		return "";
+	}
 }
 
 export async function createBackgroundImage(

@@ -12,7 +12,8 @@
 		"lint": "biome ci .",
 		"lint:fix": "biome check --write .",
 		"lint:staged": "biome check --staged --no-errors-on-unmatched",
-		"prepare": "husky"
+		"prepare": "husky",
+		"test:opening": "tsx scripts/test-opening.ts"
 	},
 	"dependencies": {
 		"openai": "^6.42.0",
@@ -26,6 +27,7 @@
 		"@types/react-dom": "^19.1.0",
 		"@vitejs/plugin-react": "^4.3.4",
 		"husky": "^9.1.7",
+		"tsx": "^4.19.4",
 		"typescript": "^5.6.3",
 		"vite": "^5.4.11"
 	}

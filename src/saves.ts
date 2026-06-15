@@ -12,6 +12,7 @@ export interface SavedStory extends Partial<StoryBackgroundImage> {
 	segments: StorySegment[];
 	currentTarget: string | null;
 	phase: StoryPhase;
+	backgroundIntro?: string;
 }
 
 export interface SavedStorySummary {

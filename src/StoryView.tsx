@@ -14,6 +14,7 @@ interface StoryViewProps {
 	currentTarget: string | null;
 	phase: StoryPhase;
 	error: string | null;
+	backgroundIntro?: string;
 	onTypingComplete: (stats: TypingStats) => void;
 	onSubmitContinuation: (text: string) => void;
 	onBackToMenu: () => void;
@@ -24,6 +25,7 @@ export default function StoryView({
 	currentTarget,
 	phase,
 	error,
+	backgroundIntro,
 	onTypingComplete,
 	onSubmitContinuation,
 	onBackToMenu,
@@ -39,6 +41,8 @@ export default function StoryView({
 
 	return (
 		<div className="story">
+			{backgroundIntro && <p className="story__intro">{backgroundIntro}</p>}
+
 			{segments.length > 0 && (
 				<div className="story__log">
 					{segments.map((segment) => (

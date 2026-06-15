@@ -35,7 +35,7 @@ story and a typing drill at once.
 ## Tech
 
 React 19 + TypeScript + Vite, with the [`openai`](https://www.npmjs.com/package/openai)
-SDK for story generation (model `gpt-4o-mini`, configurable in `vite.config.ts`).
+SDK for story generation (model `gpt-5.4-mini`, configurable in `vite.config.ts`).
 The dev server exposes local `/api/saves` endpoints for JSON file saves and a
 `/api/ai/complete` endpoint that proxies OpenAI calls server-side.
 

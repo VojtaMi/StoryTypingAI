@@ -8,12 +8,12 @@ export type ChatMessage = {
 
 async function complete(
 	messages: ChatMessage[],
-	maxTokens = 150,
+	max_completion_tokens = 150,
 ): Promise<string> {
 	const res = await fetch("/api/ai/complete", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ messages, maxTokens }),
+		body: JSON.stringify({ messages, max_completion_tokens }),
 	});
 	if (!res.ok) throw new Error(`AI request failed: ${res.status}`);
 	const { text } = (await res.json()) as { text?: string };
@@ -59,6 +59,29 @@ export async function generateStoryBackgroundImage(
 	});
 	if (!res.ok) throw new Error(`Image request failed: ${res.status}`);
 	return res.json() as Promise<StoryBackgroundImage>;
+}
+
+/** Generates a 1-2 sentence second-person intro describing who the player is and what brought them here. */
+export async function generateStoryIntro(
+	genreLabel: string,
+	openingText: string,
+): Promise<string> {
+	return complete(
+		[
+			{
+				role: "system",
+				content:
+					"Write a 1-2 sentence second-person character introduction for an interactive story. " +
+					"State concretely who the player character is and what brought them to this place. " +
+					"Start with 'You'. Output only the introduction — no quotes, no headings.",
+			},
+			{
+				role: "user",
+				content: `${genreLabel} story opening:\n${openingText}`,
+			},
+		],
+		100,
+	);
 }
 
 /** Creates a short title for a saved story without changing the story history. */
