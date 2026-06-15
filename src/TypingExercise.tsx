@@ -21,7 +21,7 @@ export default function TypingExercise({
 	const [finishedAt, setFinishedAt] = useState<number | null>(null);
 	const [now, setNow] = useState<number>(() => Date.now());
 
-	const inputRef = useRef<HTMLInputElement>(null);
+	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const isComplete = finishedAt !== null;
 
 	// Reset all state and refocus whenever a new target arrives.
@@ -75,7 +75,7 @@ export default function TypingExercise({
 
 	const progress = Math.round((typedCount / target.length) * 100);
 
-	function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+	function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
 		if (isComplete) return;
 		const value = e.target.value.slice(0, target.length);
 
@@ -132,13 +132,14 @@ export default function TypingExercise({
 						</span>
 					);
 				})}
-				<input
+				<textarea
 					id="typing-input"
 					ref={inputRef}
 					className="hidden-input"
 					value={typedValue}
 					onChange={handleChange}
 					maxLength={target.length}
+					rows={1}
 					autoComplete="off"
 					autoCorrect="off"
 					autoCapitalize="off"
