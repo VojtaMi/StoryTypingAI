@@ -14,6 +14,7 @@ openings/
 story-images/
 
 # Editor directories and files
+.codex
 .claude/
 .vscode/*
 !.vscode/extensions.json
