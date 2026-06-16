@@ -12,8 +12,8 @@ export default defineConfig(({ mode }) => {
 			react(),
 			savesApi(),
 			storyImagesApi(),
-			openingsApi(env.OPENAI_API_KEY),
-			aiApi(env.OPENAI_API_KEY),
+			openingsApi(env.OPENAI_API_KEY, env.ANTHROPIC_API_KEY),
+			aiApi(env.OPENAI_API_KEY, env.ANTHROPIC_API_KEY),
 		],
 	};
 });

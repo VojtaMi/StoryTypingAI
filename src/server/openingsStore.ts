@@ -2,6 +2,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type OpenAI from "openai";
 import { type Genre, type GenreId, genres } from "../genres";
+import { DEFAULT_TEXT_MODEL } from "../models";
 import type { StoryBackgroundImage } from "../storyBackground";
 import { completeAi } from "./aiService";
 
@@ -35,7 +36,11 @@ export async function listPreparedOpenings() {
 		}));
 }
 
-export async function prepareMissingOpenings(openai: OpenAI) {
+export async function prepareMissingOpenings(
+	openai: OpenAI,
+	model = DEFAULT_TEXT_MODEL,
+	anthropicKey = "",
+) {
 	await mkdir(openingsDir, { recursive: true });
 
 	for (const genre of genres) {
@@ -49,7 +54,12 @@ export async function prepareMissingOpenings(openai: OpenAI) {
 			continue;
 		}
 
-		const opening = await createPreparedOpening(openai, genre);
+		const opening = await createPreparedOpening(
+			openai,
+			genre,
+			model,
+			anthropicKey,
+		);
 		await writePreparedOpening(opening);
 	}
 }
@@ -74,6 +84,8 @@ export function findGenre(genreId: string): Genre | undefined {
 async function createPreparedOpening(
 	openai: OpenAI,
 	genre: Genre,
+	model = DEFAULT_TEXT_MODEL,
+	anthropicKey = "",
 ): Promise<PreparedOpening> {
 	const seed = genre.seeds[Math.floor(Math.random() * genre.seeds.length)];
 	const userContent = seed
@@ -83,9 +95,9 @@ async function createPreparedOpening(
 		{ role: "system", content: genre.systemPrompt },
 		{ role: "user", content: userContent },
 	];
-	const text = await completeAi(openai, messages);
+	const text = await completeAi(openai, messages, 200, model, anthropicKey);
 	const [backgroundIntro, backgroundImage] = await Promise.all([
-		createBackgroundIntro(openai, genre, text),
+		createBackgroundIntro(openai, genre, text, model, anthropicKey),
 		createBackgroundImage(openai, genre, text),
 	]);
 	return {
@@ -102,6 +114,8 @@ async function createBackgroundIntro(
 	openai: OpenAI,
 	genre: Genre,
 	openingText: string,
+	model = DEFAULT_TEXT_MODEL,
+	anthropicKey = "",
 ): Promise<string> {
 	try {
 		return await completeAi(
@@ -120,6 +134,8 @@ async function createBackgroundIntro(
 				},
 			],
 			100,
+			model,
+			anthropicKey,
 		);
 	} catch (err) {
 		console.warn("Could not generate background intro.", err);

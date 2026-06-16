@@ -1,9 +1,12 @@
 import { type Genre, genres } from "./genres";
+import { TEXT_MODELS, type TextModelId } from "./models";
 import type { SavedStorySummary } from "./saves";
 
 interface MenuProps {
 	savedStories: SavedStorySummary[];
 	savesError: string | null;
+	model: TextModelId;
+	onModelChange: (id: TextModelId) => void;
 	onSelect: (genre: Genre) => void;
 	onResume: (id: string) => void;
 	onDelete: (id: string) => void;
@@ -12,12 +15,29 @@ interface MenuProps {
 export default function Menu({
 	savedStories,
 	savesError,
+	model,
+	onModelChange,
 	onSelect,
 	onResume,
 	onDelete,
 }: MenuProps) {
 	return (
 		<div className="menu">
+			<div className="menu__settings">
+				<label htmlFor="model-select">AI model</label>
+				<select
+					id="model-select"
+					value={model}
+					onChange={(e) => onModelChange(e.target.value as TextModelId)}
+				>
+					{TEXT_MODELS.map((m) => (
+						<option key={m.id} value={m.id}>
+							{m.label}
+						</option>
+					))}
+				</select>
+			</div>
+
 			<p className="menu__prompt">Choose a genre to begin your story</p>
 			<div className="menu__grid">
 				{genres.map((genre) => (

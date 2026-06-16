@@ -15,6 +15,7 @@ import {
 } from "./ai";
 import { type Genre, genres } from "./genres";
 import Menu from "./Menu";
+import { DEFAULT_TEXT_MODEL, TEXT_MODELS, type TextModelId } from "./models";
 import { consumePreparedOpening, prepareMissingOpenings } from "./openings";
 import StoryView, { type StoryPhase, type StorySegment } from "./StoryView";
 import {
@@ -52,6 +53,10 @@ export default function App() {
 	const [isBackgroundFading, setIsBackgroundFading] = useState(false);
 	const [savedStories, setSavedStories] = useState<SavedStorySummary[]>([]);
 	const [savesError, setSavesError] = useState<string | null>(null);
+	const [model, setModel] = useState<TextModelId>(() => {
+		const stored = localStorage.getItem("ai-model");
+		return TEXT_MODELS.find((m) => m.id === stored)?.id ?? DEFAULT_TEXT_MODEL;
+	});
 	const activeSaveIdRef = useRef<string | null>(null);
 	const activeTitleRef = useRef<string | null>(null);
 	const messagesRef = useRef<ChatMessage[]>([]);
@@ -249,13 +254,13 @@ export default function App() {
 		if (preparingOpeningsRef.current) return;
 		preparingOpeningsRef.current = true;
 		try {
-			await prepareMissingOpenings();
+			await prepareMissingOpenings(model);
 		} catch (err) {
 			console.warn("Could not prepare story openings.", err);
 		} finally {
 			preparingOpeningsRef.current = false;
 		}
-	}, []);
+	}, [model]);
 
 	useEffect(() => {
 		void (async () => {
@@ -290,7 +295,7 @@ export default function App() {
 		if (!options.generateTitle) return;
 
 		try {
-			const title = await titleStory(save.messages);
+			const title = await titleStory(save.messages, model);
 			if (!title) return;
 			const titled = {
 				...stamped,
@@ -333,7 +338,7 @@ export default function App() {
 			}
 
 			if (!opening) {
-				opening = await startStory(selected);
+				opening = await startStory(selected, model);
 			} else {
 				void prepareOpeningsInBackground();
 			}
@@ -341,7 +346,7 @@ export default function App() {
 			const { text, messages: seeded } = opening;
 			const intro =
 				opening.backgroundIntro ||
-				(await generateStoryIntro(selected.label, text).catch(() => ""));
+				(await generateStoryIntro(selected.label, text, model).catch(() => ""));
 			const nextBackgroundImage = backgroundFromOpening(opening, selected);
 			setMessages(seeded);
 			setCurrentTarget(text);
@@ -423,6 +428,7 @@ export default function App() {
 			const { text, messages: updated } = await continueStory(
 				messages,
 				userText,
+				model,
 			);
 			setMessages(updated);
 			setCurrentTarget(text);
@@ -511,6 +517,11 @@ export default function App() {
 		}
 	}
 
+	function handleModelChange(id: TextModelId) {
+		localStorage.setItem("ai-model", id);
+		setModel(id);
+	}
+
 	async function removeSavedStory(id: string) {
 		try {
 			setSavesError(null);
@@ -554,6 +565,8 @@ export default function App() {
 				<Menu
 					savedStories={savedStories}
 					savesError={savesError}
+					model={model}
+					onModelChange={handleModelChange}
 					onSelect={selectGenre}
 					onResume={resumeStory}
 					onDelete={removeSavedStory}

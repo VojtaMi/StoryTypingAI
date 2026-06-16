@@ -1,5 +1,6 @@
 import type { ChatMessage } from "./ai";
 import type { GenreId } from "./genres";
+import { DEFAULT_TEXT_MODEL, type TextModelId } from "./models";
 import type { StoryBackgroundImage } from "./storyBackground";
 
 export interface PreparedOpening extends Partial<StoryBackgroundImage> {
@@ -22,10 +23,14 @@ export async function listPreparedOpenings(): Promise<
 	return parseResponse<PreparedOpeningSummary[]>(response);
 }
 
-export async function prepareMissingOpenings(): Promise<
-	PreparedOpeningSummary[]
-> {
-	const response = await fetch("/api/openings/prepare", { method: "POST" });
+export async function prepareMissingOpenings(
+	model: TextModelId = DEFAULT_TEXT_MODEL,
+): Promise<PreparedOpeningSummary[]> {
+	const response = await fetch("/api/openings/prepare", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ model }),
+	});
 	return parseResponse<PreparedOpeningSummary[]>(response);
 }
 

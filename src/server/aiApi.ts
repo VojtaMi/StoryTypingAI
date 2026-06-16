@@ -1,15 +1,16 @@
 import OpenAI from "openai";
 import type { Plugin } from "vite";
 import type { ChatMessage } from "../ai";
+import { DEFAULT_TEXT_MODEL } from "../models";
 import { completeAi } from "./aiService";
 import { readBody, sendJson } from "./http";
 import { createBackgroundImage, findGenre } from "./openingsStore";
 
-export function aiApi(apiKey: string): Plugin {
+export function aiApi(openaiKey: string, anthropicKey: string): Plugin {
 	return {
 		name: "ai-proxy-api",
 		configureServer(server) {
-			const openai = new OpenAI({ apiKey });
+			const openai = new OpenAI({ apiKey: openaiKey });
 			server.middlewares.use(async (req, res, next) => {
 				if (
 					(req.url !== "/api/ai/complete" &&
@@ -40,9 +41,19 @@ export function aiApi(apiKey: string): Plugin {
 						return;
 					}
 
-					const { messages, maxTokens = 150 } = JSON.parse(await readBody(req));
+					const {
+						messages,
+						maxTokens = 150,
+						model = DEFAULT_TEXT_MODEL,
+					} = JSON.parse(await readBody(req));
 					sendJson(res, 200, {
-						text: await completeAi(openai, messages, maxTokens),
+						text: await completeAi(
+							openai,
+							messages,
+							maxTokens,
+							model,
+							anthropicKey,
+						),
 					});
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);

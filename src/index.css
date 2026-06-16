@@ -244,6 +244,26 @@ body[data-view="menu"] {
 	margin-top: 2rem;
 }
 
+.menu__settings {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.5rem;
+	margin-bottom: 1.5rem;
+	font-size: 0.85rem;
+	color: var(--muted);
+}
+
+.menu__settings select {
+	background: var(--surface);
+	color: var(--text);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 0.25rem 0.5rem;
+	font-size: 0.85rem;
+	cursor: pointer;
+}
+
 .menu__prompt {
 	text-align: center;
 	color: var(--muted);

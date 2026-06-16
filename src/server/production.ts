@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import OpenAI from "openai";
 import type { ChatMessage } from "../ai";
 import type { GenreId } from "../genres";
+import { DEFAULT_TEXT_MODEL } from "../models";
 import { completeAi } from "./aiService";
 import { readBody, sendJson } from "./http";
 import {
@@ -27,6 +28,7 @@ import {
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PORT = Number(process.env.PORT) || 80;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? "";
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? "";
 const distDir = join(__dirname, "dist");
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -85,7 +87,14 @@ const server = createServer(async (req, res) => {
 		}
 
 		if (pathname === "/api/openings/prepare" && req.method === "POST") {
-			preparePromise ??= prepareMissingOpenings(openai).finally(() => {
+			const body = req.headers["content-length"]
+				? JSON.parse(await readBody(req))
+				: {};
+			preparePromise ??= prepareMissingOpenings(
+				openai,
+				body.model,
+				ANTHROPIC_API_KEY,
+			).finally(() => {
 				preparePromise = null;
 			});
 			await preparePromise;
@@ -175,9 +184,19 @@ const server = createServer(async (req, res) => {
 		}
 
 		if (pathname === "/api/ai/complete" && req.method === "POST") {
-			const { messages, maxTokens = 150 } = JSON.parse(await readBody(req));
+			const {
+				messages,
+				maxTokens = 150,
+				model = DEFAULT_TEXT_MODEL,
+			} = JSON.parse(await readBody(req));
 			sendJson(res, 200, {
-				text: await completeAi(openai, messages, maxTokens),
+				text: await completeAi(
+					openai,
+					messages,
+					maxTokens,
+					model,
+					ANTHROPIC_API_KEY,
+				),
 			});
 			return;
 		}

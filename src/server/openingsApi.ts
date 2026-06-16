@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import type { Plugin } from "vite";
 import type { GenreId } from "../genres";
-import { sendJson } from "./http";
+import { readBody, sendJson } from "./http";
 import {
 	consumePreparedOpening,
 	findGenre,
@@ -11,7 +11,7 @@ import {
 	readStoryImage,
 } from "./openingsStore";
 
-export function openingsApi(apiKey: string): Plugin {
+export function openingsApi(apiKey: string, anthropicKey: string): Plugin {
 	let preparePromise: Promise<void> | null = null;
 
 	return {
@@ -40,7 +40,14 @@ export function openingsApi(apiKey: string): Plugin {
 						parts[2] === "prepare" &&
 						req.method === "POST"
 					) {
-						preparePromise ??= prepareMissingOpenings(openai).finally(() => {
+						const body = req.headers["content-length"]
+							? JSON.parse(await readBody(req))
+							: {};
+						preparePromise ??= prepareMissingOpenings(
+							openai,
+							body.model,
+							anthropicKey,
+						).finally(() => {
 							preparePromise = null;
 						});
 						await preparePromise;
