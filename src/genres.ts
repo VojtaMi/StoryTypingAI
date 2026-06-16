@@ -18,7 +18,7 @@ const sharedStyleGuide =
 	"The user adds their own continuations; build on them naturally and keep the story coherent. " +
 	"End each segment with a concrete sensory beat that implies the character must act or decide — " +
 	"a sound, a sight, a threshold not yet crossed. Do not resolve it. " +
-	"Output only the story prose — no titles, headings, meta-commentary, or instructions to the user.";
+	"Output only plain story prose — no Markdown formatting, titles, headings, meta-commentary, or instructions to the user.";
 
 export const genres: Genre[] = [
 	{

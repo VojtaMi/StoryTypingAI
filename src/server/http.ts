@@ -27,6 +27,7 @@ export function normalizeStoryText(text: string): string {
 		.replace(/[‘’‚‛]/g, "'")
 		.replace(/[“”„‟]/g, '"')
 		.replace(/\*\*([^*\n]+)\*\*/g, "$1")
+		.replace(/(^|[\s(["])\*([^*\n]+)\*(?=[\s.,;:!?")\]]|$)/g, "$1$2")
 		.replace(/–/g, "-")
 		.replace(/—/g, "--")
 		.replace(/…/g, "...");
