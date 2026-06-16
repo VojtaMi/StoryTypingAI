@@ -58,7 +58,6 @@ export const genres: Genre[] = [
 		systemPrompt: `${sharedStyleGuide} The genre is science fiction: distant futures, advanced technology, alien worlds, and the unknown reaches of space.`,
 		seeds: [
 			// wonder / positive
-			"garden world",
 			"optimism",
 			"aspiration",
 			"uplift",
@@ -76,7 +75,6 @@ export const genres: Genre[] = [
 			"orbital ring",
 			"o'neill cylinder",
 			"ice",
-			"revival",
 			"artifact",
 			"consciousness",
 			"robots",
@@ -84,7 +82,6 @@ export const genres: Genre[] = [
 			"time",
 			"planet",
 			"sea",
-			"alien sunrise",
 			// dark / tension
 			"AI conflict",
 			"abandoned",

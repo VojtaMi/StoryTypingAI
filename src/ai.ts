@@ -1,11 +1,15 @@
 import type { Genre, GenreId } from "./genres";
 import { DEFAULT_TEXT_MODEL, type TextModelId } from "./models";
+import {
+	type ChatMessage,
+	type Complete,
+	generateIntro,
+	generateTitle,
+	openingMessages,
+} from "./story";
 import type { StoryBackgroundImage } from "./storyBackground";
 
-export type ChatMessage = {
-	role: "system" | "user" | "assistant";
-	content: string;
-};
+export type { ChatMessage };
 
 type StreamEvent =
 	| { type: "chunk"; text?: string }
@@ -78,15 +82,17 @@ async function completeStream(
 	return finalText;
 }
 
+/** Binds the HTTP transport to a model, producing a generic completion function for the story domain. */
+function httpCompleter(model: TextModelId): Complete {
+	return (messages, maxTokens) => complete(messages, model, maxTokens);
+}
+
 /** Begins a new story for the given genre. Returns the opening and the seeded history. */
 export async function startStory(
 	genre: Genre,
 	model: TextModelId = DEFAULT_TEXT_MODEL,
 ): Promise<{ text: string; messages: ChatMessage[] }> {
-	const messages: ChatMessage[] = [
-		{ role: "system", content: genre.systemPrompt },
-		{ role: "user", content: "Begin the story." },
-	];
+	const messages = openingMessages(genre);
 	const text = await complete(messages, model);
 	messages.push({ role: "assistant", content: text });
 	return { text, messages };
@@ -127,23 +133,7 @@ export async function generateStoryIntro(
 	openingText: string,
 	model: TextModelId = DEFAULT_TEXT_MODEL,
 ): Promise<string> {
-	return complete(
-		[
-			{
-				role: "system",
-				content:
-					"Write a 1-2 sentence second-person character introduction for an interactive story. " +
-					"State concretely who the player character is and what brought them to this place. " +
-					"Start with 'You'. Output only the introduction — no quotes, no headings.",
-			},
-			{
-				role: "user",
-				content: `${genreLabel} story opening:\n${openingText}`,
-			},
-		],
-		model,
-		100,
-	);
+	return generateIntro(httpCompleter(model), genreLabel, openingText);
 }
 
 /** Creates a short title for a saved story without changing the story history. */
@@ -152,23 +142,10 @@ export async function titleStory(
 	model: TextModelId = DEFAULT_TEXT_MODEL,
 ): Promise<string> {
 	const storyText = history
-		.filter((message) => message.role !== "system")
+		.filter((message) => message.role === "assistant")
 		.map((message) => message.content)
 		.join("\n\n")
 		.slice(-3000);
 
-	const text = await complete(
-		[
-			{
-				role: "system",
-				content:
-					"Create a concise title for this interactive story. Return exactly one title line, 2-6 words, with no quotes, punctuation, headings, or story prose.",
-			},
-			{ role: "user", content: storyText },
-		],
-		model,
-		40,
-	);
-
-	return text.replace(/^["']|["'.!?]$/g, "").trim();
+	return generateTitle(httpCompleter(model), storyText);
 }

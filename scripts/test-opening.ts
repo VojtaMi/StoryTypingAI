@@ -6,6 +6,7 @@
  *   npm run test:opening -- scifi                  # generate only the scifi opening
  *   npm run test:opening -- scifi 3                # generate 3 scifi openings in a row
  *   npm run test:opening -- --model gpt-5.5 scifi  # use a specific model
+ *   npm run test:opening -- --seed "garden world" scifi
  */
 import OpenAI from "openai";
 import { type GenreId, genres } from "../src/genres.ts";
@@ -15,8 +16,25 @@ import {
 	type TextModelId,
 } from "../src/models.ts";
 import { completeAi } from "../src/server/aiService.ts";
+import {
+	type Complete,
+	generateIntro,
+	generateTitle,
+	openingMessages,
+} from "../src/story.ts";
 
 const args = process.argv.slice(2);
+
+const seedFlagIndex = args.indexOf("--seed");
+let forcedSeed: string | null = null;
+if (seedFlagIndex !== -1) {
+	forcedSeed = args[seedFlagIndex + 1]?.trim() || null;
+	if (!forcedSeed) {
+		console.error("Error: --seed requires a value.");
+		process.exit(1);
+	}
+	args.splice(seedFlagIndex, 2);
+}
 
 const modelFlagIndex = args.indexOf("--model");
 let model: TextModelId = DEFAULT_TEXT_MODEL;
@@ -63,50 +81,25 @@ const openai = model.startsWith("claude-")
 
 console.log(`Using model: ${model}`);
 
+const complete: Complete = (messages, maxTokens) =>
+	completeAi(openai, messages, maxTokens, model, anthropicKey);
+
 for (const genre of targetGenres) {
 	for (let i = 0; i < count; i++) {
-		const seed = genre.seeds[Math.floor(Math.random() * genre.seeds.length)];
+		const seed =
+			forcedSeed ?? genre.seeds[Math.floor(Math.random() * genre.seeds.length)];
 		const separator = "─".repeat(60);
 		console.log(`\n${separator}`);
 		console.log(`${genre.emoji}  ${genre.label}  |  seed: ${seed}`);
 		console.log(separator);
 
-		const messages = [
-			{ role: "system" as const, content: genre.systemPrompt },
-			{
-				role: "user" as const,
-				content: `Begin the story. Seed element: ${seed}.`,
-			},
-		];
-
-		const openingText = await completeAi(
-			openai,
-			messages,
-			200,
-			model,
-			anthropicKey,
-		);
+		const openingText = await complete(openingMessages(genre, seed), 200);
 		console.log(`\nOpening:\n${openingText}`);
 
-		const introText = await completeAi(
-			openai,
-			[
-				{
-					role: "system" as const,
-					content:
-						"Write a 1-2 sentence second-person character introduction for an interactive story. " +
-						"State concretely who the player character is and what brought them to this place. " +
-						"Start with 'You'. Output only the introduction — no quotes, no headings.",
-				},
-				{
-					role: "user" as const,
-					content: `${genre.label} story opening:\n${openingText}`,
-				},
-			],
-			100,
-			model,
-			anthropicKey,
-		);
+		const titleText = await generateTitle(complete, openingText);
+		console.log(`\nTitle:\n${titleText}`);
+
+		const introText = await generateIntro(complete, genre.label, openingText);
 		console.log(`\nBackground intro:\n${introText}`);
 	}
 }
