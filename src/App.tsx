@@ -66,6 +66,7 @@ export default function App() {
 	const phaseRef = useRef<StoryPhase>("loading");
 	const backgroundFadeTimeoutRef = useRef<number | null>(null);
 	const preparingOpeningsRef = useRef(false);
+	const prepareOpeningsAgainRef = useRef(false);
 
 	useEffect(() => {
 		activeSaveIdRef.current = activeSaveId;
@@ -206,13 +207,11 @@ export default function App() {
 		return assistantCount > 1 && assistantCount % 2 === 1;
 	}
 
-	async function refreshStoryBackground(
+	async function generateAndApplyStoryBackground(
 		selected: Genre,
 		saveId: string,
 		storyMessages: ChatMessage[],
 	) {
-		if (!shouldGenerateNextBackground(storyMessages)) return;
-
 		try {
 			const nextBackgroundImage = await generateStoryBackgroundImage(
 				selected.id,
@@ -242,6 +241,15 @@ export default function App() {
 		}
 	}
 
+	async function refreshStoryBackground(
+		selected: Genre,
+		saveId: string,
+		storyMessages: ChatMessage[],
+	) {
+		if (!shouldGenerateNextBackground(storyMessages)) return;
+		await generateAndApplyStoryBackground(selected, saveId, storyMessages);
+	}
+
 	const refreshSavedStories = useCallback(async () => {
 		try {
 			setSavesError(null);
@@ -253,7 +261,10 @@ export default function App() {
 	}, []);
 
 	const prepareOpeningsInBackground = useCallback(async () => {
-		if (preparingOpeningsRef.current) return;
+		if (preparingOpeningsRef.current) {
+			prepareOpeningsAgainRef.current = true;
+			return;
+		}
 		preparingOpeningsRef.current = true;
 		try {
 			await prepareMissingOpenings(model);
@@ -261,6 +272,10 @@ export default function App() {
 			console.warn("Could not prepare story openings.", err);
 		} finally {
 			preparingOpeningsRef.current = false;
+			if (prepareOpeningsAgainRef.current) {
+				prepareOpeningsAgainRef.current = false;
+				void prepareOpeningsInBackground();
+			}
 		}
 	}, [model]);
 
@@ -331,17 +346,21 @@ export default function App() {
 				text: string;
 				messages: ChatMessage[];
 				backgroundIntro?: string;
+				backgroundImageUrl?: string;
+				backgroundImagePrompt?: string;
+				backgroundImageSource?: string;
 			} | null = null;
+			let consumedPreparedOpening = false;
 			try {
 				opening = await consumePreparedOpening(selected.id);
+				consumedPreparedOpening = Boolean(opening);
 			} catch (err) {
 				console.warn("Could not consume a prepared opening.", err);
 			}
+			void prepareOpeningsInBackground();
 
 			if (!opening) {
 				opening = await startStory(selected, model);
-			} else {
-				void prepareOpeningsInBackground();
 			}
 
 			const saveId = opening.id ?? createSaveId();
@@ -374,6 +393,9 @@ export default function App() {
 				},
 				{ generateTitle: true },
 			);
+			if (!consumedPreparedOpening) {
+				void generateAndApplyStoryBackground(selected, saveId, seeded);
+			}
 		} catch (err) {
 			setError(describeError(err));
 		}
