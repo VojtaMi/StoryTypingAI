@@ -299,8 +299,9 @@ export default function App() {
 		try {
 			const title = await titleStory(save.messages, model);
 			if (!title) return;
-			const titled = {
-				...stamped,
+			const latest = await loadSavedStory(save.id).catch(() => stamped);
+			const titled: SavedStory = {
+				...latest,
 				title,
 				updatedAt: new Date().toISOString(),
 			};
@@ -455,7 +456,7 @@ export default function App() {
 					backgroundIntro: backgroundIntro ?? undefined,
 					...saveBackgroundFields(),
 				},
-				{ generateTitle: true },
+				{ generateTitle: activeTitle === fallbackTitle(genre) },
 			);
 			void refreshStoryBackground(genre, activeSaveId, updated);
 		} catch (err) {

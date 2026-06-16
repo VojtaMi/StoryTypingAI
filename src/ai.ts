@@ -162,11 +162,12 @@ export async function titleStory(
 			{
 				role: "system",
 				content:
-					"Create a concise title for this interactive story. Return only the title, with no quotes or punctuation at the end.",
+					"Create a concise title for this interactive story. Return exactly one title line, 2-6 words, with no quotes, punctuation, headings, or story prose.",
 			},
 			{ role: "user", content: storyText },
 		],
 		model,
+		40,
 	);
 
 	return text.replace(/^["']|["'.!?]$/g, "").trim();
