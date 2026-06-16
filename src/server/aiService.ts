@@ -4,6 +4,14 @@ import type { ChatMessage } from "../ai";
 import { DEFAULT_TEXT_MODEL } from "../models";
 import { normalizeStoryText } from "./http";
 
+type AnthropicMessages = {
+	systemContent: string;
+	conversationMessages: Array<{
+		role: "user" | "assistant";
+		content: string;
+	}>;
+};
+
 export async function completeAi(
 	openai: OpenAI,
 	messages: ChatMessage[],
@@ -82,18 +90,7 @@ async function completeAnthropic(
 ): Promise<string> {
 	if (!apiKey) throw new Error("Anthropic API key is not configured.");
 	const anthropic = new Anthropic({ apiKey });
-
-	const systemContent = messages
-		.filter((m) => m.role === "system")
-		.map((m) => m.content)
-		.join("\n\n");
-
-	const conversationMessages = messages
-		.filter((m) => m.role !== "system")
-		.map((m) => ({
-			role: m.role as "user" | "assistant",
-			content: m.content,
-		}));
+	const { systemContent, conversationMessages } = toAnthropicMessages(messages);
 
 	const response = await anthropic.messages.create({
 		model,
@@ -117,18 +114,7 @@ async function streamAnthropic(
 ): Promise<string> {
 	if (!apiKey) throw new Error("Anthropic API key is not configured.");
 	const anthropic = new Anthropic({ apiKey });
-
-	const systemContent = messages
-		.filter((m) => m.role === "system")
-		.map((m) => m.content)
-		.join("\n\n");
-
-	const conversationMessages = messages
-		.filter((m) => m.role !== "system")
-		.map((m) => ({
-			role: m.role as "user" | "assistant",
-			content: m.content,
-		}));
+	const { systemContent, conversationMessages } = toAnthropicMessages(messages);
 
 	const stream = await anthropic.messages.create({
 		model,
@@ -153,4 +139,19 @@ async function streamAnthropic(
 	const text = normalizeStoryText(raw).trim();
 	if (!text) throw new Error("The AI returned an empty response.");
 	return text;
+}
+
+function toAnthropicMessages(messages: ChatMessage[]): AnthropicMessages {
+	return {
+		systemContent: messages
+			.filter((m) => m.role === "system")
+			.map((m) => m.content)
+			.join("\n\n"),
+		conversationMessages: messages
+			.filter((m) => m.role !== "system")
+			.map((m) => ({
+				role: m.role as "user" | "assistant",
+				content: m.content,
+			})),
+	};
 }

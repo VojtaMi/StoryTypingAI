@@ -64,9 +64,9 @@ static production build does not include that local filesystem backend.
 
 - `src/App.tsx` — orchestrator: the `menu → story` state machine and AI loop.
 - `src/Menu.tsx` — the genre-selection circles.
-- `src/StoryView.tsx` — the story log, active typing target, and authoring box.
+- `src/StoryView.tsx` — the story log, active typing target, streaming preview, and authoring box.
 - `src/TypingExercise.tsx` — the reusable typing engine (stats, caret, progress).
-- `src/ai.ts` — `startStory` / `continueStory` / `titleStory` calls via the dev server proxy.
+- `src/ai.ts` — story generation, streaming continuation, and title calls via the dev server proxy.
 - `src/genres.ts` — genre definitions and their system prompts.
 - `src/index.css` — theme and layout.
 - `vite.config.ts` — Vite plugins: `savesApi` (local file saves) and `aiApi` (OpenAI proxy).

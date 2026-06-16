@@ -7,6 +7,11 @@ export type ChatMessage = {
 	content: string;
 };
 
+type StreamEvent =
+	| { type: "chunk"; text?: string }
+	| { type: "done"; text?: string }
+	| { type: "error"; error?: string };
+
 async function complete(
 	messages: ChatMessage[],
 	model: TextModelId,
@@ -44,10 +49,7 @@ async function completeStream(
 
 	function readLine(line: string) {
 		if (!line.trim()) return;
-		const event = JSON.parse(line) as
-			| { type: "chunk"; text?: string }
-			| { type: "done"; text?: string }
-			| { type: "error"; error?: string };
+		const event = JSON.parse(line) as StreamEvent;
 
 		if (event.type === "chunk") {
 			if (event.text) onChunk(event.text);
@@ -101,21 +103,6 @@ export async function continueStoryStream(
 		{ role: "user", content: userText },
 	];
 	const text = await completeStream(messages, model, onChunk);
-	messages.push({ role: "assistant", content: text });
-	return { text, messages };
-}
-
-/** Continues the story with the user's own contribution. Returns the AI's next segment. */
-export async function continueStory(
-	history: ChatMessage[],
-	userText: string,
-	model: TextModelId = DEFAULT_TEXT_MODEL,
-): Promise<{ text: string; messages: ChatMessage[] }> {
-	const messages: ChatMessage[] = [
-		...history,
-		{ role: "user", content: userText },
-	];
-	const text = await complete(messages, model);
 	messages.push({ role: "assistant", content: text });
 	return { text, messages };
 }
