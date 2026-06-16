@@ -7,7 +7,7 @@ import {
 } from "react";
 import {
 	type ChatMessage,
-	continueStory,
+	continueStoryStream,
 	generateStoryBackgroundImage,
 	generateStoryIntro,
 	startStory,
@@ -37,6 +37,7 @@ export default function App() {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [segments, setSegments] = useState<StorySegment[]>([]);
 	const [currentTarget, setCurrentTarget] = useState<string | null>(null);
+	const [streamingTarget, setStreamingTarget] = useState("");
 	const [phase, setPhase] = useState<StoryPhase>("loading");
 	const [error, setError] = useState<string | null>(null);
 	const [activeSaveId, setActiveSaveId] = useState<string | null>(null);
@@ -319,6 +320,7 @@ export default function App() {
 		setMessages([]);
 		setSegments([]);
 		setCurrentTarget(null);
+		setStreamingTarget("");
 		setError(null);
 		setPhase("loading");
 		setView("story");
@@ -353,6 +355,7 @@ export default function App() {
 			const nextBackgroundImage = backgroundFromOpening(opening, selected);
 			setMessages(seeded);
 			setCurrentTarget(text);
+			setStreamingTarget("");
 			setBackgroundIntro(intro);
 			setBackgroundImage(nextBackgroundImage);
 			setPhase("typing");
@@ -383,6 +386,7 @@ export default function App() {
 		];
 		setSegments(nextSegments);
 		setCurrentTarget(null);
+		setStreamingTarget("");
 		setPhase("authoring");
 		if (genre && activeSaveId) {
 			void persistStory({
@@ -413,6 +417,7 @@ export default function App() {
 
 		setSegments(nextSegments);
 		setMessages(userMessages);
+		setStreamingTarget("");
 		setError(null);
 		setPhase("loading");
 		void persistStory({
@@ -428,13 +433,15 @@ export default function App() {
 		});
 
 		try {
-			const { text, messages: updated } = await continueStory(
+			const { text, messages: updated } = await continueStoryStream(
 				messages,
 				userText,
+				(chunk) => setStreamingTarget((current) => current + chunk),
 				model,
 			);
 			setMessages(updated);
 			setCurrentTarget(text);
+			setStreamingTarget("");
 			setPhase("typing");
 			void persistStory(
 				{
@@ -453,6 +460,7 @@ export default function App() {
 			void refreshStoryBackground(genre, activeSaveId, updated);
 		} catch (err) {
 			setError(describeError(err));
+			setStreamingTarget("");
 		}
 	}
 
@@ -475,6 +483,7 @@ export default function App() {
 		setMessages([]);
 		setSegments([]);
 		setCurrentTarget(null);
+		setStreamingTarget("");
 		setError(null);
 		setPhase("loading");
 		setBackgroundIntro(null);
@@ -499,6 +508,7 @@ export default function App() {
 			setMessages(save.messages);
 			setSegments(save.segments);
 			setCurrentTarget(save.currentTarget);
+			setStreamingTarget("");
 			setPhase(save.phase);
 			setBackgroundIntro(save.backgroundIntro ?? null);
 			setBackgroundImage(
@@ -580,6 +590,7 @@ export default function App() {
 				<StoryView
 					segments={segments}
 					currentTarget={currentTarget}
+					streamingTarget={streamingTarget}
 					phase={phase}
 					error={error}
 					backgroundIntro={backgroundIntro ?? undefined}

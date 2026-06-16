@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import type { Plugin } from "vite";
 import type { ChatMessage } from "../ai";
 import { DEFAULT_TEXT_MODEL } from "../models";
-import { completeAi } from "./aiService";
+import { completeAi, streamAi } from "./aiService";
 import { readBody, sendJson } from "./http";
 import { createBackgroundImage, findGenre } from "./openingsStore";
 import { saveIdPattern } from "./savesStore";
@@ -15,6 +15,7 @@ export function aiApi(openaiKey: string, anthropicKey: string): Plugin {
 			server.middlewares.use(async (req, res, next) => {
 				if (
 					(req.url !== "/api/ai/complete" &&
+						req.url !== "/api/ai/complete-stream" &&
 						req.url !== "/api/ai/background-image") ||
 					req.method !== "POST"
 				) {
@@ -53,6 +54,28 @@ export function aiApi(openaiKey: string, anthropicKey: string): Plugin {
 						return;
 					}
 
+					if (req.url === "/api/ai/complete-stream") {
+						const {
+							messages,
+							maxTokens = 150,
+							model = DEFAULT_TEXT_MODEL,
+						} = JSON.parse(await readBody(req));
+						res.statusCode = 200;
+						res.setHeader("Content-Type", "application/x-ndjson");
+						res.setHeader("Cache-Control", "no-cache");
+						const text = await streamAi(
+							openai,
+							messages,
+							maxTokens,
+							model,
+							anthropicKey,
+							(chunk) => writeJsonLine(res, { type: "chunk", text: chunk }),
+						);
+						writeJsonLine(res, { type: "done", text });
+						res.end();
+						return;
+					}
+
 					const {
 						messages,
 						maxTokens = 150,
@@ -69,11 +92,25 @@ export function aiApi(openaiKey: string, anthropicKey: string): Plugin {
 					});
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
+					if (req.url === "/api/ai/complete-stream" && !res.writableEnded) {
+						if (!res.headersSent) {
+							res.statusCode = 200;
+							res.setHeader("Content-Type", "application/x-ndjson");
+							res.setHeader("Cache-Control", "no-cache");
+						}
+						writeJsonLine(res, { type: "error", error: message });
+						res.end();
+						return;
+					}
 					sendJson(res, 500, { error: message });
 				}
 			});
 		},
 	};
+}
+
+function writeJsonLine(res: NodeJS.WritableStream, body: unknown) {
+	res.write(`${JSON.stringify(body)}\n`);
 }
 
 function storyTextFromMessages(messages: ChatMessage[]) {

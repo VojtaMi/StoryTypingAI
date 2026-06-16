@@ -15,6 +15,7 @@ export type StoryPhase = "typing" | "authoring" | "loading";
 interface StoryViewProps {
 	segments: StorySegment[];
 	currentTarget: string | null;
+	streamingTarget: string;
 	phase: StoryPhase;
 	error: string | null;
 	backgroundIntro?: string;
@@ -28,6 +29,7 @@ interface StoryViewProps {
 export default function StoryView({
 	segments,
 	currentTarget,
+	streamingTarget,
 	phase,
 	error,
 	backgroundIntro,
@@ -99,7 +101,16 @@ export default function StoryView({
 				</div>
 			)}
 
-			{phase === "loading" && <p className="loading">The story unfolds…</p>}
+			{phase === "loading" && (
+				<div className="story__streaming" aria-live="polite">
+					<p className="story__hint">The story unfolds...</p>
+					{streamingTarget ? (
+						<p className="streaming-preview">{streamingTarget}</p>
+					) : (
+						<p className="loading">The story unfolds...</p>
+					)}
+				</div>
+			)}
 
 			{error && <p className="story__error">{error}</p>}
 

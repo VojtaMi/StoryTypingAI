@@ -23,6 +23,59 @@ async function complete(
 	return text;
 }
 
+async function completeStream(
+	messages: ChatMessage[],
+	model: TextModelId,
+	onChunk: (chunk: string) => void,
+	maxTokens = 150,
+): Promise<string> {
+	const res = await fetch("/api/ai/complete-stream", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ messages, maxTokens, model }),
+	});
+	if (!res.ok) throw new Error(`AI request failed: ${res.status}`);
+	if (!res.body) throw new Error("The AI did not return a response stream.");
+
+	const reader = res.body.getReader();
+	const decoder = new TextDecoder();
+	let buffer = "";
+	let finalText = "";
+
+	function readLine(line: string) {
+		if (!line.trim()) return;
+		const event = JSON.parse(line) as
+			| { type: "chunk"; text?: string }
+			| { type: "done"; text?: string }
+			| { type: "error"; error?: string };
+
+		if (event.type === "chunk") {
+			if (event.text) onChunk(event.text);
+			return;
+		}
+
+		if (event.type === "done") {
+			finalText = event.text ?? "";
+			return;
+		}
+
+		throw new Error(event.error || "The AI stream failed.");
+	}
+
+	while (true) {
+		const { value, done } = await reader.read();
+		buffer += decoder.decode(value, { stream: !done });
+		const lines = buffer.split("\n");
+		buffer = lines.pop() ?? "";
+		for (const line of lines) readLine(line);
+		if (done) break;
+	}
+
+	if (buffer) readLine(buffer);
+	if (!finalText) throw new Error("The AI returned an empty response.");
+	return finalText;
+}
+
 /** Begins a new story for the given genre. Returns the opening and the seeded history. */
 export async function startStory(
 	genre: Genre,
@@ -33,6 +86,21 @@ export async function startStory(
 		{ role: "user", content: "Begin the story." },
 	];
 	const text = await complete(messages, model);
+	messages.push({ role: "assistant", content: text });
+	return { text, messages };
+}
+
+export async function continueStoryStream(
+	history: ChatMessage[],
+	userText: string,
+	onChunk: (chunk: string) => void,
+	model: TextModelId = DEFAULT_TEXT_MODEL,
+): Promise<{ text: string; messages: ChatMessage[] }> {
+	const messages: ChatMessage[] = [
+		...history,
+		{ role: "user", content: userText },
+	];
+	const text = await completeStream(messages, model, onChunk);
 	messages.push({ role: "assistant", content: text });
 	return { text, messages };
 }
