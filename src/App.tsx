@@ -216,6 +216,7 @@ export default function App() {
 			const nextBackgroundImage = await generateStoryBackgroundImage(
 				selected.id,
 				storyMessages,
+				saveId,
 			);
 			if (
 				activeSaveIdRef.current !== saveId ||
@@ -312,12 +313,8 @@ export default function App() {
 	}
 
 	async function selectGenre(selected: Genre) {
-		const saveId = createSaveId();
 		const title = fallbackTitle(selected);
 
-		activeSaveIdRef.current = saveId;
-		setActiveSaveId(saveId);
-		setActiveTitle(title);
 		setGenre(selected);
 		setMessages([]);
 		setSegments([]);
@@ -327,6 +324,7 @@ export default function App() {
 		setView("story");
 		try {
 			let opening: {
+				id?: string;
 				text: string;
 				messages: ChatMessage[];
 				backgroundIntro?: string;
@@ -342,6 +340,11 @@ export default function App() {
 			} else {
 				void prepareOpeningsInBackground();
 			}
+
+			const saveId = opening.id ?? createSaveId();
+			activeSaveIdRef.current = saveId;
+			setActiveSaveId(saveId);
+			setActiveTitle(title);
 
 			const { text, messages: seeded } = opening;
 			const intro =
@@ -580,6 +583,8 @@ export default function App() {
 					phase={phase}
 					error={error}
 					backgroundIntro={backgroundIntro ?? undefined}
+					storyId={activeSaveId}
+					currentImageUrl={backgroundImage?.backgroundImageUrl ?? null}
 					onTypingComplete={handleTypingComplete}
 					onSubmitContinuation={submitContinuation}
 					onBackToMenu={backToMenu}

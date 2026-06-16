@@ -55,11 +55,12 @@ export async function continueStory(
 export async function generateStoryBackgroundImage(
 	genreId: GenreId,
 	messages: ChatMessage[],
+	storyId: string,
 ): Promise<StoryBackgroundImage> {
 	const res = await fetch("/api/ai/background-image", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ genreId, messages }),
+		body: JSON.stringify({ genreId, messages, storyId }),
 	});
 	if (!res.ok) throw new Error(`Image request failed: ${res.status}`);
 	return res.json() as Promise<StoryBackgroundImage>;

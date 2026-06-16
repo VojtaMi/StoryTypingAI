@@ -1,4 +1,7 @@
 import { useState } from "react";
+import "./gallery/gallery.css";
+import { GalleryButton } from "./gallery/GalleryButton";
+import { GalleryModal } from "./gallery/GalleryModal";
 import TypingExercise, { type TypingStats } from "./TypingExercise";
 
 export interface StorySegment {
@@ -15,6 +18,8 @@ interface StoryViewProps {
 	phase: StoryPhase;
 	error: string | null;
 	backgroundIntro?: string;
+	storyId: string | null;
+	currentImageUrl: string | null;
 	onTypingComplete: (stats: TypingStats) => void;
 	onSubmitContinuation: (text: string) => void;
 	onBackToMenu: () => void;
@@ -26,11 +31,14 @@ export default function StoryView({
 	phase,
 	error,
 	backgroundIntro,
+	storyId,
+	currentImageUrl,
 	onTypingComplete,
 	onSubmitContinuation,
 	onBackToMenu,
 }: StoryViewProps) {
 	const [draft, setDraft] = useState("");
+	const [galleryOpen, setGalleryOpen] = useState(false);
 
 	function submit() {
 		const text = draft.trim();
@@ -99,7 +107,20 @@ export default function StoryView({
 				<button type="button" onClick={onBackToMenu}>
 					← Back to menu
 				</button>
+				{storyId && currentImageUrl?.startsWith("/api/story-images/") && (
+					<GalleryButton onClick={() => setGalleryOpen(true)} />
+				)}
 			</div>
+
+			{galleryOpen &&
+				storyId &&
+				currentImageUrl?.startsWith("/api/story-images/") && (
+					<GalleryModal
+						storyId={storyId}
+						currentImageUrl={currentImageUrl}
+						onClose={() => setGalleryOpen(false)}
+					/>
+				)}
 		</div>
 	);
 }

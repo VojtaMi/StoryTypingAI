@@ -4,6 +4,7 @@ import { DEFAULT_TEXT_MODEL, type TextModelId } from "./models";
 import type { StoryBackgroundImage } from "./storyBackground";
 
 export interface PreparedOpening extends Partial<StoryBackgroundImage> {
+	id?: string;
 	genreId: GenreId;
 	text: string;
 	backgroundIntro?: string;

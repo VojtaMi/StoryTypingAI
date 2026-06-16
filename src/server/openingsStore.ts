@@ -1,4 +1,5 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type OpenAI from "openai";
 import { type Genre, type GenreId, genres } from "../genres";
@@ -12,6 +13,7 @@ const storyImagesDir = join(process.cwd(), "story-images");
 export const imageFilePattern = /^[a-zA-Z0-9_-]+\.webp$/;
 
 interface PreparedOpening extends Partial<StoryBackgroundImage> {
+	id: string;
 	genreId: GenreId;
 	text: string;
 	backgroundIntro?: string;
@@ -47,9 +49,11 @@ export async function prepareMissingOpenings(
 		const existing = await readPreparedOpening(genre.id);
 		if (existing) {
 			if (existing.backgroundImageUrl) continue;
+			const id = existing.id ?? randomUUID();
 			await writePreparedOpening({
 				...existing,
-				...(await createBackgroundImage(openai, genre, existing.text)),
+				id,
+				...(await createBackgroundImage(openai, genre, existing.text, id)),
 			});
 			continue;
 		}
@@ -73,8 +77,21 @@ export async function consumePreparedOpening(
 	return opening;
 }
 
-export async function readStoryImage(filename: string) {
-	return readFile(join(storyImagesDir, filename));
+export async function readStoryImage(relativePath: string) {
+	return readFile(join(storyImagesDir, relativePath));
+}
+
+export async function listStoryImages(storyId: string): Promise<string[]> {
+	const folder = join(storyImagesDir, storyId);
+	try {
+		const files = await readdir(folder);
+		return files
+			.filter((f) => imageFilePattern.test(f))
+			.sort()
+			.map((f) => `/api/story-images/${storyId}/${f}`);
+	} catch {
+		return [];
+	}
 }
 
 export function findGenre(genreId: string): Genre | undefined {
@@ -87,6 +104,7 @@ async function createPreparedOpening(
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 ): Promise<PreparedOpening> {
+	const id = randomUUID();
 	const seed = genre.seeds[Math.floor(Math.random() * genre.seeds.length)];
 	const userContent = seed
 		? `Begin the story. Seed element: ${seed}.`
@@ -98,9 +116,10 @@ async function createPreparedOpening(
 	const text = await completeAi(openai, messages, 200, model, anthropicKey);
 	const [backgroundIntro, backgroundImage] = await Promise.all([
 		createBackgroundIntro(openai, genre, text, model, anthropicKey),
-		createBackgroundImage(openai, genre, text),
+		createBackgroundImage(openai, genre, text, id),
 	]);
 	return {
+		id,
 		genreId: genre.id,
 		text,
 		backgroundIntro,
@@ -147,6 +166,7 @@ export async function createBackgroundImage(
 	openai: OpenAI,
 	genre: Genre,
 	storyText: string,
+	storyId: string,
 ): Promise<StoryBackgroundImage> {
 	const prompt = buildBackgroundPrompt(genre, storyText);
 	try {
@@ -161,16 +181,14 @@ export async function createBackgroundImage(
 		const encoded = response.data?.[0]?.b64_json;
 		if (!encoded) throw new Error("The image API returned no image data.");
 
-		await mkdir(storyImagesDir, { recursive: true });
+		const folder = join(storyImagesDir, storyId);
+		await mkdir(folder, { recursive: true });
 		const filename = `${genre.id}-${Date.now()}-${Math.random()
 			.toString(36)
 			.slice(2)}.webp`;
-		await writeFile(
-			join(storyImagesDir, filename),
-			Buffer.from(encoded, "base64"),
-		);
+		await writeFile(join(folder, filename), Buffer.from(encoded, "base64"));
 		return {
-			backgroundImageUrl: `/api/story-images/${filename}`,
+			backgroundImageUrl: `/api/story-images/${storyId}/${filename}`,
 			backgroundImagePrompt: prompt,
 			backgroundImageSource: "generated",
 		};

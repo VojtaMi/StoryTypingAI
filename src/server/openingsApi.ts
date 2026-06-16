@@ -81,6 +81,8 @@ export function openingsApi(apiKey: string, anthropicKey: string): Plugin {
 	};
 }
 
+const storyIdPattern = /^[a-zA-Z0-9_-]+$/;
+
 export function storyImagesApi(): Plugin {
 	return {
 		name: "story-images-api",
@@ -93,14 +95,35 @@ export function storyImagesApi(): Plugin {
 
 				try {
 					const url = new URL(req.url, "http://localhost");
-					const parts = url.pathname.split("/");
-					const filename = decodeURIComponent(parts[parts.length - 1] ?? "");
-					if (!imageFilePattern.test(filename)) {
+					const parts = url.pathname.split("/").filter(Boolean);
+					// parts: ["api", "story-images", ...imageParts]
+					const imageParts = parts.slice(2);
+
+					let relativePath: string;
+					if (imageParts.length === 1) {
+						const filename = decodeURIComponent(imageParts[0] ?? "");
+						if (!imageFilePattern.test(filename)) {
+							sendJson(res, 404, { error: "Image not found." });
+							return;
+						}
+						relativePath = filename;
+					} else if (imageParts.length === 2) {
+						const storyId = decodeURIComponent(imageParts[0] ?? "");
+						const filename = decodeURIComponent(imageParts[1] ?? "");
+						if (
+							!storyIdPattern.test(storyId) ||
+							!imageFilePattern.test(filename)
+						) {
+							sendJson(res, 404, { error: "Image not found." });
+							return;
+						}
+						relativePath = `${storyId}/${filename}`;
+					} else {
 						sendJson(res, 404, { error: "Image not found." });
 						return;
 					}
 
-					const file = await readStoryImage(filename);
+					const file = await readStoryImage(relativePath);
 					res.statusCode = 200;
 					res.setHeader("Content-Type", "image/webp");
 					res.setHeader("Cache-Control", "no-store");

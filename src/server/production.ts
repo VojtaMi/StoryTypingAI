@@ -14,6 +14,7 @@ import {
 	findGenre,
 	imageFilePattern,
 	listPreparedOpenings,
+	listStoryImages,
 	prepareMissingOpenings,
 	readStoryImage,
 } from "./openingsStore";
@@ -123,13 +124,30 @@ const server = createServer(async (req, res) => {
 			parts[1] === "story-images" &&
 			req.method === "GET"
 		) {
-			const filename = decodeURIComponent(parts[2] ?? "");
-			if (!imageFilePattern.test(filename)) {
+			const storyIdPattern = /^[a-zA-Z0-9_-]+$/;
+			const imageParts = parts.slice(2);
+			let relativePath: string;
+			if (imageParts.length === 1) {
+				const filename = decodeURIComponent(imageParts[0] ?? "");
+				if (!imageFilePattern.test(filename)) {
+					sendJson(res, 404, { error: "Image not found." });
+					return;
+				}
+				relativePath = filename;
+			} else if (imageParts.length === 2) {
+				const storyId = decodeURIComponent(imageParts[0] ?? "");
+				const filename = decodeURIComponent(imageParts[1] ?? "");
+				if (!storyIdPattern.test(storyId) || !imageFilePattern.test(filename)) {
+					sendJson(res, 404, { error: "Image not found." });
+					return;
+				}
+				relativePath = `${storyId}/${filename}`;
+			} else {
 				sendJson(res, 404, { error: "Image not found." });
 				return;
 			}
 			try {
-				const file = await readStoryImage(filename);
+				const file = await readStoryImage(relativePath);
 				res.statusCode = 200;
 				res.setHeader("Content-Type", "image/webp");
 				res.setHeader("Cache-Control", "no-store");
@@ -137,6 +155,21 @@ const server = createServer(async (req, res) => {
 			} catch {
 				sendJson(res, 404, { error: "Image not found." });
 			}
+			return;
+		}
+
+		if (
+			parts.length === 3 &&
+			parts[0] === "api" &&
+			parts[1] === "gallery" &&
+			req.method === "GET"
+		) {
+			const storyId = decodeURIComponent(parts[2] ?? "");
+			if (!storyId || !saveIdPattern.test(storyId)) {
+				sendJson(res, 404, { error: "Story not found." });
+				return;
+			}
+			sendJson(res, 200, await listStoryImages(storyId));
 			return;
 		}
 
@@ -202,10 +235,18 @@ const server = createServer(async (req, res) => {
 		}
 
 		if (pathname === "/api/ai/background-image" && req.method === "POST") {
-			const { genreId, messages } = JSON.parse(await readBody(req));
+			const { genreId, messages, storyId } = JSON.parse(await readBody(req));
 			const genre = findGenre(genreId);
 			if (!genre) {
 				sendJson(res, 404, { error: "Genre not found." });
+				return;
+			}
+			if (
+				!storyId ||
+				typeof storyId !== "string" ||
+				!saveIdPattern.test(storyId)
+			) {
+				sendJson(res, 400, { error: "storyId is required." });
 				return;
 			}
 			sendJson(
@@ -215,6 +256,7 @@ const server = createServer(async (req, res) => {
 					openai,
 					genre,
 					storyTextFromMessages(messages),
+					storyId,
 				),
 			);
 			return;

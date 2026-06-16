@@ -1,6 +1,8 @@
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+const storyImagesDir = join(process.cwd(), "story-images");
+
 const savesDir = join(process.cwd(), "saves");
 
 export const saveIdPattern = /^[a-zA-Z0-9_-]+$/;
@@ -52,6 +54,7 @@ export async function writeSave(id: string, save: unknown) {
 
 export async function deleteSave(id: string) {
 	await rm(savePath(id), { force: true });
+	await rm(join(storyImagesDir, id), { recursive: true, force: true });
 }
 
 function savePath(id: string) {

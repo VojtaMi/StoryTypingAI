@@ -5,6 +5,7 @@ import { DEFAULT_TEXT_MODEL } from "../models";
 import { completeAi } from "./aiService";
 import { readBody, sendJson } from "./http";
 import { createBackgroundImage, findGenre } from "./openingsStore";
+import { saveIdPattern } from "./savesStore";
 
 export function aiApi(openaiKey: string, anthropicKey: string): Plugin {
 	return {
@@ -23,10 +24,20 @@ export function aiApi(openaiKey: string, anthropicKey: string): Plugin {
 
 				try {
 					if (req.url === "/api/ai/background-image") {
-						const { genreId, messages } = JSON.parse(await readBody(req));
+						const { genreId, messages, storyId } = JSON.parse(
+							await readBody(req),
+						);
 						const genre = findGenre(genreId);
 						if (!genre) {
 							sendJson(res, 404, { error: "Genre not found." });
+							return;
+						}
+						if (
+							!storyId ||
+							typeof storyId !== "string" ||
+							!saveIdPattern.test(storyId)
+						) {
+							sendJson(res, 400, { error: "storyId is required." });
 							return;
 						}
 						sendJson(
@@ -36,6 +47,7 @@ export function aiApi(openaiKey: string, anthropicKey: string): Plugin {
 								openai,
 								genre,
 								storyTextFromMessages(messages),
+								storyId,
 							),
 						);
 						return;
