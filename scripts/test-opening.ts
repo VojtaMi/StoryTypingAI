@@ -57,7 +57,9 @@ if (!model.startsWith("claude-") && !openaiKey) {
 	process.exit(1);
 }
 
-const openai = new OpenAI({ apiKey: openaiKey });
+const openai = model.startsWith("claude-")
+	? ({} as OpenAI)
+	: new OpenAI({ apiKey: openaiKey });
 
 console.log(`Using model: ${model}`);
 
