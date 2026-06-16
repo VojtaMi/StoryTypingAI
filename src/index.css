@@ -279,42 +279,41 @@ body[data-view="menu"] {
 
 .genre-circle {
 	--genre-color: var(--accent);
-	width: 150px;
-	height: 150px;
+	width: 180px;
+	height: 180px;
 	border-radius: 50%;
-	border: 2px solid var(--genre-color);
-	background: var(--surface);
+	border: 2px solid rgba(255, 255, 255, 0.15);
+	background:
+		linear-gradient(to top, rgba(0, 0, 0, 0.65) 0%, transparent 55%),
+		var(--genre-image, var(--surface)) top right / cover;
 	color: var(--text);
 	cursor: pointer;
+	overflow: hidden;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	justify-content: center;
-	gap: 0.5rem;
+	justify-content: flex-end;
+	padding-bottom: 0.75rem;
 	font: inherit;
 	transition:
 		transform 0.15s ease,
-		box-shadow 0.15s ease,
-		background 0.15s ease;
+		box-shadow 0.15s ease;
 }
 
 .genre-circle:hover {
 	transform: translateY(-4px);
-	background: #2a2f44;
 	box-shadow: 0 0 0 4px color-mix(in srgb, var(--genre-color) 25%, transparent);
-}
-
-.genre-circle__emoji {
-	font-size: 3rem;
-	line-height: 1;
 }
 
 .genre-circle__label {
 	font-weight: 600;
-	color: var(--genre-color);
+	color: #fff;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
 	font-size: 0.85rem;
+	text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+	position: relative;
+	z-index: 1;
 }
 
 .saved-stories {

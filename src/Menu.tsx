@@ -45,12 +45,14 @@ export default function Menu({
 						key={genre.id}
 						type="button"
 						className="genre-circle"
-						style={{ "--genre-color": genre.color } as React.CSSProperties}
+						style={
+							{
+								"--genre-color": genre.color,
+								"--genre-image": `url(/images/fallback-${genre.id}.webp)`,
+							} as React.CSSProperties
+						}
 						onClick={() => onSelect(genre)}
 					>
-						<span className="genre-circle__emoji" aria-hidden="true">
-							{genre.emoji}
-						</span>
 						<span className="genre-circle__label">{genre.label}</span>
 					</button>
 				))}
