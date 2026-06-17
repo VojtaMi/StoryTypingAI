@@ -313,21 +313,22 @@ export function useStorySession({
 		],
 	);
 
-	const submitContinuation = useCallback(
-		async (userText: string) => {
+	const runContinuation = useCallback(
+		async ({
+			segmentsForSave,
+			loadingMessages,
+			streamContinuation,
+		}: {
+			segmentsForSave: StorySegment[];
+			loadingMessages: ChatMessage[];
+			streamContinuation: (onChunk: (chunk: string) => void) => Promise<{
+				text: string;
+				messages: ChatMessage[];
+				memory?: StoryMemory;
+			}>;
+		}) => {
 			if (!genre || !activeSaveId) return;
 
-			const nextSegments: StorySegment[] = [
-				...segments,
-				{ id: segments.length, author: "user", text: userText },
-			];
-			const userMessages: ChatMessage[] = [
-				...messages,
-				{ role: "user", content: userText },
-			];
-
-			setSegments(nextSegments);
-			setMessages(userMessages);
 			setStreamingTarget("");
 			setError(null);
 			setPhase("loading");
@@ -336,9 +337,9 @@ export function useStorySession({
 					id: activeSaveId,
 					genre,
 					title: activeTitle ?? fallbackTitle(genre),
-					messages: userMessages,
+					messages: loadingMessages,
 					memory,
-					segments: nextSegments,
+					segments: segmentsForSave,
 					currentTarget: null,
 					phase: "loading",
 					backgroundIntro: backgroundIntro ?? undefined,
@@ -351,12 +352,8 @@ export function useStorySession({
 					text,
 					messages: updated,
 					memory: updatedMemory,
-				} = await continueStoryStream(
-					messages,
-					userText,
-					(chunk) => setStreamingTarget((current) => current + chunk),
-					model,
-					memory,
+				} = await streamContinuation((chunk) =>
+					setStreamingTarget((current) => current + chunk),
 				);
 				setMessages(updated);
 				setMemory(updatedMemory);
@@ -370,7 +367,7 @@ export function useStorySession({
 						title: activeTitle ?? fallbackTitle(genre),
 						messages: updated,
 						memory: updatedMemory,
-						segments: nextSegments,
+						segments: segmentsForSave,
 						currentTarget: text,
 						phase: "typing",
 						backgroundIntro: backgroundIntro ?? undefined,
@@ -387,88 +384,50 @@ export function useStorySession({
 		[
 			activeSaveId,
 			activeTitle,
+			backgroundImage,
 			backgroundIntro,
 			genre,
 			memory,
-			messages,
-			model,
 			persistStory,
 			refreshStoryBackground,
-			backgroundImage,
-			segments,
 		],
+	);
+
+	const submitContinuation = useCallback(
+		async (userText: string) => {
+			if (!genre || !activeSaveId) return;
+
+			const nextSegments: StorySegment[] = [
+				...segments,
+				{ id: segments.length, author: "user", text: userText },
+			];
+			const userMessages: ChatMessage[] = [
+				...messages,
+				{ role: "user", content: userText },
+			];
+
+			setSegments(nextSegments);
+			setMessages(userMessages);
+			await runContinuation({
+				segmentsForSave: nextSegments,
+				loadingMessages: userMessages,
+				streamContinuation: (onChunk) =>
+					continueStoryStream(messages, userText, onChunk, model, memory),
+			});
+		},
+		[activeSaveId, genre, memory, messages, model, runContinuation, segments],
 	);
 
 	const autoContinueStory = useCallback(async () => {
 		if (!genre || !activeSaveId) return;
 
-		setStreamingTarget("");
-		setError(null);
-		setPhase("loading");
-		void persistStory(
-			buildStorySaveSnapshot({
-				id: activeSaveId,
-				genre,
-				title: activeTitle ?? fallbackTitle(genre),
-				messages,
-				memory,
-				segments,
-				currentTarget: null,
-				phase: "loading",
-				backgroundIntro: backgroundIntro ?? undefined,
-				backgroundImage,
-			}),
-		);
-
-		try {
-			const {
-				text,
-				messages: updated,
-				memory: updatedMemory,
-			} = await autoContinueStoryStream(
-				messages,
-				(chunk) => setStreamingTarget((current) => current + chunk),
-				model,
-				memory,
-			);
-			setMessages(updated);
-			setMemory(updatedMemory);
-			setCurrentTarget(text);
-			setStreamingTarget("");
-			setPhase("typing");
-			void persistStory(
-				buildStorySaveSnapshot({
-					id: activeSaveId,
-					genre,
-					title: activeTitle ?? fallbackTitle(genre),
-					messages: updated,
-					memory: updatedMemory,
-					segments,
-					currentTarget: text,
-					phase: "typing",
-					backgroundIntro: backgroundIntro ?? undefined,
-					backgroundImage,
-				}),
-				{ generateTitle: activeTitle === fallbackTitle(genre) },
-			);
-			void refreshStoryBackground(genre, activeSaveId, updated);
-		} catch (err) {
-			setError(describeError(err));
-			setStreamingTarget("");
-		}
-	}, [
-		activeSaveId,
-		activeTitle,
-		backgroundIntro,
-		genre,
-		memory,
-		messages,
-		model,
-		persistStory,
-		refreshStoryBackground,
-		backgroundImage,
-		segments,
-	]);
+		await runContinuation({
+			segmentsForSave: segments,
+			loadingMessages: messages,
+			streamContinuation: (onChunk) =>
+				autoContinueStoryStream(messages, onChunk, model, memory),
+		});
+	}, [activeSaveId, genre, memory, messages, model, runContinuation, segments]);
 
 	const backToMenu = useCallback(() => {
 		if (genre && activeSaveId) {
