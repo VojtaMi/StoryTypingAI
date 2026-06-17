@@ -1,4 +1,4 @@
-import type { ChatMessage } from "./ai";
+import type { ChatMessage, StoryMemory } from "./ai";
 import type { StoryPhase, StorySegment } from "./exercise_screen/types";
 import type { GenreId } from "./genres";
 import type { StoryBackgroundImage } from "./storyBackground";
@@ -9,6 +9,7 @@ export interface SavedStory extends Partial<StoryBackgroundImage> {
 	title: string;
 	updatedAt: string;
 	messages: ChatMessage[];
+	memory?: StoryMemory;
 	segments: StorySegment[];
 	currentTarget: string | null;
 	phase: StoryPhase;

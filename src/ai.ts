@@ -7,9 +7,10 @@ import {
 	generateTitle,
 	openingMessages,
 } from "./story";
+import { prepareStoryContext, type StoryMemory } from "./story_memory";
 import type { StoryBackgroundImage } from "./storyBackground";
 
-export type { ChatMessage };
+export type { ChatMessage, StoryMemory };
 
 type StreamEvent =
 	| { type: "chunk"; text?: string }
@@ -106,22 +107,43 @@ export async function continueStoryStream(
 	userText: string,
 	onChunk: (chunk: string) => void,
 	model: TextModelId = DEFAULT_TEXT_MODEL,
-): Promise<{ text: string; messages: ChatMessage[] }> {
+	memory?: StoryMemory,
+): Promise<{
+	text: string;
+	messages: ChatMessage[];
+	memory?: StoryMemory;
+}> {
 	const messages: ChatMessage[] = [
 		...history,
 		{ role: "user", content: userText },
 	];
-	const text = await completeStream(messages, model, onChunk);
+	const context = await prepareStoryContext(
+		messages,
+		memory,
+		httpCompleter(model),
+	);
+	const text = await completeStream(context.messages, model, onChunk);
 	messages.push({ role: "assistant", content: text });
-	return { text, messages };
+	return { text, messages, memory: context.memory };
 }
 
 export async function autoContinueStoryStream(
 	history: ChatMessage[],
 	onChunk: (chunk: string) => void,
 	model: TextModelId = DEFAULT_TEXT_MODEL,
-): Promise<{ text: string; messages: ChatMessage[] }> {
-	return continueStoryStream(history, AI_CONTINUE_PROMPT, onChunk, model);
+	memory?: StoryMemory,
+): Promise<{
+	text: string;
+	messages: ChatMessage[];
+	memory?: StoryMemory;
+}> {
+	return continueStoryStream(
+		history,
+		AI_CONTINUE_PROMPT,
+		onChunk,
+		model,
+		memory,
+	);
 }
 
 export async function generateStoryBackgroundImage(

@@ -11,6 +11,7 @@ import {
 	continueStoryStream,
 	generateStoryBackgroundImage,
 	generateStoryIntro,
+	type StoryMemory,
 	startStory,
 	titleStory,
 } from "./ai";
@@ -44,6 +45,7 @@ export default function App() {
 	const [view, setView] = useState<View>("menu");
 	const [genre, setGenre] = useState<Genre | null>(null);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
+	const [memory, setMemory] = useState<StoryMemory | undefined>();
 	const [segments, setSegments] = useState<StorySegment[]>([]);
 	const [currentTarget, setCurrentTarget] = useState<string | null>(null);
 	const [streamingTarget, setStreamingTarget] = useState("");
@@ -67,6 +69,7 @@ export default function App() {
 	const activeSaveIdRef = useRef<string | null>(null);
 	const activeTitleRef = useRef<string | null>(null);
 	const messagesRef = useRef<ChatMessage[]>([]);
+	const memoryRef = useRef<StoryMemory | undefined>(undefined);
 	const segmentsRef = useRef<StorySegment[]>([]);
 	const currentTargetRef = useRef<string | null>(null);
 	const phaseRef = useRef<StoryPhase>("loading");
@@ -85,6 +88,10 @@ export default function App() {
 	useEffect(() => {
 		messagesRef.current = messages;
 	}, [messages]);
+
+	useEffect(() => {
+		memoryRef.current = memory;
+	}, [memory]);
 
 	useEffect(() => {
 		segmentsRef.current = segments;
@@ -237,6 +244,7 @@ export default function App() {
 				genreId: selected.id,
 				title: activeTitleRef.current ?? fallbackTitle(selected),
 				messages: messagesRef.current,
+				memory: memoryRef.current,
 				segments: segmentsRef.current,
 				currentTarget: currentTargetRef.current,
 				phase: phaseRef.current,
@@ -340,6 +348,7 @@ export default function App() {
 
 		setGenre(selected);
 		setMessages([]);
+		setMemory(undefined);
 		setSegments([]);
 		setCurrentTarget(null);
 		setStreamingTarget("");
@@ -380,6 +389,7 @@ export default function App() {
 				(await generateStoryIntro(selected.label, text, model).catch(() => ""));
 			const nextBackgroundImage = backgroundFromOpening(opening, selected);
 			setMessages(seeded);
+			setMemory(undefined);
 			setCurrentTarget(text);
 			setStreamingTarget("");
 			setBackgroundIntro(intro);
@@ -391,6 +401,7 @@ export default function App() {
 					genreId: selected.id,
 					title,
 					messages: seeded,
+					memory: undefined,
 					segments: [],
 					currentTarget: text,
 					phase: "typing",
@@ -423,6 +434,7 @@ export default function App() {
 				genreId: genre.id,
 				title: activeTitle ?? fallbackTitle(genre),
 				messages,
+				memory,
 				segments: nextSegments,
 				currentTarget: null,
 				phase: "authoring",
@@ -454,6 +466,7 @@ export default function App() {
 			genreId: genre.id,
 			title: activeTitle ?? fallbackTitle(genre),
 			messages: userMessages,
+			memory,
 			segments: nextSegments,
 			currentTarget: null,
 			phase: "loading",
@@ -462,13 +475,19 @@ export default function App() {
 		});
 
 		try {
-			const { text, messages: updated } = await continueStoryStream(
+			const {
+				text,
+				messages: updated,
+				memory: updatedMemory,
+			} = await continueStoryStream(
 				messages,
 				userText,
 				(chunk) => setStreamingTarget((current) => current + chunk),
 				model,
+				memory,
 			);
 			setMessages(updated);
+			setMemory(updatedMemory);
 			setCurrentTarget(text);
 			setStreamingTarget("");
 			setPhase("typing");
@@ -478,6 +497,7 @@ export default function App() {
 					genreId: genre.id,
 					title: activeTitle ?? fallbackTitle(genre),
 					messages: updated,
+					memory: updatedMemory,
 					segments: nextSegments,
 					currentTarget: text,
 					phase: "typing",
@@ -504,6 +524,7 @@ export default function App() {
 			genreId: genre.id,
 			title: activeTitle ?? fallbackTitle(genre),
 			messages,
+			memory,
 			segments,
 			currentTarget: null,
 			phase: "loading",
@@ -512,12 +533,18 @@ export default function App() {
 		});
 
 		try {
-			const { text, messages: updated } = await autoContinueStoryStream(
+			const {
+				text,
+				messages: updated,
+				memory: updatedMemory,
+			} = await autoContinueStoryStream(
 				messages,
 				(chunk) => setStreamingTarget((current) => current + chunk),
 				model,
+				memory,
 			);
 			setMessages(updated);
+			setMemory(updatedMemory);
 			setCurrentTarget(text);
 			setStreamingTarget("");
 			setPhase("typing");
@@ -527,6 +554,7 @@ export default function App() {
 					genreId: genre.id,
 					title: activeTitle ?? fallbackTitle(genre),
 					messages: updated,
+					memory: updatedMemory,
 					segments,
 					currentTarget: text,
 					phase: "typing",
@@ -549,6 +577,7 @@ export default function App() {
 				genreId: genre.id,
 				title: activeTitle ?? fallbackTitle(genre),
 				messages,
+				memory,
 				segments,
 				currentTarget,
 				phase,
@@ -559,6 +588,7 @@ export default function App() {
 		setView("menu");
 		setGenre(null);
 		setMessages([]);
+		setMemory(undefined);
 		setSegments([]);
 		setCurrentTarget(null);
 		setStreamingTarget("");
@@ -584,6 +614,7 @@ export default function App() {
 			setActiveTitle(save.title);
 			setGenre(selected);
 			setMessages(save.messages);
+			setMemory(save.memory);
 			setSegments(save.segments);
 			setCurrentTarget(save.currentTarget);
 			setStreamingTarget("");
