@@ -7,7 +7,6 @@ import {
 	generateStoryIntro,
 	type StoryMemory,
 	startStory,
-	titleStory,
 } from "../ai";
 import type {
 	StoryPhase,
@@ -17,13 +16,19 @@ import type {
 import { type Genre, genres } from "../genres";
 import type { TextModelId } from "../models";
 import { consumePreparedOpening, prepareMissingOpenings } from "../openings";
-import { loadSavedStory, type SavedStory, saveStory } from "../saves";
+import { loadSavedStory } from "../saves";
 import type { StoryBackgroundImage } from "../storyBackground";
 import {
 	backgroundFromOpening,
 	fallbackBackgroundImage,
 	shouldGenerateNextBackground,
 } from "./background";
+import { useStoryPersistence } from "./persistence/useStoryPersistence";
+import {
+	buildStorySaveSnapshot,
+	createSaveId,
+	fallbackTitle,
+} from "./storySnapshot";
 
 type View = "menu" | "story";
 
@@ -38,15 +43,6 @@ interface UseStorySessionOptions {
 function describeError(err: unknown): string {
 	const message = err instanceof Error ? err.message : String(err);
 	return `Something went wrong reaching the AI: ${message}`;
-}
-
-function fallbackTitle(selected: Genre) {
-	return `${selected.label} Story`;
-}
-
-function createSaveId() {
-	if (crypto.randomUUID) return crypto.randomUUID();
-	return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 export function useStorySession({
@@ -107,51 +103,13 @@ export function useStorySession({
 		phaseRef.current = phase;
 	}, [phase]);
 
-	const saveBackgroundFields = useCallback(() => {
-		return backgroundImage ?? undefined;
-	}, [backgroundImage]);
-
-	const persistStory = useCallback(
-		async (
-			save: Omit<SavedStory, "updatedAt">,
-			options: { generateTitle?: boolean } = {},
-		) => {
-			const stamped: SavedStory = {
-				...save,
-				updatedAt: new Date().toISOString(),
-			};
-
-			try {
-				onSavesError(null);
-				await saveStory(stamped);
-				await onSavedStoriesChanged();
-			} catch (err) {
-				const message = err instanceof Error ? err.message : String(err);
-				onSavesError(`Could not save story: ${message}`);
-				return;
-			}
-
-			if (!options.generateTitle) return;
-
-			try {
-				const title = await titleStory(save.messages, model);
-				if (!title) return;
-				const latest = await loadSavedStory(save.id).catch(() => stamped);
-				const titled: SavedStory = {
-					...latest,
-					title,
-					updatedAt: new Date().toISOString(),
-				};
-				if (activeSaveIdRef.current === save.id) setActiveTitle(title);
-				await saveStory(titled);
-				await onSavedStoriesChanged();
-			} catch {
-				// The fallback title has already been saved, so title failures should not
-				// block the local save flow.
-			}
-		},
-		[model, onSavedStoriesChanged, onSavesError],
-	);
+	const persistStory = useStoryPersistence({
+		model,
+		activeSaveIdRef,
+		onSavedStoriesChanged,
+		onSavesError,
+		onTitleGenerated: setActiveTitle,
+	});
 
 	const generateAndApplyStoryBackground = useCallback(
 		async (selected: Genre, saveId: string, storyMessages: ChatMessage[]) => {
@@ -169,17 +127,19 @@ export function useStorySession({
 				}
 
 				setBackgroundImage(nextBackgroundImage);
-				void persistStory({
-					id: saveId,
-					genreId: selected.id,
-					title: activeTitleRef.current ?? fallbackTitle(selected),
-					messages: messagesRef.current,
-					memory: memoryRef.current,
-					segments: segmentsRef.current,
-					currentTarget: currentTargetRef.current,
-					phase: phaseRef.current,
-					...nextBackgroundImage,
-				});
+				void persistStory(
+					buildStorySaveSnapshot({
+						id: saveId,
+						genre: selected,
+						title: activeTitleRef.current ?? fallbackTitle(selected),
+						messages: messagesRef.current,
+						memory: memoryRef.current,
+						segments: segmentsRef.current,
+						currentTarget: currentTargetRef.current,
+						phase: phaseRef.current,
+						backgroundImage: nextBackgroundImage,
+					}),
+				);
 			} catch (err) {
 				console.warn("Could not refresh the story background image.", err);
 			}
@@ -281,9 +241,9 @@ export function useStorySession({
 				setBackgroundImage(nextBackgroundImage);
 				setPhase("typing");
 				void persistStory(
-					{
+					buildStorySaveSnapshot({
 						id: saveId,
-						genreId: selected.id,
+						genre: selected,
 						title,
 						messages: seeded,
 						memory: undefined,
@@ -291,8 +251,8 @@ export function useStorySession({
 						currentTarget: text,
 						phase: "typing",
 						backgroundIntro: intro,
-						...nextBackgroundImage,
-					},
+						backgroundImage: nextBackgroundImage,
+					}),
 					{ generateTitle: true },
 				);
 				if (!consumedPreparedOpening) {
@@ -323,18 +283,20 @@ export function useStorySession({
 			setStreamingTarget("");
 			setPhase("authoring");
 			if (genre && activeSaveId) {
-				void persistStory({
-					id: activeSaveId,
-					genreId: genre.id,
-					title: activeTitle ?? fallbackTitle(genre),
-					messages,
-					memory,
-					segments: nextSegments,
-					currentTarget: null,
-					phase: "authoring",
-					backgroundIntro: backgroundIntro ?? undefined,
-					...saveBackgroundFields(),
-				});
+				void persistStory(
+					buildStorySaveSnapshot({
+						id: activeSaveId,
+						genre,
+						title: activeTitle ?? fallbackTitle(genre),
+						messages,
+						memory,
+						segments: nextSegments,
+						currentTarget: null,
+						phase: "authoring",
+						backgroundIntro: backgroundIntro ?? undefined,
+						backgroundImage,
+					}),
+				);
 			}
 		},
 		[
@@ -346,7 +308,7 @@ export function useStorySession({
 			memory,
 			messages,
 			persistStory,
-			saveBackgroundFields,
+			backgroundImage,
 			segments,
 		],
 	);
@@ -369,18 +331,20 @@ export function useStorySession({
 			setStreamingTarget("");
 			setError(null);
 			setPhase("loading");
-			void persistStory({
-				id: activeSaveId,
-				genreId: genre.id,
-				title: activeTitle ?? fallbackTitle(genre),
-				messages: userMessages,
-				memory,
-				segments: nextSegments,
-				currentTarget: null,
-				phase: "loading",
-				backgroundIntro: backgroundIntro ?? undefined,
-				...saveBackgroundFields(),
-			});
+			void persistStory(
+				buildStorySaveSnapshot({
+					id: activeSaveId,
+					genre,
+					title: activeTitle ?? fallbackTitle(genre),
+					messages: userMessages,
+					memory,
+					segments: nextSegments,
+					currentTarget: null,
+					phase: "loading",
+					backgroundIntro: backgroundIntro ?? undefined,
+					backgroundImage,
+				}),
+			);
 
 			try {
 				const {
@@ -400,9 +364,9 @@ export function useStorySession({
 				setStreamingTarget("");
 				setPhase("typing");
 				void persistStory(
-					{
+					buildStorySaveSnapshot({
 						id: activeSaveId,
-						genreId: genre.id,
+						genre,
 						title: activeTitle ?? fallbackTitle(genre),
 						messages: updated,
 						memory: updatedMemory,
@@ -410,8 +374,8 @@ export function useStorySession({
 						currentTarget: text,
 						phase: "typing",
 						backgroundIntro: backgroundIntro ?? undefined,
-						...saveBackgroundFields(),
-					},
+						backgroundImage,
+					}),
 					{ generateTitle: activeTitle === fallbackTitle(genre) },
 				);
 				void refreshStoryBackground(genre, activeSaveId, updated);
@@ -430,7 +394,7 @@ export function useStorySession({
 			model,
 			persistStory,
 			refreshStoryBackground,
-			saveBackgroundFields,
+			backgroundImage,
 			segments,
 		],
 	);
@@ -441,18 +405,20 @@ export function useStorySession({
 		setStreamingTarget("");
 		setError(null);
 		setPhase("loading");
-		void persistStory({
-			id: activeSaveId,
-			genreId: genre.id,
-			title: activeTitle ?? fallbackTitle(genre),
-			messages,
-			memory,
-			segments,
-			currentTarget: null,
-			phase: "loading",
-			backgroundIntro: backgroundIntro ?? undefined,
-			...saveBackgroundFields(),
-		});
+		void persistStory(
+			buildStorySaveSnapshot({
+				id: activeSaveId,
+				genre,
+				title: activeTitle ?? fallbackTitle(genre),
+				messages,
+				memory,
+				segments,
+				currentTarget: null,
+				phase: "loading",
+				backgroundIntro: backgroundIntro ?? undefined,
+				backgroundImage,
+			}),
+		);
 
 		try {
 			const {
@@ -471,9 +437,9 @@ export function useStorySession({
 			setStreamingTarget("");
 			setPhase("typing");
 			void persistStory(
-				{
+				buildStorySaveSnapshot({
 					id: activeSaveId,
-					genreId: genre.id,
+					genre,
 					title: activeTitle ?? fallbackTitle(genre),
 					messages: updated,
 					memory: updatedMemory,
@@ -481,8 +447,8 @@ export function useStorySession({
 					currentTarget: text,
 					phase: "typing",
 					backgroundIntro: backgroundIntro ?? undefined,
-					...saveBackgroundFields(),
-				},
+					backgroundImage,
+				}),
 				{ generateTitle: activeTitle === fallbackTitle(genre) },
 			);
 			void refreshStoryBackground(genre, activeSaveId, updated);
@@ -500,24 +466,26 @@ export function useStorySession({
 		model,
 		persistStory,
 		refreshStoryBackground,
-		saveBackgroundFields,
+		backgroundImage,
 		segments,
 	]);
 
 	const backToMenu = useCallback(() => {
 		if (genre && activeSaveId) {
-			void persistStory({
-				id: activeSaveId,
-				genreId: genre.id,
-				title: activeTitle ?? fallbackTitle(genre),
-				messages,
-				memory,
-				segments,
-				currentTarget,
-				phase,
-				backgroundIntro: backgroundIntro ?? undefined,
-				...saveBackgroundFields(),
-			});
+			void persistStory(
+				buildStorySaveSnapshot({
+					id: activeSaveId,
+					genre,
+					title: activeTitle ?? fallbackTitle(genre),
+					messages,
+					memory,
+					segments,
+					currentTarget,
+					phase,
+					backgroundIntro: backgroundIntro ?? undefined,
+					backgroundImage,
+				}),
+			);
 		}
 		onViewChange("menu");
 		setGenre(null);
@@ -544,7 +512,7 @@ export function useStorySession({
 		onViewChange,
 		persistStory,
 		phase,
-		saveBackgroundFields,
+		backgroundImage,
 		segments,
 	]);
 
