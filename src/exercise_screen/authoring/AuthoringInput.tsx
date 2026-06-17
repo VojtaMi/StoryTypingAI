@@ -2,9 +2,13 @@ import { useAuthoringDraft } from "./useAuthoringDraft";
 
 interface AuthoringInputProps {
 	onSubmit: (text: string) => void;
+	onAutoContinue: () => void;
 }
 
-export function AuthoringInput({ onSubmit }: AuthoringInputProps) {
+export function AuthoringInput({
+	onSubmit,
+	onAutoContinue,
+}: AuthoringInputProps) {
 	const { draft, setDraft, submit, canSubmit } = useAuthoringDraft(onSubmit);
 
 	return (
@@ -20,14 +24,23 @@ export function AuthoringInput({ onSubmit }: AuthoringInputProps) {
 				placeholder="What happens next? (Ctrl/Cmd+Enter to send)"
 				rows={4}
 			/>
-			<button
-				type="button"
-				className="authoring__submit"
-				onClick={submit}
-				disabled={!canSubmit}
-			>
-				Continue story
-			</button>
+			<div className="authoring__actions">
+				<button
+					type="button"
+					className="authoring__submit"
+					onClick={submit}
+					disabled={!canSubmit}
+				>
+					Add your part
+				</button>
+				<button
+					type="button"
+					className="authoring__continue"
+					onClick={onAutoContinue}
+				>
+					Let AI continue
+				</button>
+			</div>
 		</div>
 	);
 }

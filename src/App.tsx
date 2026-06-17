@@ -6,6 +6,7 @@ import {
 	useState,
 } from "react";
 import {
+	autoContinueStoryStream,
 	type ChatMessage,
 	continueStoryStream,
 	generateStoryBackgroundImage,
@@ -492,6 +493,55 @@ export default function App() {
 		}
 	}
 
+	async function autoContinueStory() {
+		if (!genre || !activeSaveId) return;
+
+		setStreamingTarget("");
+		setError(null);
+		setPhase("loading");
+		void persistStory({
+			id: activeSaveId,
+			genreId: genre.id,
+			title: activeTitle ?? fallbackTitle(genre),
+			messages,
+			segments,
+			currentTarget: null,
+			phase: "loading",
+			backgroundIntro: backgroundIntro ?? undefined,
+			...saveBackgroundFields(),
+		});
+
+		try {
+			const { text, messages: updated } = await autoContinueStoryStream(
+				messages,
+				(chunk) => setStreamingTarget((current) => current + chunk),
+				model,
+			);
+			setMessages(updated);
+			setCurrentTarget(text);
+			setStreamingTarget("");
+			setPhase("typing");
+			void persistStory(
+				{
+					id: activeSaveId,
+					genreId: genre.id,
+					title: activeTitle ?? fallbackTitle(genre),
+					messages: updated,
+					segments,
+					currentTarget: text,
+					phase: "typing",
+					backgroundIntro: backgroundIntro ?? undefined,
+					...saveBackgroundFields(),
+				},
+				{ generateTitle: activeTitle === fallbackTitle(genre) },
+			);
+			void refreshStoryBackground(genre, activeSaveId, updated);
+		} catch (err) {
+			setError(describeError(err));
+			setStreamingTarget("");
+		}
+	}
+
 	function backToMenu() {
 		if (genre && activeSaveId) {
 			void persistStory({
@@ -626,6 +676,7 @@ export default function App() {
 					currentImageUrl={backgroundImage?.backgroundImageUrl ?? null}
 					onTypingComplete={handleTypingComplete}
 					onSubmitContinuation={submitContinuation}
+					onAutoContinue={autoContinueStory}
 					onBackToMenu={backToMenu}
 				/>
 			)}

@@ -19,6 +19,7 @@ interface ExerciseScreenProps {
 	currentImageUrl: string | null;
 	onTypingComplete: (stats: TypingStats) => void;
 	onSubmitContinuation: (text: string) => void;
+	onAutoContinue: () => void;
 	onBackToMenu: () => void;
 }
 
@@ -33,6 +34,7 @@ export default function ExerciseScreen({
 	currentImageUrl,
 	onTypingComplete,
 	onSubmitContinuation,
+	onAutoContinue,
 	onBackToMenu,
 }: ExerciseScreenProps) {
 	const [galleryOpen, setGalleryOpen] = useState(false);
@@ -58,7 +60,10 @@ export default function ExerciseScreen({
 			)}
 
 			{phase === "authoring" && (
-				<AuthoringInput onSubmit={onSubmitContinuation} />
+				<AuthoringInput
+					onSubmit={onSubmitContinuation}
+					onAutoContinue={onAutoContinue}
+				/>
 			)}
 
 			{phase === "loading" && (

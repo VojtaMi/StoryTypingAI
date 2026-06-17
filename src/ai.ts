@@ -16,6 +16,9 @@ type StreamEvent =
 	| { type: "done"; text?: string }
 	| { type: "error"; error?: string };
 
+const AI_CONTINUE_PROMPT =
+	"Continue the story from here. Keep the same style, tension, and perspective.";
+
 async function complete(
 	messages: ChatMessage[],
 	model: TextModelId,
@@ -111,6 +114,14 @@ export async function continueStoryStream(
 	const text = await completeStream(messages, model, onChunk);
 	messages.push({ role: "assistant", content: text });
 	return { text, messages };
+}
+
+export async function autoContinueStoryStream(
+	history: ChatMessage[],
+	onChunk: (chunk: string) => void,
+	model: TextModelId = DEFAULT_TEXT_MODEL,
+): Promise<{ text: string; messages: ChatMessage[] }> {
+	return continueStoryStream(history, AI_CONTINUE_PROMPT, onChunk, model);
 }
 
 export async function generateStoryBackgroundImage(
