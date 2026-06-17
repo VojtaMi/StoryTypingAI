@@ -13,6 +13,12 @@ import {
 	startStory,
 	titleStory,
 } from "./ai";
+import ExerciseScreen from "./exercise_screen/ExerciseScreen";
+import type {
+	StoryPhase,
+	StorySegment,
+	TypingStats,
+} from "./exercise_screen/types";
 import { type Genre, genres } from "./genres";
 import MainMenu from "./home_menu/MainMenu";
 import {
@@ -21,7 +27,6 @@ import {
 } from "./modelSelection/modelSelectionStore";
 import type { TextModelId } from "./models";
 import { consumePreparedOpening, prepareMissingOpenings } from "./openings";
-import StoryView, { type StoryPhase, type StorySegment } from "./StoryView";
 import {
 	deleteSavedStory,
 	listSavedStories,
@@ -31,7 +36,6 @@ import {
 	saveStory,
 } from "./saves";
 import type { StoryBackgroundImage } from "./storyBackground";
-import type { TypingStats } from "./TypingExercise";
 
 type View = "menu" | "story";
 
@@ -611,7 +615,7 @@ export default function App() {
 			)}
 
 			{view === "story" && genre && (
-				<StoryView
+				<ExerciseScreen
 					segments={segments}
 					currentTarget={currentTarget}
 					streamingTarget={streamingTarget}

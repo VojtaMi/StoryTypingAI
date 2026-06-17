@@ -1,0 +1,43 @@
+import type { TypingStats as TypingStatsResult } from "../types";
+import { TypingPassage } from "./TypingPassage";
+import { TypingStats } from "./TypingStats";
+import { useTypingSession } from "./useTypingSession";
+
+interface TypingExerciseProps {
+	target: string;
+	onComplete: (stats: TypingStatsResult) => void;
+}
+
+export function TypingExercise({ target, onComplete }: TypingExerciseProps) {
+	const session = useTypingSession(target, onComplete);
+
+	return (
+		<div className="typing-exercise">
+			<TypingStats
+				wpm={session.wpm}
+				accuracy={session.accuracy}
+				elapsedMs={session.elapsedMs}
+				mistakes={session.mistakes}
+			/>
+
+			<div
+				className="progress-bar"
+				role="progressbar"
+				aria-valuenow={session.progress}
+			>
+				<div
+					className="progress-fill"
+					style={{ width: `${session.progress}%` }}
+				/>
+			</div>
+
+			<TypingPassage
+				target={target}
+				typedValue={session.typedValue}
+				statuses={session.statuses}
+				inputRef={session.inputRef}
+				onChange={session.handleChange}
+			/>
+		</div>
+	);
+}
