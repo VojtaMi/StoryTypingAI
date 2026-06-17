@@ -10,8 +10,8 @@ export interface PreparedStoryContext {
 	memory?: StoryMemory;
 }
 
-const SUMMARY_TRIGGER_MESSAGE_COUNT = 16;
-const RECENT_MESSAGE_COUNT = 10;
+const MEMORY_BUFFER_MESSAGE_COUNT = 16;
+const MEMORY_CHUNK_MESSAGE_COUNT = 10;
 const SUMMARY_MAX_TOKENS = 500;
 
 const SUMMARY_SYSTEM_PROMPT =
@@ -44,12 +44,17 @@ async function updateStoryMemory(
 	memory: StoryMemory | undefined,
 	complete: Complete,
 ): Promise<StoryMemory | undefined> {
-	if (fullMessages.length < SUMMARY_TRIGGER_MESSAGE_COUNT) return memory;
-
-	const summarizeThrough = fullMessages.length - RECENT_MESSAGE_COUNT;
 	const currentThrough = memory?.summarizedThrough ?? 0;
-	if (summarizeThrough <= currentThrough) return memory;
+	const bufferMessageCount = countNonSystemMessages(
+		fullMessages.slice(currentThrough),
+	);
+	if (bufferMessageCount < MEMORY_BUFFER_MESSAGE_COUNT) return memory;
 
+	const summarizeThrough = indexAfterNonSystemMessages(
+		fullMessages,
+		currentThrough,
+		MEMORY_CHUNK_MESSAGE_COUNT,
+	);
 	const messagesToSummarize = fullMessages
 		.slice(currentThrough, summarizeThrough)
 		.filter((message) => message.role !== "system");
@@ -112,4 +117,24 @@ function buildSummaryPrompt(
 		.join("\n\n");
 
 	return `${previous}New transcript turns to fold into memory:\n${newTurns}\n\nReturn the updated story memory only.`;
+}
+
+function countNonSystemMessages(messages: ChatMessage[]) {
+	return messages.filter((message) => message.role !== "system").length;
+}
+
+function indexAfterNonSystemMessages(
+	messages: ChatMessage[],
+	startIndex: number,
+	count: number,
+) {
+	let seen = 0;
+
+	for (let index = startIndex; index < messages.length; index += 1) {
+		if (messages[index]?.role === "system") continue;
+		seen += 1;
+		if (seen === count) return index + 1;
+	}
+
+	return messages.length;
 }
