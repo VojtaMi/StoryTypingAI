@@ -14,8 +14,12 @@ import {
 	titleStory,
 } from "./ai";
 import { type Genre, genres } from "./genres";
-import Menu from "./Menu";
-import { DEFAULT_TEXT_MODEL, TEXT_MODELS, type TextModelId } from "./models";
+import MainMenu from "./home_menu/MainMenu";
+import {
+	readSelectedTextModel,
+	saveSelectedTextModel,
+} from "./modelSelection/modelSelectionStore";
+import type { TextModelId } from "./models";
 import { consumePreparedOpening, prepareMissingOpenings } from "./openings";
 import StoryView, { type StoryPhase, type StorySegment } from "./StoryView";
 import {
@@ -54,10 +58,7 @@ export default function App() {
 	const [isBackgroundFading, setIsBackgroundFading] = useState(false);
 	const [savedStories, setSavedStories] = useState<SavedStorySummary[]>([]);
 	const [savesError, setSavesError] = useState<string | null>(null);
-	const [model, setModel] = useState<TextModelId>(() => {
-		const stored = localStorage.getItem("ai-model");
-		return TEXT_MODELS.find((m) => m.id === stored)?.id ?? DEFAULT_TEXT_MODEL;
-	});
+	const [model, setModel] = useState<TextModelId>(readSelectedTextModel);
 	const activeSaveIdRef = useRef<string | null>(null);
 	const activeTitleRef = useRef<string | null>(null);
 	const messagesRef = useRef<ChatMessage[]>([]);
@@ -554,7 +555,7 @@ export default function App() {
 	}
 
 	function handleModelChange(id: TextModelId) {
-		localStorage.setItem("ai-model", id);
+		saveSelectedTextModel(id);
 		setModel(id);
 	}
 
@@ -598,7 +599,7 @@ export default function App() {
 			</header>
 
 			{view === "menu" && (
-				<Menu
+				<MainMenu
 					savedStories={savedStories}
 					savesError={savesError}
 					model={model}
