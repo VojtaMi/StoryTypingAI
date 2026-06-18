@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
-import { DEFAULT_TEXT_MODEL } from "../models";
+import { DEFAULT_TEXT_MODEL, STORY_SEGMENT_MAX_TOKENS } from "../models";
 import { normalizeStoryText } from "./http";
 
 type AnthropicMessages = {
@@ -15,7 +15,7 @@ type AnthropicMessages = {
 export async function completeAi(
 	openai: OpenAI,
 	messages: ChatMessage[],
-	maxTokens = 200,
+	maxTokens = STORY_SEGMENT_MAX_TOKENS,
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 ): Promise<string> {
@@ -28,7 +28,7 @@ export async function completeAi(
 export async function streamAi(
 	openai: OpenAI,
 	messages: ChatMessage[],
-	maxTokens = 200,
+	maxTokens = STORY_SEGMENT_MAX_TOKENS,
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 	onChunk: (chunk: string) => void,
@@ -50,9 +50,13 @@ async function completeOpenAi(
 		max_completion_tokens: maxTokens,
 		messages,
 	});
-	const raw = response.choices[0]?.message?.content?.trim();
+	const choice = response.choices[0];
+	const raw = choice?.message?.content?.trim();
 	if (!raw) throw new Error("The AI returned an empty response.");
-	return normalizeStoryText(raw);
+	const text = normalizeStoryText(raw);
+	return choice?.finish_reason === "length"
+		? trimToSentenceBoundary(text)
+		: text;
 }
 
 async function streamOpenAi(
@@ -70,8 +74,11 @@ async function streamOpenAi(
 	});
 
 	let raw = "";
+	let truncated = false;
 	for await (const event of stream) {
-		const chunk = event.choices[0]?.delta.content;
+		const choice = event.choices[0];
+		if (choice?.finish_reason === "length") truncated = true;
+		const chunk = choice?.delta.content;
 		if (!chunk) continue;
 		raw += chunk;
 		onChunk(normalizeStoryText(chunk));
@@ -79,7 +86,7 @@ async function streamOpenAi(
 
 	const text = normalizeStoryText(raw).trim();
 	if (!text) throw new Error("The AI returned an empty response.");
-	return text;
+	return truncated ? trimToSentenceBoundary(text) : text;
 }
 
 async function completeAnthropic(
@@ -102,7 +109,10 @@ async function completeAnthropic(
 	const block = response.content[0];
 	if (block?.type !== "text")
 		throw new Error("The AI returned an empty response.");
-	return normalizeStoryText(block.text);
+	const text = normalizeStoryText(block.text);
+	return response.stop_reason === "max_tokens"
+		? trimToSentenceBoundary(text)
+		: text;
 }
 
 async function streamAnthropic(
@@ -125,7 +135,12 @@ async function streamAnthropic(
 	});
 
 	let raw = "";
+	let stopReason: string | null = null;
 	for await (const event of stream) {
+		if (event.type === "message_delta") {
+			stopReason = event.delta.stop_reason ?? stopReason;
+			continue;
+		}
 		if (
 			event.type !== "content_block_delta" ||
 			event.delta.type !== "text_delta"
@@ -138,7 +153,19 @@ async function streamAnthropic(
 
 	const text = normalizeStoryText(raw).trim();
 	if (!text) throw new Error("The AI returned an empty response.");
-	return text;
+	return stopReason === "max_tokens" ? trimToSentenceBoundary(text) : text;
+}
+
+/**
+ * When a completion is cut off by the token ceiling, the tail is usually a
+ * partial sentence or word. Roll the text back to the last sentence-ending
+ * punctuation so a typing exercise never ends on a fragment. Applied only when
+ * the model was actually truncated, leaving naturally-finished prose untouched
+ * (so intentional endings like a trailing dash survive).
+ */
+function trimToSentenceBoundary(text: string): string {
+	const match = text.match(/^[\s\S]*[.!?]["')\]]*/);
+	return match ? match[0].trimEnd() : text;
 }
 
 function toAnthropicMessages(messages: ChatMessage[]): AnthropicMessages {

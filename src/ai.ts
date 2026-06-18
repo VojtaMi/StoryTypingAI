@@ -1,5 +1,9 @@
 import type { Genre, GenreId } from "./genres";
-import { DEFAULT_TEXT_MODEL, type TextModelId } from "./models";
+import {
+	DEFAULT_TEXT_MODEL,
+	STORY_SEGMENT_MAX_TOKENS,
+	type TextModelId,
+} from "./models";
 import {
 	type ChatMessage,
 	type Complete,
@@ -23,7 +27,7 @@ const AI_CONTINUE_PROMPT =
 async function complete(
 	messages: ChatMessage[],
 	model: TextModelId,
-	maxTokens = 150,
+	maxTokens = STORY_SEGMENT_MAX_TOKENS,
 ): Promise<string> {
 	const res = await fetch("/api/ai/complete", {
 		method: "POST",
@@ -40,7 +44,7 @@ async function completeStream(
 	messages: ChatMessage[],
 	model: TextModelId,
 	onChunk: (chunk: string) => void,
-	maxTokens = 150,
+	maxTokens = STORY_SEGMENT_MAX_TOKENS,
 ): Promise<string> {
 	const res = await fetch("/api/ai/complete-stream", {
 		method: "POST",

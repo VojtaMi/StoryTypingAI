@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
-import { DEFAULT_TEXT_MODEL } from "../models";
+import { DEFAULT_TEXT_MODEL, STORY_SEGMENT_MAX_TOKENS } from "../models";
 import { completeAi, streamAi } from "./aiService";
 import { readBody, sendJson } from "./http";
 import { startNdjsonResponse, writeJsonLine } from "./ndjson";
@@ -43,7 +43,7 @@ export async function handleCompleteStreamRequest(
 ) {
 	const {
 		messages,
-		maxTokens = 150,
+		maxTokens = STORY_SEGMENT_MAX_TOKENS,
 		model = DEFAULT_TEXT_MODEL,
 	} = JSON.parse(await readBody(req));
 	startNdjsonResponse(res);
@@ -67,7 +67,7 @@ export async function handleCompleteRequest(
 ) {
 	const {
 		messages,
-		maxTokens = 150,
+		maxTokens = STORY_SEGMENT_MAX_TOKENS,
 		model = DEFAULT_TEXT_MODEL,
 	} = JSON.parse(await readBody(req));
 	sendJson(res, 200, {
