@@ -15,3 +15,14 @@ export const DEFAULT_TEXT_MODEL: TextModelId = "claude-sonnet-4-6";
  * mid-sentence.
  */
 export const STORY_SEGMENT_MAX_TOKENS = 400;
+
+/** Text-to-speech model and voice used to narrate AI story segments on demand. */
+export const TTS_MODEL = "gpt-4o-mini-tts";
+export const TTS_VOICE = "fable";
+
+/**
+ * Hard character ceiling for a single speech request. The OpenAI speech endpoint
+ * rejects input longer than 4096 characters; story segments are far shorter, so
+ * this is a safety net rather than a length we expect to hit.
+ */
+export const TTS_MAX_INPUT_CHARS = 4096;

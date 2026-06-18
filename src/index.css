@@ -292,6 +292,47 @@ body[data-view="menu"] {
 	border-left: 3px solid var(--accent);
 }
 
+.segment__speak {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.6rem;
+	height: 1.6rem;
+	margin-left: 0.5rem;
+	padding: 0;
+	vertical-align: middle;
+	font-size: 0.85rem;
+	line-height: 1;
+	color: var(--accent);
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid var(--story-border);
+	border-radius: 999px;
+	cursor: pointer;
+	transition:
+		background 0.15s ease,
+		transform 0.15s ease;
+}
+
+.segment__speak:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.14);
+	transform: scale(1.08);
+}
+
+.segment__speak:disabled {
+	cursor: default;
+	opacity: 0.6;
+}
+
+.segment__speak[data-status="playing"] {
+	background: var(--accent);
+	color: #0b0f1a;
+}
+
+.segment__speak[data-status="error"] {
+	color: #f3a4a4;
+	border-color: #f3a4a4;
+}
+
 .segment--user {
 	background: rgba(40, 59, 44, 0.72);
 	border-left: 3px solid var(--correct);

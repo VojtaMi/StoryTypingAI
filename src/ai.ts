@@ -164,6 +164,17 @@ export async function generateStoryBackgroundImage(
 	return res.json() as Promise<StoryBackgroundImage>;
 }
 
+/** Narrates a story segment, returning the spoken audio as an MP3 blob. */
+export async function speakStorySegment(text: string): Promise<Blob> {
+	const res = await fetch("/api/ai/speak", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ text }),
+	});
+	if (!res.ok) throw new Error(`Narration request failed: ${res.status}`);
+	return res.blob();
+}
+
 /** Generates a 1-2 sentence second-person intro describing who the player is and what brought them here. */
 export async function generateStoryIntro(
 	genreLabel: string,

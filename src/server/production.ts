@@ -6,7 +6,7 @@ import OpenAI from "openai";
 import type { ChatMessage } from "../ai";
 import type { GenreId } from "../genres";
 import { DEFAULT_TEXT_MODEL } from "../models";
-import { completeAi } from "./aiService";
+import { completeAi, synthesizeSpeech } from "./aiService";
 import { readBody, sendJson } from "./http";
 import {
 	consumePreparedOpening,
@@ -231,6 +231,20 @@ const server = createServer(async (req, res) => {
 					ANTHROPIC_API_KEY,
 				),
 			});
+			return;
+		}
+
+		if (pathname === "/api/ai/speak" && req.method === "POST") {
+			const { text } = JSON.parse(await readBody(req));
+			if (!text || typeof text !== "string") {
+				sendJson(res, 400, { error: "text is required." });
+				return;
+			}
+			const audio = await synthesizeSpeech(openai, text);
+			res.statusCode = 200;
+			res.setHeader("Content-Type", "audio/mpeg");
+			res.setHeader("Cache-Control", "no-store");
+			res.end(audio);
 			return;
 		}
 

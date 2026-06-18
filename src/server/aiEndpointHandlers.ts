@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
 import { DEFAULT_TEXT_MODEL, STORY_SEGMENT_MAX_TOKENS } from "../models";
-import { completeAi, streamAi } from "./aiService";
+import { completeAi, streamAi, synthesizeSpeech } from "./aiService";
 import { readBody, sendJson } from "./http";
 import { startNdjsonResponse, writeJsonLine } from "./ndjson";
 import { createBackgroundImage, findGenre } from "./openingsStore";
@@ -57,6 +57,23 @@ export async function handleCompleteStreamRequest(
 	);
 	writeJsonLine(res, { type: "done", text });
 	res.end();
+}
+
+export async function handleSpeakRequest(
+	req: IncomingMessage,
+	res: ServerResponse,
+	openai: OpenAI,
+) {
+	const { text } = JSON.parse(await readBody(req));
+	if (!text || typeof text !== "string") {
+		sendJson(res, 400, { error: "text is required." });
+		return;
+	}
+	const audio = await synthesizeSpeech(openai, text);
+	res.statusCode = 200;
+	res.setHeader("Content-Type", "audio/mpeg");
+	res.setHeader("Cache-Control", "no-store");
+	res.end(audio);
 }
 
 export async function handleCompleteRequest(

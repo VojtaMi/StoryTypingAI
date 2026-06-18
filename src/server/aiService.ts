@@ -1,7 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
-import { DEFAULT_TEXT_MODEL, STORY_SEGMENT_MAX_TOKENS } from "../models";
+import {
+	DEFAULT_TEXT_MODEL,
+	STORY_SEGMENT_MAX_TOKENS,
+	TTS_MAX_INPUT_CHARS,
+	TTS_MODEL,
+	TTS_VOICE,
+} from "../models";
 import { normalizeStoryText } from "./http";
 
 type AnthropicMessages = {
@@ -37,6 +43,29 @@ export async function streamAi(
 		return streamAnthropic(messages, maxTokens, model, anthropicKey, onChunk);
 	}
 	return streamOpenAi(openai, messages, maxTokens, model, onChunk);
+}
+
+/**
+ * Synthesizes narration for a single story segment. Returns raw MP3 bytes so the
+ * caller can stream them straight back to the browser without touching disk.
+ */
+export async function synthesizeSpeech(
+	openai: OpenAI,
+	text: string,
+): Promise<Buffer> {
+	const input = text.trim();
+	if (!input) throw new Error("No text to narrate.");
+	if (input.length > TTS_MAX_INPUT_CHARS) {
+		throw new Error("The passage is too long to narrate.");
+	}
+
+	const response = await openai.audio.speech.create({
+		model: TTS_MODEL,
+		voice: TTS_VOICE,
+		input,
+		response_format: "mp3",
+	});
+	return Buffer.from(await response.arrayBuffer());
 }
 
 async function completeOpenAi(

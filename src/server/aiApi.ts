@@ -4,11 +4,12 @@ import {
 	handleBackgroundImageRequest,
 	handleCompleteRequest,
 	handleCompleteStreamRequest,
+	handleSpeakRequest,
 } from "./aiEndpointHandlers";
 import { sendJson } from "./http";
 import { sendNdjsonError } from "./ndjson";
 
-type AiApiRoute = "complete" | "complete-stream" | "background-image";
+type AiApiRoute = "complete" | "complete-stream" | "background-image" | "speak";
 
 export function aiApi(openaiKey: string, anthropicKey: string): Plugin {
 	return {
@@ -30,6 +31,11 @@ export function aiApi(openaiKey: string, anthropicKey: string): Plugin {
 
 					if (route === "complete-stream") {
 						await handleCompleteStreamRequest(req, res, openai, anthropicKey);
+						return;
+					}
+
+					if (route === "speak") {
+						await handleSpeakRequest(req, res, openai);
 						return;
 					}
 
@@ -57,6 +63,8 @@ function aiApiRoute(
 			return "complete";
 		case "/api/ai/complete-stream":
 			return "complete-stream";
+		case "/api/ai/speak":
+			return "speak";
 		case "/api/ai/background-image":
 			return "background-image";
 		default:
