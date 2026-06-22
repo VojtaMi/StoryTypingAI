@@ -1,6 +1,60 @@
 /* ---- Menu ---- */
 .menu {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	gap: 1.25rem;
+}
+
+.lesson-hero {
+	min-height: clamp(360px, 58vh, 620px);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: clamp(3rem, 12vh, 7rem) 1rem clamp(1.5rem, 5vh, 3rem);
+	text-align: center;
+}
+
+.lesson-hero__content {
+	width: min(100%, 520px);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.lesson-hero h1 {
+	margin: 0;
+	max-width: 12ch;
+	color: #f4fbef;
+	font-size: clamp(3rem, 8vw, 6.5rem);
+	font-weight: 750;
+	line-height: 0.96;
+	text-shadow: 0 4px 28px rgba(0, 0, 0, 0.82);
+}
+
+.lesson-hero__start {
 	margin-top: 2rem;
+	min-height: 3.2rem;
+	padding: 0 1.55rem;
+	border: 1px solid rgba(244, 251, 239, 0.84);
+	border-radius: 8px;
+	background: #f4fbef;
+	color: #102016;
+	font: inherit;
+	font-size: 1rem;
+	font-weight: 750;
+	cursor: pointer;
+	box-shadow: 0 14px 36px rgba(0, 0, 0, 0.28);
+	transition:
+		background 0.15s ease,
+		border-color 0.15s ease,
+		transform 0.15s ease;
+}
+
+.lesson-hero__start:hover {
+	background: #91e6af;
+	border-color: #91e6af;
+	transform: translateY(-2px);
 }
 
 .menu__settings {
@@ -8,7 +62,7 @@
 	align-items: center;
 	justify-content: flex-end;
 	gap: 0.5rem;
-	margin-bottom: 1.5rem;
+	margin-top: 0.5rem;
 	font-size: 0.85rem;
 	color: var(--muted);
 }
@@ -76,7 +130,9 @@
 }
 
 .saved-stories {
-	margin-top: 3rem;
+	margin-top: auto;
+	padding-top: 1.25rem;
+	text-shadow: 0 2px 14px rgba(0, 0, 0, 0.76);
 }
 
 .saved-stories h2 {
@@ -104,7 +160,35 @@
 	padding: 1rem;
 	border: 1px solid color-mix(in srgb, var(--muted) 45%, transparent);
 	border-radius: 8px;
-	background: var(--surface);
+	background: rgba(24, 28, 39, 0.72);
+	backdrop-filter: blur(12px) saturate(120%);
+}
+
+@media (max-width: 720px) {
+	.lesson-hero {
+		min-height: clamp(360px, 55vh, 520px);
+		padding-inline: 0;
+	}
+
+	.lesson-hero h1 {
+		max-width: 11ch;
+	}
+
+	.lesson-hero__start {
+		width: 100%;
+	}
+
+	.saved-story {
+		grid-template-columns: 1fr;
+	}
+
+	.saved-story__actions {
+		width: 100%;
+	}
+
+	.saved-story__actions button {
+		flex: 1;
+	}
 }
 
 .saved-story h3 {

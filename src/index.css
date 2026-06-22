@@ -34,8 +34,12 @@ body {
 
 body[data-view="menu"] {
 	background-image:
-		linear-gradient(rgba(10, 12, 18, 0.7), rgba(10, 12, 18, 0.82)),
-		url("/images/menu-background.webp");
+		linear-gradient(
+			rgba(10, 12, 18, 0.42),
+			rgba(10, 12, 18, 0.62) 54%,
+			rgba(10, 12, 18, 0.9)
+		),
+		url("/images/esperanto-lesson-hero.png");
 }
 
 .app {
@@ -44,6 +48,13 @@ body[data-view="menu"] {
 	width: 100%;
 	max-width: 760px;
 	padding: 3rem 1.5rem;
+}
+
+.app--menu {
+	max-width: 1080px;
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
 }
 
 .app--story {

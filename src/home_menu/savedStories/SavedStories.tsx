@@ -16,11 +16,11 @@ export function SavedStories({
 }: SavedStoriesProps) {
 	return (
 		<section className="saved-stories" aria-labelledby="saved-stories-title">
-			<h2 id="saved-stories-title">Saved stories</h2>
+			<h2 id="saved-stories-title">Saved lessons</h2>
 			{savesError && <p className="story__error">{savesError}</p>}
 			{savedStories.length === 0 ? (
 				<p className="saved-stories__empty">
-					Your local story files will appear here.
+					Your Esperanto lesson saves will appear here.
 				</p>
 			) : (
 				<div className="saved-stories__list">

@@ -1,4 +1,4 @@
-export type GenreId = "fantasy" | "scifi" | "horror";
+export type GenreId = "esperanto" | "fantasy" | "scifi" | "horror";
 
 export interface Genre {
 	id: GenreId;
@@ -23,6 +23,28 @@ const sharedStyleGuide =
 	"Output only plain story prose — no Markdown formatting, titles, headings, meta-commentary, or instructions to the user.";
 
 export const genres: Genre[] = [
+	{
+		id: "esperanto",
+		label: "Esperanto",
+		emoji: "★",
+		color: "#38b26d",
+		systemPrompt:
+			`${sharedStyleGuide} The genre is a gentle beginner Esperanto lesson told as a tiny story. ` +
+			"Use very simple Esperanto sentences with clear context. Favor beginner words such as estas, hundo, besto, mi, homo, and mia. " +
+			"Keep the language encouraging, concrete, and easy to type.",
+		seeds: [
+			"estas",
+			"hundo",
+			"besto",
+			"mi",
+			"homo",
+			"mia hundo",
+			"bruna",
+			"amiko",
+			"saluton",
+			"domo",
+		],
+	},
 	{
 		id: "fantasy",
 		label: "Fantasy",

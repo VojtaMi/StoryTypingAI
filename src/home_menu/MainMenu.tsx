@@ -1,9 +1,9 @@
 import type { Genre } from "../genres";
+import { genres } from "../genres";
 import { ModelSelector } from "../modelSelection/ModelSelector";
 import type { TextModelId } from "../models";
 import type { SavedStorySummary } from "../saves";
 import "./menu.css";
-import { NewStoryGrid } from "./newStory/SelectionGrid";
 import { SavedStories } from "./savedStories/SavedStories";
 
 interface MainMenuProps {
@@ -25,12 +25,29 @@ export default function MainMenu({
 	onResume,
 	onDelete,
 }: MainMenuProps) {
+	const lessonGenre =
+		genres.find((genre) => genre.id === "esperanto") ?? genres[0];
+	const lessonSaves = savedStories.filter(
+		(story) => story.genreId === "esperanto",
+	);
+
 	return (
 		<div className="menu">
+			<section className="lesson-hero" aria-labelledby="lesson-hero-title">
+				<div className="lesson-hero__content">
+					<h1 id="lesson-hero-title">Esperanto through tiny stories</h1>
+					<button
+						type="button"
+						className="lesson-hero__start"
+						onClick={() => onSelect(lessonGenre)}
+					>
+						Start lesson
+					</button>
+				</div>
+			</section>
 			<ModelSelector model={model} onModelChange={onModelChange} />
-			<NewStoryGrid onSelect={onSelect} />
 			<SavedStories
-				savedStories={savedStories}
+				savedStories={lessonSaves}
 				savesError={savesError}
 				onResume={onResume}
 				onDelete={onDelete}

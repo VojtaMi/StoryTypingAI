@@ -110,14 +110,14 @@ export default function App() {
 				</>
 			)}
 
-			<header className="header">
-				<h1>Story Typing Practice</h1>
-				<p className="subtitle">
-					{view === "story" && genre
-						? `${genre.emoji} ${genre.label}`
-						: "An interactive AI story"}
-				</p>
-			</header>
+			{view === "story" && (
+				<header className="header">
+					<h1>Story Typing Practice</h1>
+					<p className="subtitle">
+						{genre ? `${genre.emoji} ${genre.label}` : ""}
+					</p>
+				</header>
+			)}
 
 			{view === "menu" && (
 				<MainMenu
