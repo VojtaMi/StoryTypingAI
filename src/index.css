@@ -350,10 +350,60 @@ body[data-view="menu"] {
 	color: var(--correct);
 }
 
+.story__current-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin-bottom: 0.75rem;
+}
+
 .story__hint {
 	color: #a9b4e5;
 	font-size: 0.85rem;
-	margin: 0 0 0.75rem;
+	margin: 0;
+}
+
+.story__opening-audio {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 1.9rem;
+	height: 1.9rem;
+	padding: 0;
+	font: inherit;
+	font-size: 0.85rem;
+	line-height: 1;
+	color: var(--accent);
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid var(--story-border);
+	border-radius: 999px;
+	cursor: pointer;
+	transition:
+		background 0.15s ease,
+		transform 0.15s ease;
+}
+
+.story__opening-audio:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.14);
+	transform: scale(1.08);
+}
+
+.story__opening-audio:disabled {
+	cursor: default;
+	opacity: 0.6;
+}
+
+.story__opening-audio[data-status="playing"] {
+	background: var(--accent);
+	color: #0b0f1a;
+}
+
+.story__opening-audio[data-status="blocked"],
+.story__opening-audio[data-status="error"] {
+	color: #f3c56b;
+	border-color: #f3c56b;
 }
 
 .story .stat,

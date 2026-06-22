@@ -3,6 +3,7 @@ import "../gallery/gallery.css";
 import { GalleryModal } from "../gallery/GalleryModal";
 import { AuthoringInput } from "./authoring/AuthoringInput";
 import { ExerciseControls } from "./controls/ExerciseControls";
+import { OpeningAudioControl } from "./story/OpeningAudioControl";
 import { StoryLoading } from "./story/StoryLoading";
 import { StoryLog } from "./story/StoryLog";
 import type { StoryPhase, StorySegment, TypingStats } from "./types";
@@ -17,6 +18,7 @@ interface ExerciseScreenProps {
 	backgroundIntro?: string;
 	storyId: string | null;
 	currentImageUrl: string | null;
+	openingAudioUrl: string | null;
 	onTypingComplete: (stats: TypingStats) => void;
 	onSubmitContinuation: (text: string) => void;
 	onAutoContinue: () => void;
@@ -32,6 +34,7 @@ export default function ExerciseScreen({
 	backgroundIntro,
 	storyId,
 	currentImageUrl,
+	openingAudioUrl,
 	onTypingComplete,
 	onSubmitContinuation,
 	onAutoContinue,
@@ -50,7 +53,10 @@ export default function ExerciseScreen({
 
 			{phase === "typing" && currentTarget && (
 				<div className="story__current">
-					<p className="story__hint">Type the next part of the story:</p>
+					<div className="story__current-header">
+						<p className="story__hint">Type the next part of the story:</p>
+						<OpeningAudioControl audioUrl={openingAudioUrl} />
+					</div>
 					<TypingExercise
 						key={segments.length}
 						target={currentTarget}

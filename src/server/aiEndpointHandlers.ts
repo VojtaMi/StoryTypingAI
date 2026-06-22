@@ -7,6 +7,7 @@ import { readBody, sendJson } from "./http";
 import { startNdjsonResponse, writeJsonLine } from "./ndjson";
 import { createBackgroundImage, findGenre } from "./openingsStore";
 import { saveIdPattern } from "./savesStore";
+import { createOpeningAudio } from "./storyAudioStore";
 
 export async function handleBackgroundImageRequest(
 	req: IncomingMessage,
@@ -74,6 +75,28 @@ export async function handleSpeakRequest(
 	res.setHeader("Content-Type", "audio/mpeg");
 	res.setHeader("Cache-Control", "no-store");
 	res.end(audio);
+}
+
+export async function handleOpeningAudioRequest(
+	req: IncomingMessage,
+	res: ServerResponse,
+	openai: OpenAI,
+) {
+	const { text, storyId } = JSON.parse(await readBody(req));
+	if (!text || typeof text !== "string") {
+		sendJson(res, 400, { error: "text is required." });
+		return;
+	}
+	if (!storyId || typeof storyId !== "string" || !saveIdPattern.test(storyId)) {
+		sendJson(res, 400, { error: "storyId is required." });
+		return;
+	}
+	const audio = await createOpeningAudio(openai, text, storyId);
+	if (!audio) {
+		sendJson(res, 500, { error: "Could not generate opening audio." });
+		return;
+	}
+	sendJson(res, 200, audio);
 }
 
 export async function handleCompleteRequest(

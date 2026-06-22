@@ -18,6 +18,12 @@ type AnthropicMessages = {
 	}>;
 };
 
+export interface SpeechOptions {
+	instructions?: string;
+	speed?: number;
+	voice?: string;
+}
+
 export async function completeAi(
 	openai: OpenAI,
 	messages: ChatMessage[],
@@ -52,6 +58,7 @@ export async function streamAi(
 export async function synthesizeSpeech(
 	openai: OpenAI,
 	text: string,
+	options: SpeechOptions = {},
 ): Promise<Buffer> {
 	const input = text.trim();
 	if (!input) throw new Error("No text to narrate.");
@@ -61,9 +68,11 @@ export async function synthesizeSpeech(
 
 	const response = await openai.audio.speech.create({
 		model: TTS_MODEL,
-		voice: TTS_VOICE,
+		voice: options.voice ?? TTS_VOICE,
 		input,
+		...(options.instructions ? { instructions: options.instructions } : {}),
 		response_format: "mp3",
+		...(options.speed ? { speed: options.speed } : {}),
 	});
 	return Buffer.from(await response.arrayBuffer());
 }

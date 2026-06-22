@@ -45,6 +45,7 @@ export default function App() {
 		error,
 		genre,
 		handleTypingComplete,
+		openingAudio,
 		phase,
 		resumeStory,
 		segments,
@@ -141,6 +142,7 @@ export default function App() {
 					backgroundIntro={backgroundIntro ?? undefined}
 					storyId={activeSaveId}
 					currentImageUrl={backgroundImage?.backgroundImageUrl ?? null}
+					openingAudioUrl={openingAudio?.openingAudioUrl ?? null}
 					onTypingComplete={handleTypingComplete}
 					onSubmitContinuation={submitContinuation}
 					onAutoContinue={autoContinueStory}

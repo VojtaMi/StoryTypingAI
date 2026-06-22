@@ -25,6 +25,11 @@ import {
 	saveIdPattern,
 	writeSave,
 } from "./savesStore";
+import {
+	audioFilePattern,
+	createOpeningAudio,
+	readStoryAudio,
+} from "./storyAudioStore";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PORT = Number(process.env.PORT) || 80;
@@ -159,6 +164,35 @@ const server = createServer(async (req, res) => {
 		}
 
 		if (
+			parts[0] === "api" &&
+			parts[1] === "story-audio" &&
+			req.method === "GET"
+		) {
+			const storyIdPattern = /^[a-zA-Z0-9_-]+$/;
+			const audioParts = parts.slice(2);
+			if (audioParts.length !== 2) {
+				sendJson(res, 404, { error: "Audio not found." });
+				return;
+			}
+			const storyId = decodeURIComponent(audioParts[0] ?? "");
+			const filename = decodeURIComponent(audioParts[1] ?? "");
+			if (!storyIdPattern.test(storyId) || !audioFilePattern.test(filename)) {
+				sendJson(res, 404, { error: "Audio not found." });
+				return;
+			}
+			try {
+				const file = await readStoryAudio(`${storyId}/${filename}`);
+				res.statusCode = 200;
+				res.setHeader("Content-Type", "audio/mpeg");
+				res.setHeader("Cache-Control", "no-store");
+				res.end(file);
+			} catch {
+				sendJson(res, 404, { error: "Audio not found." });
+			}
+			return;
+		}
+
+		if (
 			parts.length === 3 &&
 			parts[0] === "api" &&
 			parts[1] === "gallery" &&
@@ -245,6 +279,29 @@ const server = createServer(async (req, res) => {
 			res.setHeader("Content-Type", "audio/mpeg");
 			res.setHeader("Cache-Control", "no-store");
 			res.end(audio);
+			return;
+		}
+
+		if (pathname === "/api/ai/opening-audio" && req.method === "POST") {
+			const { text, storyId } = JSON.parse(await readBody(req));
+			if (!text || typeof text !== "string") {
+				sendJson(res, 400, { error: "text is required." });
+				return;
+			}
+			if (
+				!storyId ||
+				typeof storyId !== "string" ||
+				!saveIdPattern.test(storyId)
+			) {
+				sendJson(res, 400, { error: "storyId is required." });
+				return;
+			}
+			const audio = await createOpeningAudio(openai, text, storyId);
+			if (!audio) {
+				sendJson(res, 500, { error: "Could not generate opening audio." });
+				return;
+			}
+			sendJson(res, 200, audio);
 			return;
 		}
 

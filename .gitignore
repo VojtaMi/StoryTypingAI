@@ -12,6 +12,7 @@ dist-ssr
 saves/
 openings/
 story-images/
+story-audio/
 
 # Editor directories and files
 .codex

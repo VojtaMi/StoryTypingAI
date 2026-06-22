@@ -1,9 +1,12 @@
 import type { ChatMessage } from "./ai";
 import type { GenreId } from "./genres";
 import { DEFAULT_TEXT_MODEL, type TextModelId } from "./models";
+import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
 
-export interface PreparedOpening extends Partial<StoryBackgroundImage> {
+export interface PreparedOpening
+	extends Partial<StoryBackgroundImage>,
+		Partial<StoryOpeningAudio> {
 	id?: string;
 	genreId: GenreId;
 	text: string;

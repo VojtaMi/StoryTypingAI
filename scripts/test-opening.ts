@@ -2,11 +2,10 @@
  * CLI tool to generate and preview story openings without the UI or image generation.
  *
  * Usage:
- *   npm run test:opening                           # generate one opening per genre
- *   npm run test:opening -- scifi                  # generate only the scifi opening
- *   npm run test:opening -- scifi 3                # generate 3 scifi openings in a row
- *   npm run test:opening -- --model gpt-5.5 scifi  # use a specific model
- *   npm run test:opening -- --seed "garden world" scifi
+ *   npm run test:opening                                # generate an Esperanto opening
+ *   npm run test:opening -- esperanto 3                 # generate 3 openings in a row
+ *   npm run test:opening -- --model gpt-5.5 esperanto   # use a specific model
+ *   npm run test:opening -- --seed "garden world"       # use a custom seed
  */
 import OpenAI from "openai";
 import { type GenreId, genres } from "../src/genres.ts";

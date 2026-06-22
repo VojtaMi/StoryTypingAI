@@ -3,6 +3,7 @@ import {
 	autoContinueStoryStream,
 	type ChatMessage,
 	continueStoryStream,
+	generateOpeningAudio,
 	generateStoryBackgroundImage,
 	generateStoryIntro,
 	type StoryMemory,
@@ -17,6 +18,7 @@ import { type Genre, genres } from "../genres";
 import type { TextModelId } from "../models";
 import { consumePreparedOpening, prepareMissingOpenings } from "../openings";
 import { loadSavedStory } from "../saves";
+import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
 import {
 	backgroundFromOpening,
@@ -65,6 +67,9 @@ export function useStorySession({
 	const [backgroundIntro, setBackgroundIntro] = useState<string | null>(null);
 	const [backgroundImage, setBackgroundImage] =
 		useState<StoryBackgroundImage | null>(null);
+	const [openingAudio, setOpeningAudio] = useState<StoryOpeningAudio | null>(
+		null,
+	);
 	const activeSaveIdRef = useRef<string | null>(null);
 	const activeTitleRef = useRef<string | null>(null);
 	const messagesRef = useRef<ChatMessage[]>([]);
@@ -72,6 +77,7 @@ export function useStorySession({
 	const segmentsRef = useRef<StorySegment[]>([]);
 	const currentTargetRef = useRef<string | null>(null);
 	const phaseRef = useRef<StoryPhase>("loading");
+	const openingAudioRef = useRef<StoryOpeningAudio | null>(null);
 	const preparingOpeningsRef = useRef(false);
 	const prepareOpeningsAgainRef = useRef(false);
 
@@ -102,6 +108,10 @@ export function useStorySession({
 	useEffect(() => {
 		phaseRef.current = phase;
 	}, [phase]);
+
+	useEffect(() => {
+		openingAudioRef.current = openingAudio;
+	}, [openingAudio]);
 
 	const persistStory = useStoryPersistence({
 		model,
@@ -138,6 +148,7 @@ export function useStorySession({
 						currentTarget: currentTargetRef.current,
 						phase: phaseRef.current,
 						backgroundImage: nextBackgroundImage,
+						openingAudio: openingAudioRef.current,
 					}),
 				);
 			} catch (err) {
@@ -196,6 +207,7 @@ export function useStorySession({
 			setCurrentTarget(null);
 			setStreamingTarget("");
 			setError(null);
+			setOpeningAudio(null);
 			setPhase("loading");
 			onViewChange("story");
 			try {
@@ -207,6 +219,9 @@ export function useStorySession({
 					backgroundImageUrl?: string;
 					backgroundImagePrompt?: string;
 					backgroundImageSource?: string;
+					openingAudioUrl?: string;
+					openingAudioSource?: "generated";
+					openingAudioText?: string;
 				} | null = null;
 				let consumedPreparedOpening = false;
 				try {
@@ -232,6 +247,17 @@ export function useStorySession({
 					(await generateStoryIntro(selected.label, text, model).catch(
 						() => "",
 					));
+				const nextOpeningAudio =
+					opening.openingAudioUrl && opening.openingAudioSource === "generated"
+						? {
+								openingAudioUrl: opening.openingAudioUrl,
+								openingAudioSource: opening.openingAudioSource,
+								openingAudioText: opening.openingAudioText ?? text,
+							}
+						: await generateOpeningAudio(text, saveId).catch((err) => {
+								console.warn("Could not generate opening audio.", err);
+								return null;
+							});
 				const nextBackgroundImage = backgroundFromOpening(opening, selected);
 				setMessages(seeded);
 				setMemory(undefined);
@@ -239,6 +265,7 @@ export function useStorySession({
 				setStreamingTarget("");
 				setBackgroundIntro(intro);
 				setBackgroundImage(nextBackgroundImage);
+				setOpeningAudio(nextOpeningAudio);
 				setPhase("typing");
 				void persistStory(
 					buildStorySaveSnapshot({
@@ -252,6 +279,7 @@ export function useStorySession({
 						phase: "typing",
 						backgroundIntro: intro,
 						backgroundImage: nextBackgroundImage,
+						openingAudio: nextOpeningAudio,
 					}),
 					{ generateTitle: true },
 				);
@@ -295,6 +323,7 @@ export function useStorySession({
 						phase: "authoring",
 						backgroundIntro: backgroundIntro ?? undefined,
 						backgroundImage,
+						openingAudio,
 					}),
 				);
 			}
@@ -309,6 +338,7 @@ export function useStorySession({
 			messages,
 			persistStory,
 			backgroundImage,
+			openingAudio,
 			segments,
 		],
 	);
@@ -344,6 +374,7 @@ export function useStorySession({
 					phase: "loading",
 					backgroundIntro: backgroundIntro ?? undefined,
 					backgroundImage,
+					openingAudio,
 				}),
 			);
 
@@ -372,6 +403,7 @@ export function useStorySession({
 						phase: "typing",
 						backgroundIntro: backgroundIntro ?? undefined,
 						backgroundImage,
+						openingAudio,
 					}),
 					{ generateTitle: activeTitle === fallbackTitle(genre) },
 				);
@@ -388,6 +420,7 @@ export function useStorySession({
 			backgroundIntro,
 			genre,
 			memory,
+			openingAudio,
 			persistStory,
 			refreshStoryBackground,
 		],
@@ -443,6 +476,7 @@ export function useStorySession({
 					phase,
 					backgroundIntro: backgroundIntro ?? undefined,
 					backgroundImage,
+					openingAudio,
 				}),
 			);
 		}
@@ -457,6 +491,7 @@ export function useStorySession({
 		setPhase("loading");
 		setBackgroundIntro(null);
 		setBackgroundImage(null);
+		setOpeningAudio(null);
 		activeSaveIdRef.current = null;
 		setActiveSaveId(null);
 		setActiveTitle(null);
@@ -472,6 +507,7 @@ export function useStorySession({
 		persistStory,
 		phase,
 		backgroundImage,
+		openingAudio,
 		segments,
 	]);
 
@@ -506,6 +542,16 @@ export function useStorySession({
 							}
 						: fallbackBackgroundImage(selected),
 				);
+				setOpeningAudio(
+					save.openingAudioUrl && save.openingAudioSource === "generated"
+						? {
+								openingAudioUrl: save.openingAudioUrl,
+								openingAudioSource: save.openingAudioSource,
+								openingAudioText:
+									save.openingAudioText ?? save.currentTarget ?? "",
+							}
+						: null,
+				);
 				setError(null);
 				onViewChange("story");
 			} catch (err) {
@@ -527,6 +573,10 @@ export function useStorySession({
 		genre,
 		handleTypingComplete,
 		phase,
+		openingAudio:
+			currentTarget && openingAudio?.openingAudioText === currentTarget
+				? openingAudio
+				: null,
 		resumeStory,
 		segments,
 		selectGenre,

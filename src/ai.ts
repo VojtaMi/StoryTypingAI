@@ -12,6 +12,7 @@ import {
 	openingMessages,
 } from "./story";
 import { prepareStoryContext, type StoryMemory } from "./story_memory";
+import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
 
 export type { ChatMessage, StoryMemory };
@@ -162,6 +163,19 @@ export async function generateStoryBackgroundImage(
 	});
 	if (!res.ok) throw new Error(`Image request failed: ${res.status}`);
 	return res.json() as Promise<StoryBackgroundImage>;
+}
+
+export async function generateOpeningAudio(
+	text: string,
+	storyId: string,
+): Promise<StoryOpeningAudio> {
+	const res = await fetch("/api/ai/opening-audio", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ text, storyId }),
+	});
+	if (!res.ok) throw new Error(`Opening audio request failed: ${res.status}`);
+	return res.json() as Promise<StoryOpeningAudio>;
 }
 
 /** Narrates a story segment, returning the spoken audio as an MP3 blob. */

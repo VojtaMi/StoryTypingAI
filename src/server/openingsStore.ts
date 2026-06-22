@@ -4,15 +4,19 @@ import { join } from "node:path";
 import type OpenAI from "openai";
 import { type Genre, type GenreId, genres } from "../genres";
 import { DEFAULT_TEXT_MODEL } from "../models";
+import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
 import { completeAi } from "./aiService";
+import { createOpeningAudio } from "./storyAudioStore";
 
 const openingsDir = join(process.cwd(), "openings");
 const storyImagesDir = join(process.cwd(), "story-images");
 
 export const imageFilePattern = /^[a-zA-Z0-9_-]+\.webp$/;
 
-interface PreparedOpening extends Partial<StoryBackgroundImage> {
+interface PreparedOpening
+	extends Partial<StoryBackgroundImage>,
+		Partial<StoryOpeningAudio> {
 	id: string;
 	genreId: GenreId;
 	text: string;
@@ -48,13 +52,27 @@ export async function prepareMissingOpenings(
 	for (const genre of genres) {
 		const existing = await readPreparedOpening(genre.id);
 		if (existing) {
-			if (existing.backgroundImageUrl) continue;
 			const id = existing.id ?? randomUUID();
-			await writePreparedOpening({
+			const next: PreparedOpening = {
 				...existing,
 				id,
-				...(await createBackgroundImage(openai, genre, existing.text, id)),
-			});
+			};
+			let changed = existing.id !== id;
+			if (!existing.backgroundImageUrl) {
+				Object.assign(
+					next,
+					await createBackgroundImage(openai, genre, existing.text, id),
+				);
+				changed = true;
+			}
+			if (!existing.openingAudioUrl) {
+				Object.assign(
+					next,
+					(await createOpeningAudio(openai, existing.text, id)) ?? {},
+				);
+				changed = true;
+			}
+			if (changed) await writePreparedOpening(next);
 			continue;
 		}
 
@@ -114,9 +132,10 @@ async function createPreparedOpening(
 		{ role: "user", content: userContent },
 	];
 	const text = await completeAi(openai, messages, 200, model, anthropicKey);
-	const [backgroundIntro, backgroundImage] = await Promise.all([
+	const [backgroundIntro, backgroundImage, openingAudio] = await Promise.all([
 		createBackgroundIntro(openai, genre, text, model, anthropicKey),
 		createBackgroundImage(openai, genre, text, id),
+		createOpeningAudio(openai, text, id),
 	]);
 	return {
 		id,
@@ -125,6 +144,7 @@ async function createPreparedOpening(
 		backgroundIntro,
 		messages: [...messages, { role: "assistant", content: text }],
 		...backgroundImage,
+		...(openingAudio ?? {}),
 		createdAt: new Date().toISOString(),
 	};
 }

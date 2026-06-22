@@ -10,6 +10,7 @@ import {
 	prepareMissingOpenings,
 	readStoryImage,
 } from "./openingsStore";
+import { audioFilePattern, readStoryAudio } from "./storyAudioStore";
 
 export function openingsApi(apiKey: string, anthropicKey: string): Plugin {
 	let preparePromise: Promise<void> | null = null;
@@ -130,6 +131,49 @@ export function storyImagesApi(): Plugin {
 					res.end(file);
 				} catch {
 					sendJson(res, 404, { error: "Image not found." });
+				}
+			});
+		},
+	};
+}
+
+export function storyAudioApi(): Plugin {
+	return {
+		name: "story-audio-api",
+		configureServer(server) {
+			server.middlewares.use(async (req, res, next) => {
+				if (!req.url?.startsWith("/api/story-audio/")) {
+					next();
+					return;
+				}
+
+				try {
+					const url = new URL(req.url, "http://localhost");
+					const parts = url.pathname.split("/").filter(Boolean);
+					const audioParts = parts.slice(2);
+
+					if (audioParts.length !== 2) {
+						sendJson(res, 404, { error: "Audio not found." });
+						return;
+					}
+
+					const storyId = decodeURIComponent(audioParts[0] ?? "");
+					const filename = decodeURIComponent(audioParts[1] ?? "");
+					if (
+						!storyIdPattern.test(storyId) ||
+						!audioFilePattern.test(filename)
+					) {
+						sendJson(res, 404, { error: "Audio not found." });
+						return;
+					}
+
+					const file = await readStoryAudio(`${storyId}/${filename}`);
+					res.statusCode = 200;
+					res.setHeader("Content-Type", "audio/mpeg");
+					res.setHeader("Cache-Control", "no-store");
+					res.end(file);
+				} catch {
+					sendJson(res, 404, { error: "Audio not found." });
 				}
 			});
 		},

@@ -1,9 +1,12 @@
 import type { ChatMessage, StoryMemory } from "./ai";
 import type { StoryPhase, StorySegment } from "./exercise_screen/types";
 import type { GenreId } from "./genres";
+import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
 
-export interface SavedStory extends Partial<StoryBackgroundImage> {
+export interface SavedStory
+	extends Partial<StoryBackgroundImage>,
+		Partial<StoryOpeningAudio> {
 	id: string;
 	genreId: GenreId;
 	title: string;

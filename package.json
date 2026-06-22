@@ -13,6 +13,8 @@
 		"lint:fix": "biome check --write .",
 		"lint:staged": "biome check --staged --no-errors-on-unmatched",
 		"prepare": "husky",
+		"backfill:opening-audio": "tsx scripts/backfill-opening-audio.ts",
+		"audio:variants": "tsx scripts/generate-audio-variants.ts",
 		"test:opening": "tsx scripts/test-opening.ts"
 	},
 	"dependencies": {

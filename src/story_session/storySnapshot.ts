@@ -2,6 +2,7 @@ import type { ChatMessage, StoryMemory } from "../ai";
 import type { StoryPhase, StorySegment } from "../exercise_screen/types";
 import type { Genre } from "../genres";
 import type { SavedStory } from "../saves";
+import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
 
 interface StorySaveSnapshotInput {
@@ -15,6 +16,7 @@ interface StorySaveSnapshotInput {
 	phase: StoryPhase;
 	backgroundIntro?: string;
 	backgroundImage?: StoryBackgroundImage | null;
+	openingAudio?: StoryOpeningAudio | null;
 }
 
 export function fallbackTitle(selected: Genre) {
@@ -37,6 +39,7 @@ export function buildStorySaveSnapshot({
 	phase,
 	backgroundIntro,
 	backgroundImage,
+	openingAudio,
 }: StorySaveSnapshotInput): Omit<SavedStory, "updatedAt"> {
 	return {
 		id,
@@ -49,5 +52,6 @@ export function buildStorySaveSnapshot({
 		phase,
 		backgroundIntro,
 		...(backgroundImage ?? undefined),
+		...(openingAudio ?? undefined),
 	};
 }
