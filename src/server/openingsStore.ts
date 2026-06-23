@@ -4,6 +4,11 @@ import { join } from "node:path";
 import type OpenAI from "openai";
 import { type Genre, type GenreId, genres } from "../genres";
 import { DEFAULT_TEXT_MODEL } from "../models";
+import {
+	isNarrationVoiceId,
+	type NarrationVoiceId,
+	pickRandomNarrationVoice,
+} from "../narrationVoice";
 import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
 import { completeAi } from "./aiService";
@@ -21,6 +26,7 @@ interface PreparedOpening
 	genreId: GenreId;
 	text: string;
 	backgroundIntro?: string;
+	narrationVoice?: NarrationVoiceId;
 	messages: Array<{
 		role: "system" | "user" | "assistant";
 		content: string;
@@ -58,6 +64,13 @@ export async function prepareMissingOpenings(
 				id,
 			};
 			let changed = existing.id !== id;
+			const narrationVoice = isNarrationVoiceId(existing.narrationVoice)
+				? existing.narrationVoice
+				: pickRandomNarrationVoice();
+			if (next.narrationVoice !== narrationVoice) {
+				next.narrationVoice = narrationVoice;
+				changed = true;
+			}
 			if (!existing.backgroundImageUrl) {
 				Object.assign(
 					next,
@@ -65,10 +78,18 @@ export async function prepareMissingOpenings(
 				);
 				changed = true;
 			}
-			if (!existing.openingAudioUrl) {
+			if (
+				!existing.openingAudioUrl ||
+				existing.openingAudioVoice !== narrationVoice
+			) {
 				Object.assign(
 					next,
-					(await createOpeningAudio(openai, existing.text, id)) ?? {},
+					(await createOpeningAudio(
+						openai,
+						existing.text,
+						id,
+						narrationVoice,
+					)) ?? {},
 				);
 				changed = true;
 			}
@@ -132,16 +153,18 @@ async function createPreparedOpening(
 		{ role: "user", content: userContent },
 	];
 	const text = await completeAi(openai, messages, 200, model, anthropicKey);
+	const narrationVoice = pickRandomNarrationVoice();
 	const [backgroundIntro, backgroundImage, openingAudio] = await Promise.all([
 		createBackgroundIntro(openai, genre, text, model, anthropicKey),
 		createBackgroundImage(openai, genre, text, id),
-		createOpeningAudio(openai, text, id),
+		createOpeningAudio(openai, text, id, narrationVoice),
 	]);
 	return {
 		id,
 		genreId: genre.id,
 		text,
 		backgroundIntro,
+		narrationVoice,
 		messages: [...messages, { role: "assistant", content: text }],
 		...backgroundImage,
 		...(openingAudio ?? {}),

@@ -6,6 +6,7 @@ import OpenAI from "openai";
 import type { ChatMessage } from "../ai";
 import type { GenreId } from "../genres";
 import { DEFAULT_TEXT_MODEL } from "../models";
+import { isNarrationVoiceId } from "../narrationVoice";
 import { completeAi, synthesizeSpeech } from "./aiService";
 import { readBody, sendJson } from "./http";
 import {
@@ -283,7 +284,7 @@ const server = createServer(async (req, res) => {
 		}
 
 		if (pathname === "/api/ai/opening-audio" && req.method === "POST") {
-			const { text, storyId } = JSON.parse(await readBody(req));
+			const { text, storyId, narrationVoice } = JSON.parse(await readBody(req));
 			if (!text || typeof text !== "string") {
 				sendJson(res, 400, { error: "text is required." });
 				return;
@@ -296,7 +297,16 @@ const server = createServer(async (req, res) => {
 				sendJson(res, 400, { error: "storyId is required." });
 				return;
 			}
-			const audio = await createOpeningAudio(openai, text, storyId);
+			if (!isNarrationVoiceId(narrationVoice)) {
+				sendJson(res, 400, { error: "narrationVoice is required." });
+				return;
+			}
+			const audio = await createOpeningAudio(
+				openai,
+				text,
+				storyId,
+				narrationVoice,
+			);
 			if (!audio) {
 				sendJson(res, 500, { error: "Could not generate opening audio." });
 				return;

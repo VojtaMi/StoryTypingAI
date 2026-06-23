@@ -4,6 +4,7 @@ import {
 	STORY_SEGMENT_MAX_TOKENS,
 	type TextModelId,
 } from "./models";
+import type { NarrationVoiceId } from "./narrationVoice";
 import {
 	type ChatMessage,
 	type Complete,
@@ -168,11 +169,12 @@ export async function generateStoryBackgroundImage(
 export async function generateOpeningAudio(
 	text: string,
 	storyId: string,
+	narrationVoice: NarrationVoiceId,
 ): Promise<StoryOpeningAudio> {
 	const res = await fetch("/api/ai/opening-audio", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ text, storyId }),
+		body: JSON.stringify({ text, storyId, narrationVoice }),
 	});
 	if (!res.ok) throw new Error(`Opening audio request failed: ${res.status}`);
 	return res.json() as Promise<StoryOpeningAudio>;

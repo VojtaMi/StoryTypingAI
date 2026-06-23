@@ -1,6 +1,7 @@
 import type { ChatMessage, StoryMemory } from "./ai";
 import type { StoryPhase, StorySegment } from "./exercise_screen/types";
 import type { GenreId } from "./genres";
+import type { NarrationVoiceId } from "./narrationVoice";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
 
@@ -17,6 +18,7 @@ export interface SavedStory
 	currentTarget: string | null;
 	phase: StoryPhase;
 	backgroundIntro?: string;
+	narrationVoice?: NarrationVoiceId;
 }
 
 export interface SavedStorySummary {

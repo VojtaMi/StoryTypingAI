@@ -16,6 +16,12 @@ import type {
 } from "../exercise_screen/types";
 import { type Genre, genres } from "../genres";
 import type { TextModelId } from "../models";
+import {
+	DEFAULT_NARRATION_VOICE,
+	isNarrationVoiceId,
+	type NarrationVoiceId,
+	pickRandomNarrationVoice,
+} from "../narrationVoice";
 import { consumePreparedOpening, prepareMissingOpenings } from "../openings";
 import { loadSavedStory } from "../saves";
 import type { StoryOpeningAudio } from "../storyAudio";
@@ -70,6 +76,9 @@ export function useStorySession({
 	const [openingAudio, setOpeningAudio] = useState<StoryOpeningAudio | null>(
 		null,
 	);
+	const [narrationVoice, setNarrationVoice] = useState<NarrationVoiceId>(
+		DEFAULT_NARRATION_VOICE,
+	);
 	const activeSaveIdRef = useRef<string | null>(null);
 	const activeTitleRef = useRef<string | null>(null);
 	const messagesRef = useRef<ChatMessage[]>([]);
@@ -78,6 +87,7 @@ export function useStorySession({
 	const currentTargetRef = useRef<string | null>(null);
 	const phaseRef = useRef<StoryPhase>("loading");
 	const openingAudioRef = useRef<StoryOpeningAudio | null>(null);
+	const narrationVoiceRef = useRef<NarrationVoiceId>(DEFAULT_NARRATION_VOICE);
 	const preparingOpeningsRef = useRef(false);
 	const prepareOpeningsAgainRef = useRef(false);
 
@@ -112,6 +122,10 @@ export function useStorySession({
 	useEffect(() => {
 		openingAudioRef.current = openingAudio;
 	}, [openingAudio]);
+
+	useEffect(() => {
+		narrationVoiceRef.current = narrationVoice;
+	}, [narrationVoice]);
 
 	const persistStory = useStoryPersistence({
 		model,
@@ -149,6 +163,7 @@ export function useStorySession({
 						phase: phaseRef.current,
 						backgroundImage: nextBackgroundImage,
 						openingAudio: openingAudioRef.current,
+						narrationVoice: narrationVoiceRef.current,
 					}),
 				);
 			} catch (err) {
@@ -222,6 +237,8 @@ export function useStorySession({
 					openingAudioUrl?: string;
 					openingAudioSource?: "generated";
 					openingAudioText?: string;
+					openingAudioVoice?: NarrationVoiceId;
+					narrationVoice?: NarrationVoiceId;
 				} | null = null;
 				let consumedPreparedOpening = false;
 				try {
@@ -237,9 +254,14 @@ export function useStorySession({
 				}
 
 				const saveId = opening.id ?? createSaveId();
+				const nextNarrationVoice = isNarrationVoiceId(opening.narrationVoice)
+					? opening.narrationVoice
+					: pickRandomNarrationVoice();
+				narrationVoiceRef.current = nextNarrationVoice;
 				activeSaveIdRef.current = saveId;
 				setActiveSaveId(saveId);
 				setActiveTitle(title);
+				setNarrationVoice(nextNarrationVoice);
 
 				const { text, messages: seeded } = opening;
 				const intro =
@@ -248,13 +270,20 @@ export function useStorySession({
 						() => "",
 					));
 				const nextOpeningAudio =
-					opening.openingAudioUrl && opening.openingAudioSource === "generated"
+					opening.openingAudioUrl &&
+					opening.openingAudioSource === "generated" &&
+					opening.openingAudioVoice === nextNarrationVoice
 						? {
 								openingAudioUrl: opening.openingAudioUrl,
 								openingAudioSource: opening.openingAudioSource,
 								openingAudioText: opening.openingAudioText ?? text,
+								openingAudioVoice: opening.openingAudioVoice,
 							}
-						: await generateOpeningAudio(text, saveId).catch((err) => {
+						: await generateOpeningAudio(
+								text,
+								saveId,
+								nextNarrationVoice,
+							).catch((err) => {
 								console.warn("Could not generate opening audio.", err);
 								return null;
 							});
@@ -280,6 +309,7 @@ export function useStorySession({
 						backgroundIntro: intro,
 						backgroundImage: nextBackgroundImage,
 						openingAudio: nextOpeningAudio,
+						narrationVoice: nextNarrationVoice,
 					}),
 					{ generateTitle: true },
 				);
@@ -324,6 +354,7 @@ export function useStorySession({
 						backgroundIntro: backgroundIntro ?? undefined,
 						backgroundImage,
 						openingAudio,
+						narrationVoice,
 					}),
 				);
 			}
@@ -339,6 +370,7 @@ export function useStorySession({
 			persistStory,
 			backgroundImage,
 			openingAudio,
+			narrationVoice,
 			segments,
 		],
 	);
@@ -375,6 +407,7 @@ export function useStorySession({
 					backgroundIntro: backgroundIntro ?? undefined,
 					backgroundImage,
 					openingAudio,
+					narrationVoice,
 				}),
 			);
 
@@ -404,6 +437,7 @@ export function useStorySession({
 						backgroundIntro: backgroundIntro ?? undefined,
 						backgroundImage,
 						openingAudio,
+						narrationVoice,
 					}),
 					{ generateTitle: activeTitle === fallbackTitle(genre) },
 				);
@@ -421,6 +455,7 @@ export function useStorySession({
 			genre,
 			memory,
 			openingAudio,
+			narrationVoice,
 			persistStory,
 			refreshStoryBackground,
 		],
@@ -477,6 +512,7 @@ export function useStorySession({
 					backgroundIntro: backgroundIntro ?? undefined,
 					backgroundImage,
 					openingAudio,
+					narrationVoice,
 				}),
 			);
 		}
@@ -492,6 +528,8 @@ export function useStorySession({
 		setBackgroundIntro(null);
 		setBackgroundImage(null);
 		setOpeningAudio(null);
+		setNarrationVoice(DEFAULT_NARRATION_VOICE);
+		narrationVoiceRef.current = DEFAULT_NARRATION_VOICE;
 		activeSaveIdRef.current = null;
 		setActiveSaveId(null);
 		setActiveTitle(null);
@@ -508,6 +546,7 @@ export function useStorySession({
 		phase,
 		backgroundImage,
 		openingAudio,
+		narrationVoice,
 		segments,
 	]);
 
@@ -530,6 +569,11 @@ export function useStorySession({
 				setCurrentTarget(save.currentTarget);
 				setStreamingTarget("");
 				setPhase(save.phase);
+				const savedNarrationVoice = isNarrationVoiceId(save.narrationVoice)
+					? save.narrationVoice
+					: DEFAULT_NARRATION_VOICE;
+				narrationVoiceRef.current = savedNarrationVoice;
+				setNarrationVoice(savedNarrationVoice);
 				setBackgroundIntro(save.backgroundIntro ?? null);
 				setBackgroundImage(
 					save.backgroundImageUrl &&
@@ -549,6 +593,7 @@ export function useStorySession({
 								openingAudioSource: save.openingAudioSource,
 								openingAudioText:
 									save.openingAudioText ?? save.currentTarget ?? "",
+								openingAudioVoice: save.openingAudioVoice,
 							}
 						: null,
 				);
@@ -574,9 +619,13 @@ export function useStorySession({
 		handleTypingComplete,
 		phase,
 		openingAudio:
-			currentTarget && openingAudio?.openingAudioText === currentTarget
+			currentTarget &&
+			openingAudio?.openingAudioText === currentTarget &&
+			(!openingAudio.openingAudioVoice ||
+				openingAudio.openingAudioVoice === narrationVoice)
 				? openingAudio
 				: null,
+		narrationVoice,
 		resumeStory,
 		segments,
 		selectGenre,

@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import OpenAI from "openai";
+import {
+	isNarrationVoiceId,
+	type NarrationVoiceId,
+	pickRandomNarrationVoice,
+} from "../src/narrationVoice.ts";
 import { createOpeningAudio } from "../src/server/storyAudioStore.ts";
 
 type JsonRecord = {
@@ -10,6 +15,8 @@ type JsonRecord = {
 	openingAudioUrl?: string;
 	openingAudioSource?: string;
 	openingAudioText?: string;
+	openingAudioVoice?: NarrationVoiceId;
+	narrationVoice?: NarrationVoiceId;
 	segments?: Array<{
 		author?: string;
 		text?: string;
@@ -57,7 +64,14 @@ async function jsonFiles(folder: string): Promise<string[]> {
 async function backfillFile(path: string) {
 	const raw = await readFile(path, "utf8");
 	const record = JSON.parse(raw) as JsonRecord;
-	if (record.openingAudioUrl) {
+	const narrationVoice = isNarrationVoiceId(record.narrationVoice)
+		? record.narrationVoice
+		: pickRandomNarrationVoice();
+	if (
+		record.openingAudioUrl &&
+		record.narrationVoice === narrationVoice &&
+		record.openingAudioVoice === narrationVoice
+	) {
 		skipped += 1;
 		return;
 	}
@@ -70,7 +84,7 @@ async function backfillFile(path: string) {
 	}
 
 	const id = record.id ?? randomUUID();
-	const audio = await createOpeningAudio(openai, text, id);
+	const audio = await createOpeningAudio(openai, text, id, narrationVoice);
 	if (!audio) {
 		console.warn(`Skipping ${path}: audio generation failed.`);
 		skipped += 1;
@@ -80,6 +94,7 @@ async function backfillFile(path: string) {
 	const updated: JsonRecord = {
 		...record,
 		id,
+		narrationVoice,
 		...audio,
 	};
 	await writeFile(path, `${JSON.stringify(updated, null, 2)}\n`, "utf8");

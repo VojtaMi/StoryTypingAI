@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
 import { DEFAULT_TEXT_MODEL, STORY_SEGMENT_MAX_TOKENS } from "../models";
+import { isNarrationVoiceId } from "../narrationVoice";
 import { completeAi, streamAi, synthesizeSpeech } from "./aiService";
 import { readBody, sendJson } from "./http";
 import { startNdjsonResponse, writeJsonLine } from "./ndjson";
@@ -82,7 +83,7 @@ export async function handleOpeningAudioRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { text, storyId } = JSON.parse(await readBody(req));
+	const { text, storyId, narrationVoice } = JSON.parse(await readBody(req));
 	if (!text || typeof text !== "string") {
 		sendJson(res, 400, { error: "text is required." });
 		return;
@@ -91,7 +92,11 @@ export async function handleOpeningAudioRequest(
 		sendJson(res, 400, { error: "storyId is required." });
 		return;
 	}
-	const audio = await createOpeningAudio(openai, text, storyId);
+	if (!isNarrationVoiceId(narrationVoice)) {
+		sendJson(res, 400, { error: "narrationVoice is required." });
+		return;
+	}
+	const audio = await createOpeningAudio(openai, text, storyId, narrationVoice);
 	if (!audio) {
 		sendJson(res, 500, { error: "Could not generate opening audio." });
 		return;

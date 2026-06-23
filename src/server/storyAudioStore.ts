@@ -1,8 +1,12 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type OpenAI from "openai";
+import {
+	type NarrationVoiceId,
+	narrationVoiceOptions,
+} from "../narrationVoice";
 import type { StoryOpeningAudio } from "../storyAudio";
-import { type SpeechOptions, synthesizeSpeech } from "./aiService";
+import { synthesizeSpeech } from "./aiService";
 
 const storyAudioDir = join(process.cwd(), "story-audio");
 
@@ -12,10 +16,14 @@ export async function createOpeningAudio(
 	openai: OpenAI,
 	text: string,
 	storyId: string,
-	options: SpeechOptions = {},
+	narrationVoice: NarrationVoiceId,
 ): Promise<StoryOpeningAudio | null> {
 	try {
-		const audio = await synthesizeSpeech(openai, text, options);
+		const audio = await synthesizeSpeech(
+			openai,
+			text,
+			narrationVoiceOptions(narrationVoice),
+		);
 		const folder = join(storyAudioDir, storyId);
 		await mkdir(folder, { recursive: true });
 		const filename = `opening-${Date.now()}-${Math.random()
@@ -26,6 +34,7 @@ export async function createOpeningAudio(
 			openingAudioUrl: `/api/story-audio/${storyId}/${filename}`,
 			openingAudioSource: "generated",
 			openingAudioText: text,
+			openingAudioVoice: narrationVoice,
 		};
 	} catch (err) {
 		console.warn("Could not generate opening audio.", err);
