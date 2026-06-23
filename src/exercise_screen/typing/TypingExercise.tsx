@@ -12,17 +12,6 @@ export function TypingExercise({ target, onComplete }: TypingExerciseProps) {
 
 	return (
 		<div className="typing-exercise">
-			<div
-				className="progress-bar"
-				role="progressbar"
-				aria-valuenow={session.progress}
-			>
-				<div
-					className="progress-fill"
-					style={{ width: `${session.progress}%` }}
-				/>
-			</div>
-
 			<TypingPassage
 				target={target}
 				typedValue={session.typedValue}

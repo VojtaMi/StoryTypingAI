@@ -120,20 +120,6 @@ body[data-view="menu"] {
 	}
 }
 
-.progress-bar {
-	height: 6px;
-	background: var(--surface);
-	border-radius: 999px;
-	overflow: hidden;
-	margin-bottom: 1.25rem;
-}
-
-.progress-fill {
-	height: 100%;
-	background: var(--accent);
-	transition: width 0.15s ease;
-}
-
 .passage {
 	display: block;
 	position: relative;
@@ -376,16 +362,11 @@ body[data-view="menu"] {
 	border-color: #f3c56b;
 }
 
-.story .progress-bar,
 .story .passage {
 	background: var(--story-panel-strong);
 	border: 1px solid var(--story-border);
 	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
 	backdrop-filter: blur(12px) saturate(120%);
-}
-
-.story .progress-bar {
-	border: 0;
 }
 
 .story .passage {

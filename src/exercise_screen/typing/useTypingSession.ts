@@ -69,8 +69,6 @@ export function useTypingSession(
 		elapsedSeconds > 0
 			? Math.round(correctCount / 5 / (elapsedSeconds / 60))
 			: 0;
-	const progress = Math.round((typedCount / target.length) * 100);
-
 	const setValue = useCallback(
 		(value: string) => {
 			if (startedAt === null && value.length > 0) {
@@ -148,7 +146,6 @@ export function useTypingSession(
 		accuracy,
 		elapsedMs,
 		mistakes,
-		progress,
 		handleChange,
 		handleKeyDown,
 	};
