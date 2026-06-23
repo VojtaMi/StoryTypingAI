@@ -1,5 +1,6 @@
 import {
 	type KeyboardEvent as ReactKeyboardEvent,
+	type PointerEvent as ReactPointerEvent,
 	useEffect,
 	useRef,
 	useState,
@@ -15,6 +16,7 @@ import type { StorySegment } from "../types";
 
 interface EsperantoChatModalProps {
 	isOpen: boolean;
+	onOpen: () => void;
 	segments: StorySegment[];
 	currentTarget: string | null;
 	backgroundIntro?: string;
@@ -23,10 +25,13 @@ interface EsperantoChatModalProps {
 }
 
 const STARTER_QUESTION = "Can you explain this sentence?";
+const BOT_IMAGE_URL = "/images/esperanto-bot.png";
 type ChatEntry = EsperantoTutorChatMessage & { id: string };
+type AssistantPosition = { x: number; y: number };
 
 export function EsperantoChatModal({
 	isOpen,
+	onOpen,
 	segments,
 	currentTarget,
 	backgroundIntro,
@@ -41,7 +46,9 @@ export function EsperantoChatModal({
 	const [error, setError] = useState<string | null>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const logRef = useRef<HTMLDivElement>(null);
+	const rootRef = useRef<HTMLDivElement>(null);
 	const nextMessageIdRef = useRef(0);
+	const [position, setPosition] = useState<AssistantPosition | null>(null);
 
 	function createMessage(
 		role: EsperantoTutorChatMessage["role"],
@@ -127,147 +134,176 @@ export function EsperantoChatModal({
 		});
 	}
 
-	if (!isOpen) return null;
+	function clamp(value: number, min: number, max: number) {
+		return Math.min(Math.max(value, min), max);
+	}
+
+	function handleRobotPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
+		if (event.button !== 0) return;
+		const root = rootRef.current;
+		if (!root) return;
+
+		const rect = root.getBoundingClientRect();
+		const startX = event.clientX;
+		const startY = event.clientY;
+		let didDrag = false;
+
+		function move(moveEvent: PointerEvent) {
+			const dx = moveEvent.clientX - startX;
+			const dy = moveEvent.clientY - startY;
+			if (Math.abs(dx) + Math.abs(dy) > 5) didDrag = true;
+			setPosition({
+				x: clamp(rect.left + dx, 12, window.innerWidth - rect.width - 12),
+				y: clamp(rect.top + dy, 12, window.innerHeight - rect.height - 12),
+			});
+		}
+
+		function up() {
+			window.removeEventListener("pointermove", move);
+			window.removeEventListener("pointerup", up);
+			if (!didDrag) {
+				if (isOpen) onClose();
+				else onOpen();
+			}
+		}
+
+		window.addEventListener("pointermove", move);
+		window.addEventListener("pointerup", up, { once: true });
+	}
+
+	const canUseDraggedPosition =
+		typeof window === "undefined" || window.innerWidth > 620;
+	const assistantStyle =
+		position && canUseDraggedPosition
+			? { left: `${position.x}px`, top: `${position.y}px` }
+			: undefined;
 
 	return (
-		<div className="esperanto-chat-overlay">
+		<div
+			className={`esperanto-chat-assistant${
+				isOpen ? " esperanto-chat-assistant--open" : ""
+			}`}
+			ref={rootRef}
+			style={assistantStyle}
+		>
 			<button
 				type="button"
-				className="esperanto-chat-backdrop"
-				onClick={onClose}
-				aria-label="Close Esperanto Bot"
-				tabIndex={-1}
-			/>
-			<section
-				className="esperanto-chat-modal"
-				role="dialog"
-				aria-modal="true"
-				aria-label="Esperanto Bot"
+				className="esperanto-bot-character"
+				onPointerDown={handleRobotPointerDown}
+				aria-label={isOpen ? "Close Esperanto Bot" : "Ask Esperanto Bot"}
+				title={isOpen ? "Close Esperanto Bot" : "Ask Esperanto Bot"}
 			>
-				<header className="esperanto-chat-header">
-					<div className="esperanto-chat-title">
-						<span className="esperanto-chat-avatar" aria-hidden="true">
-							<svg
-								width="22"
-								height="22"
-								viewBox="0 0 18 18"
-								fill="none"
-								aria-hidden="true"
-							>
-								<rect
-									x="3"
-									y="5"
-									width="12"
-									height="9"
-									rx="3"
-									stroke="currentColor"
-									strokeWidth="1.5"
-								/>
-								<path
-									d="M9 5V2.5M6.5 2.5H11.5"
-									stroke="currentColor"
-									strokeWidth="1.5"
-									strokeLinecap="round"
-								/>
-								<circle cx="7" cy="9" r="1" fill="currentColor" />
-								<circle cx="11" cy="9" r="1" fill="currentColor" />
-							</svg>
-						</span>
-						<div>
-							<h2>Esperanto Bot</h2>
-							<p>Ask about the story, grammar, or vocabulary.</p>
+				<img src={BOT_IMAGE_URL} alt="" draggable={false} />
+				<span className="esperanto-bot-bubble">{isOpen ? "Close" : "Ask"}</span>
+			</button>
+
+			{isOpen && (
+				<section
+					className="esperanto-chat-panel"
+					role="dialog"
+					aria-label="Esperanto Bot"
+				>
+					<header className="esperanto-chat-header">
+						<div className="esperanto-chat-title">
+							<span className="esperanto-chat-avatar" aria-hidden="true">
+								<img src={BOT_IMAGE_URL} alt="" draggable={false} />
+							</span>
+							<div>
+								<h2>Esperanto Bot</h2>
+								<p>Ask about the story, grammar, or vocabulary.</p>
+							</div>
 						</div>
-					</div>
-					<button
-						type="button"
-						className="esperanto-chat-close"
-						onClick={onClose}
-						aria-label="Close Esperanto Bot"
-					>
-						✕
-					</button>
-				</header>
-
-				<div className="esperanto-chat-toolbar">
-					<div className="esperanto-chat-toggle">
 						<button
 							type="button"
-							data-active={language === "english"}
-							onClick={() => setLanguage("english")}
+							className="esperanto-chat-close"
+							onClick={onClose}
+							aria-label="Close Esperanto Bot"
 						>
-							EN
+							✕
 						</button>
-						<button
-							type="button"
-							data-active={language === "esperanto"}
-							onClick={() => setLanguage("esperanto")}
-						>
-							EO
-						</button>
-					</div>
-					<button
-						type="button"
-						className="esperanto-chat-key-toggle"
-						data-active={esperantoKeys}
-						onClick={() => setEsperantoKeys((value) => !value)}
-					>
-						EO keys
-					</button>
-				</div>
+					</header>
 
-				<div className="esperanto-chat-log" ref={logRef}>
-					{messages.length === 0 ? (
-						<div className="esperanto-chat-empty">
-							<p>
-								Saluton. I can explain the current passage or answer follow-up
-								questions.
-							</p>
+					<div className="esperanto-chat-toolbar">
+						<div className="esperanto-chat-toggle">
 							<button
 								type="button"
-								onClick={() => void submitQuestion(STARTER_QUESTION)}
+								data-active={language === "english"}
+								onClick={() => setLanguage("english")}
 							>
-								{STARTER_QUESTION}
+								EN
+							</button>
+							<button
+								type="button"
+								data-active={language === "esperanto"}
+								onClick={() => setLanguage("esperanto")}
+							>
+								EO
 							</button>
 						</div>
-					) : (
-						messages.map((message) => (
-							<div
-								className={`esperanto-chat-message esperanto-chat-message--${message.role}`}
-								key={message.id}
-							>
-								{message.content}
+						<button
+							type="button"
+							className="esperanto-chat-key-toggle"
+							data-active={esperantoKeys}
+							onClick={() => setEsperantoKeys((value) => !value)}
+						>
+							EO keys
+						</button>
+					</div>
+
+					<div className="esperanto-chat-log" ref={logRef}>
+						{messages.length === 0 ? (
+							<div className="esperanto-chat-empty">
+								<p>
+									Saluton. I can explain the current passage or answer follow-up
+									questions.
+								</p>
+								<button
+									type="button"
+									onClick={() => void submitQuestion(STARTER_QUESTION)}
+								>
+									{STARTER_QUESTION}
+								</button>
 							</div>
-						))
-					)}
-					{isSending && (
-						<div className="esperanto-chat-message esperanto-chat-message--assistant esperanto-chat-message--thinking">
-							Thinking...
-						</div>
-					)}
-				</div>
+						) : (
+							messages.map((message) => (
+								<div
+									className={`esperanto-chat-message esperanto-chat-message--${message.role}`}
+									key={message.id}
+								>
+									{message.content}
+								</div>
+							))
+						)}
+						{isSending && (
+							<div className="esperanto-chat-message esperanto-chat-message--assistant esperanto-chat-message--thinking">
+								Thinking...
+							</div>
+						)}
+					</div>
 
-				{error && <p className="esperanto-chat-error">{error}</p>}
+					{error && <p className="esperanto-chat-error">{error}</p>}
 
-				<form
-					className="esperanto-chat-form"
-					onSubmit={(event) => {
-						event.preventDefault();
-						void submitQuestion(input);
-					}}
-				>
-					<textarea
-						ref={inputRef}
-						value={input}
-						onChange={(event) => setInput(event.target.value)}
-						onKeyDown={handleKeyDown}
-						rows={3}
-						placeholder="Ask in English or Esperanto..."
-					/>
-					<button type="submit" disabled={!input.trim() || isSending}>
-						Send
-					</button>
-				</form>
-			</section>
+					<form
+						className="esperanto-chat-form"
+						onSubmit={(event) => {
+							event.preventDefault();
+							void submitQuestion(input);
+						}}
+					>
+						<textarea
+							ref={inputRef}
+							value={input}
+							onChange={(event) => setInput(event.target.value)}
+							onKeyDown={handleKeyDown}
+							rows={3}
+							placeholder="Ask in English or Esperanto..."
+						/>
+						<button type="submit" disabled={!input.trim() || isSending}>
+							Send
+						</button>
+					</form>
+				</section>
+			)}
 		</div>
 	);
 }

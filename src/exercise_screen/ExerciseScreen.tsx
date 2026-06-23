@@ -87,12 +87,12 @@ export default function ExerciseScreen({
 				storyId={storyId}
 				currentImageUrl={currentImageUrl}
 				onBackToMenu={onBackToMenu}
-				onOpenChat={() => setChatOpen(true)}
 				onOpenGallery={() => setGalleryOpen(true)}
 			/>
 
 			<EsperantoChatModal
 				isOpen={chatOpen}
+				onOpen={() => setChatOpen(true)}
 				segments={segments}
 				currentTarget={currentTarget}
 				backgroundIntro={backgroundIntro}
