@@ -1,4 +1,4 @@
-import type { ChangeEvent, RefObject } from "react";
+import type { ChangeEvent, KeyboardEvent, RefObject } from "react";
 import type { CharStatus } from "./useTypingSession";
 
 interface TypingPassageProps {
@@ -7,6 +7,7 @@ interface TypingPassageProps {
 	statuses: CharStatus[];
 	inputRef: RefObject<HTMLTextAreaElement | null>;
 	onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
+	onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void;
 }
 
 export function TypingPassage({
@@ -15,6 +16,7 @@ export function TypingPassage({
 	statuses,
 	inputRef,
 	onChange,
+	onKeyDown,
 }: TypingPassageProps) {
 	return (
 		<label className="passage" htmlFor="typing-input">
@@ -32,6 +34,7 @@ export function TypingPassage({
 				className="hidden-input"
 				value={typedValue}
 				onChange={onChange}
+				onKeyDown={onKeyDown}
 				maxLength={target.length}
 				rows={1}
 				autoComplete="off"

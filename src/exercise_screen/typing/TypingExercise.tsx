@@ -37,6 +37,7 @@ export function TypingExercise({ target, onComplete }: TypingExerciseProps) {
 				statuses={session.statuses}
 				inputRef={session.inputRef}
 				onChange={session.handleChange}
+				onKeyDown={session.handleKeyDown}
 			/>
 		</div>
 	);

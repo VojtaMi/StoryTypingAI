@@ -1,11 +1,13 @@
 import {
 	type ChangeEvent,
+	type KeyboardEvent,
 	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
 	useState,
 } from "react";
+import { ESPERANTO_KEY_MAP } from "../../esperantoKeyboard";
 import type { TypingStats } from "../types";
 
 export type CharStatus = "correct" | "incorrect" | "current" | "pending";
@@ -69,11 +71,8 @@ export function useTypingSession(
 			: 0;
 	const progress = Math.round((typedCount / target.length) * 100);
 
-	const handleChange = useCallback(
-		(e: ChangeEvent<HTMLTextAreaElement>) => {
-			if (isComplete) return;
-			const value = e.target.value.slice(0, target.length);
-
+	const setValue = useCallback(
+		(value: string) => {
 			if (startedAt === null && value.length > 0) {
 				const start = Date.now();
 				setStartedAt(start);
@@ -97,7 +96,48 @@ export function useTypingSession(
 				onComplete({ wpm: finalWpm, accuracy: finalAccuracy });
 			}
 		},
-		[isComplete, onComplete, startedAt, target],
+		[onComplete, startedAt, target],
+	);
+
+	const handleChange = useCallback(
+		(e: ChangeEvent<HTMLTextAreaElement>) => {
+			if (isComplete) return;
+			const value = e.target.value.slice(0, target.length);
+			setValue(value);
+		},
+		[isComplete, setValue, target],
+	);
+
+	const handleKeyDown = useCallback(
+		(e: KeyboardEvent<HTMLTextAreaElement>) => {
+			if (isComplete || e.metaKey || e.ctrlKey || e.altKey) return;
+
+			const mappedCharacter = ESPERANTO_KEY_MAP[e.key];
+			if (!mappedCharacter) return;
+
+			const input = inputRef.current;
+			if (!input) return;
+
+			e.preventDefault();
+
+			const start = input.selectionStart;
+			const end = input.selectionEnd;
+			const nextValue =
+				`${typedValue.slice(0, start)}${mappedCharacter}${typedValue.slice(end)}`.slice(
+					0,
+					target.length,
+				);
+			const nextCursor = Math.min(
+				start + mappedCharacter.length,
+				nextValue.length,
+			);
+
+			setValue(nextValue);
+			window.requestAnimationFrame(() => {
+				input.setSelectionRange(nextCursor, nextCursor);
+			});
+		},
+		[isComplete, setValue, target, typedValue],
 	);
 
 	return {
@@ -110,5 +150,6 @@ export function useTypingSession(
 		mistakes,
 		progress,
 		handleChange,
+		handleKeyDown,
 	};
 }
