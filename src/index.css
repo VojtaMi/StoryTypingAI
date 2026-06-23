@@ -233,9 +233,8 @@ body[data-view="menu"] {
 	padding: 0;
 	border: 0;
 	background: transparent;
-	cursor: grab;
+	cursor: pointer;
 	pointer-events: auto;
-	touch-action: none;
 	filter: drop-shadow(0 20px 28px rgba(0, 0, 0, 0.46));
 	transition:
 		transform 0.18s ease,
@@ -248,7 +247,6 @@ body[data-view="menu"] {
 }
 
 .esperanto-bot-character:active {
-	cursor: grabbing;
 	transform: translateY(-1px) scale(0.99);
 }
 
@@ -258,22 +256,6 @@ body[data-view="menu"] {
 	height: 100%;
 	object-fit: contain;
 	user-select: none;
-}
-
-.esperanto-bot-bubble {
-	position: absolute;
-	right: 0.1rem;
-	bottom: 0.35rem;
-	padding: 0.42rem 0.7rem;
-	border: 1px solid rgba(185, 240, 138, 0.58);
-	border-radius: 999px;
-	background: rgba(17, 22, 28, 0.92);
-	color: #d5ffb3;
-	font: inherit;
-	font-size: 0.74rem;
-	font-weight: 800;
-	line-height: 1;
-	box-shadow: 0 12px 28px rgba(0, 0, 0, 0.38);
 }
 
 .esperanto-chat-panel {
@@ -916,11 +898,6 @@ body[data-view="menu"] {
 	.esperanto-bot-character {
 		width: 5.5rem;
 		height: 6.55rem;
-	}
-
-	.esperanto-bot-bubble {
-		right: 0;
-		bottom: 0.25rem;
 	}
 
 	.esperanto-chat-panel {

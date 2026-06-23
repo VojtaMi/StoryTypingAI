@@ -1,6 +1,5 @@
 import {
 	type KeyboardEvent as ReactKeyboardEvent,
-	type PointerEvent as ReactPointerEvent,
 	useEffect,
 	useRef,
 	useState,
@@ -27,7 +26,6 @@ interface EsperantoChatModalProps {
 const STARTER_QUESTION = "Can you explain this sentence?";
 const BOT_IMAGE_URL = "/images/esperanto-bot-retro.png";
 type ChatEntry = EsperantoTutorChatMessage & { id: string };
-type AssistantPosition = { x: number; y: number };
 
 export function EsperantoChatModal({
 	isOpen,
@@ -46,9 +44,7 @@ export function EsperantoChatModal({
 	const [error, setError] = useState<string | null>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const logRef = useRef<HTMLDivElement>(null);
-	const rootRef = useRef<HTMLDivElement>(null);
 	const nextMessageIdRef = useRef(0);
-	const [position, setPosition] = useState<AssistantPosition | null>(null);
 
 	function createMessage(
 		role: EsperantoTutorChatMessage["role"],
@@ -134,67 +130,20 @@ export function EsperantoChatModal({
 		});
 	}
 
-	function clamp(value: number, min: number, max: number) {
-		return Math.min(Math.max(value, min), max);
-	}
-
-	function handleRobotPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
-		if (event.button !== 0) return;
-		const root = rootRef.current;
-		if (!root) return;
-
-		const rect = root.getBoundingClientRect();
-		const startX = event.clientX;
-		const startY = event.clientY;
-		let didDrag = false;
-
-		function move(moveEvent: PointerEvent) {
-			const dx = moveEvent.clientX - startX;
-			const dy = moveEvent.clientY - startY;
-			if (Math.abs(dx) + Math.abs(dy) > 5) didDrag = true;
-			setPosition({
-				x: clamp(rect.left + dx, 12, window.innerWidth - rect.width - 12),
-				y: clamp(rect.top + dy, 12, window.innerHeight - rect.height - 12),
-			});
-		}
-
-		function up() {
-			window.removeEventListener("pointermove", move);
-			window.removeEventListener("pointerup", up);
-			if (!didDrag) {
-				if (isOpen) onClose();
-				else onOpen();
-			}
-		}
-
-		window.addEventListener("pointermove", move);
-		window.addEventListener("pointerup", up, { once: true });
-	}
-
-	const canUseDraggedPosition =
-		typeof window === "undefined" || window.innerWidth > 620;
-	const assistantStyle =
-		position && canUseDraggedPosition
-			? { left: `${position.x}px`, top: `${position.y}px` }
-			: undefined;
-
 	return (
 		<div
 			className={`esperanto-chat-assistant${
 				isOpen ? " esperanto-chat-assistant--open" : ""
 			}`}
-			ref={rootRef}
-			style={assistantStyle}
 		>
 			<button
 				type="button"
 				className="esperanto-bot-character"
-				onPointerDown={handleRobotPointerDown}
+				onClick={isOpen ? onClose : onOpen}
 				aria-label={isOpen ? "Close Esperanto Bot" : "Ask Esperanto Bot"}
 				title={isOpen ? "Close Esperanto Bot" : "Ask Esperanto Bot"}
 			>
 				<img src={BOT_IMAGE_URL} alt="" draggable={false} />
-				<span className="esperanto-bot-bubble">{isOpen ? "Close" : "Ask"}</span>
 			</button>
 
 			{isOpen && (
