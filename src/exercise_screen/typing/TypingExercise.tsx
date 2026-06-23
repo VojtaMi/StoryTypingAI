@@ -1,6 +1,5 @@
 import type { TypingStats as TypingStatsResult } from "../types";
 import { TypingPassage } from "./TypingPassage";
-import { TypingStats } from "./TypingStats";
 import { useTypingSession } from "./useTypingSession";
 
 interface TypingExerciseProps {
@@ -13,13 +12,6 @@ export function TypingExercise({ target, onComplete }: TypingExerciseProps) {
 
 	return (
 		<div className="typing-exercise">
-			<TypingStats
-				wpm={session.wpm}
-				accuracy={session.accuracy}
-				elapsedMs={session.elapsedMs}
-				mistakes={session.mistakes}
-			/>
-
 			<div
 				className="progress-bar"
 				role="progressbar"
