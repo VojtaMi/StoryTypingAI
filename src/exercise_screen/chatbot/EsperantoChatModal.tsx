@@ -25,7 +25,7 @@ interface EsperantoChatModalProps {
 }
 
 const STARTER_QUESTION = "Can you explain this sentence?";
-const BOT_IMAGE_URL = "/images/esperanto-bot.png";
+const BOT_IMAGE_URL = "/images/esperanto-bot-retro.png";
 type ChatEntry = EsperantoTutorChatMessage & { id: string };
 type AssistantPosition = { x: number; y: number };
 
