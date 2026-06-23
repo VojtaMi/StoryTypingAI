@@ -20,6 +20,7 @@ const TITLE_PROMPT =
 const INTRO_PROMPT =
 	"Write a 1-2 sentence second-person character introduction for an interactive story. " +
 	"State concretely who the player character is and what brought them to this place. " +
+	"Write in English, even if the story opening is in another language. " +
 	"Start with 'You'. Output only the introduction — no quotes, no headings.";
 
 const TITLE_MAX_TOKENS = 120;

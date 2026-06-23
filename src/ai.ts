@@ -18,8 +18,6 @@ import type { StoryBackgroundImage } from "./storyBackground";
 
 export type { ChatMessage, StoryMemory };
 
-export type EsperantoTutorLanguage = "english" | "esperanto";
-
 export type EsperantoTutorChatMessage = {
 	role: "user" | "assistant";
 	content: string;
@@ -31,7 +29,6 @@ interface EsperantoTutorRequest {
 	backgroundIntro?: string;
 	conversation: EsperantoTutorChatMessage[];
 	question: string;
-	language: EsperantoTutorLanguage;
 	model?: TextModelId;
 }
 
@@ -223,7 +220,6 @@ export async function askEsperantoTutor({
 	backgroundIntro,
 	conversation,
 	question,
-	language,
 	model = DEFAULT_TEXT_MODEL,
 }: EsperantoTutorRequest): Promise<string> {
 	const storyContext = [
@@ -243,8 +239,6 @@ export async function askEsperantoTutor({
 		.join("\n\n")
 		.slice(-6000);
 
-	const responseLanguage =
-		language === "esperanto" ? "simple Esperanto" : "English";
 	const messages: ChatMessage[] = [
 		{
 			role: "system",
@@ -253,7 +247,10 @@ export async function askEsperantoTutor({
 				"Explain Esperanto clearly and practically: vocabulary, roots, affixes, grammar, pronunciation, and why sentences mean what they mean. " +
 				"Use the provided story context when it helps. Do not continue or rewrite the story unless the learner asks for that. " +
 				"If the learner asks for an exercise answer, prefer a helpful hint and explanation before giving the full answer. " +
-				`Reply in ${responseLanguage}. Keep answers concise, warm, and easy for a beginner to act on.`,
+				"Reply in the language the learner uses for their latest message. If their message is mixed or ambiguous, reply in English. " +
+				"Use simple Esperanto when replying in Esperanto. Keep answers concise, warm, and easy for a beginner to act on. " +
+				"Default to 2-5 short sentences. Use plain text suitable for a small chat panel. " +
+				"Do not use Markdown tables, headings, horizontal rules, or long lists. If the learner explicitly asks for more detail, you may give a longer answer, but keep the formatting simple.",
 		},
 		{
 			role: "user",

@@ -386,7 +386,7 @@ body[data-view="menu"] {
 .esperanto-chat-toolbar {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	justify-content: flex-start;
 	gap: 0.75rem;
 	padding: 0.75rem 1.1rem;
 	border-bottom: 1px solid rgba(120, 96, 58, 0.14);
@@ -400,8 +400,7 @@ body[data-view="menu"] {
 	background: rgba(122, 96, 56, 0.08);
 }
 
-.esperanto-chat-toggle button,
-.esperanto-chat-key-toggle {
+.esperanto-chat-toggle button {
 	font: inherit;
 	font-size: 0.78rem;
 	font-weight: 700;
@@ -420,16 +419,10 @@ body[data-view="menu"] {
 	padding: 0.36rem 0.55rem;
 }
 
-.esperanto-chat-toggle button[data-active="true"],
-.esperanto-chat-key-toggle[data-active="true"] {
+.esperanto-chat-toggle button[data-active="true"] {
 	background: #5f7d3a;
 	color: #f7f1e3;
 	box-shadow: 0 1px 4px rgba(60, 80, 30, 0.3);
-}
-
-.esperanto-chat-key-toggle {
-	padding: 0.46rem 0.7rem;
-	border: 1px solid rgba(120, 96, 58, 0.2);
 }
 
 .esperanto-chat-log {
@@ -452,25 +445,6 @@ body[data-view="menu"] {
 
 .esperanto-chat-empty p {
 	margin: 0 0 0.85rem;
-}
-
-.esperanto-chat-empty button {
-	font: inherit;
-	font-weight: 700;
-	padding: 0.55rem 0.85rem;
-	border: 1px solid rgba(95, 125, 58, 0.45);
-	border-radius: 999px;
-	background: rgba(95, 125, 58, 0.12);
-	color: #4c6b2a;
-	cursor: pointer;
-	transition:
-		background 0.15s ease,
-		transform 0.12s ease;
-}
-
-.esperanto-chat-empty button:hover {
-	background: rgba(95, 125, 58, 0.2);
-	transform: translateY(-1px);
 }
 
 .esperanto-chat-message {

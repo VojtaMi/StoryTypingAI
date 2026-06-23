@@ -1,14 +1,11 @@
 import {
 	type KeyboardEvent as ReactKeyboardEvent,
+	useCallback,
 	useEffect,
 	useRef,
 	useState,
 } from "react";
-import {
-	askEsperantoTutor,
-	type EsperantoTutorChatMessage,
-	type EsperantoTutorLanguage,
-} from "../../ai";
+import { askEsperantoTutor, type EsperantoTutorChatMessage } from "../../ai";
 import { ESPERANTO_KEY_MAP } from "../../esperantoKeyboard";
 import type { TextModelId } from "../../models";
 import type { StorySegment } from "../types";
@@ -23,9 +20,9 @@ interface EsperantoChatModalProps {
 	onClose: () => void;
 }
 
-const STARTER_QUESTION = "Can you explain this sentence?";
 const BOT_IMAGE_URL = "/images/esperanto-bot-retro.png";
 type ChatEntry = EsperantoTutorChatMessage & { id: string };
+type InputMode = "english" | "esperanto";
 
 export function EsperantoChatModal({
 	isOpen,
@@ -38,13 +35,23 @@ export function EsperantoChatModal({
 }: EsperantoChatModalProps) {
 	const [messages, setMessages] = useState<ChatEntry[]>([]);
 	const [input, setInput] = useState("");
-	const [language, setLanguage] = useState<EsperantoTutorLanguage>("english");
-	const [esperantoKeys, setEsperantoKeys] = useState(true);
+	const [inputMode, setInputMode] = useState<InputMode>("english");
 	const [isSending, setIsSending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const logRef = useRef<HTMLDivElement>(null);
 	const nextMessageIdRef = useRef(0);
+	const sessionIdRef = useRef(0);
+
+	const closeChat = useCallback(() => {
+		sessionIdRef.current += 1;
+		nextMessageIdRef.current = 0;
+		setMessages([]);
+		setInput("");
+		setError(null);
+		setIsSending(false);
+		onClose();
+	}, [onClose]);
 
 	function createMessage(
 		role: EsperantoTutorChatMessage["role"],
@@ -59,11 +66,11 @@ export function EsperantoChatModal({
 		if (!isOpen) return undefined;
 		inputRef.current?.focus();
 		function onKey(event: KeyboardEvent) {
-			if (event.key === "Escape") onClose();
+			if (event.key === "Escape") closeChat();
 		}
 		document.addEventListener("keydown", onKey);
 		return () => document.removeEventListener("keydown", onKey);
-	}, [isOpen, onClose]);
+	}, [isOpen, closeChat]);
 
 	useEffect(() => {
 		if (!isOpen) return;
@@ -85,6 +92,7 @@ export function EsperantoChatModal({
 		setInput("");
 		setError(null);
 		setIsSending(true);
+		const sessionId = sessionIdRef.current;
 
 		try {
 			const answer = await askEsperantoTutor({
@@ -93,15 +101,18 @@ export function EsperantoChatModal({
 				backgroundIntro,
 				conversation: messages,
 				question: trimmed,
-				language,
 				model,
 			});
+			if (sessionId !== sessionIdRef.current) return;
 			setMessages([...nextMessages, createMessage("assistant", answer)]);
 		} catch (err) {
+			if (sessionId !== sessionIdRef.current) return;
 			const message = err instanceof Error ? err.message : String(err);
 			setError(`Esperanto Bot could not answer: ${message}`);
 		} finally {
-			setIsSending(false);
+			if (sessionId === sessionIdRef.current) {
+				setIsSending(false);
+			}
 		}
 	}
 
@@ -112,7 +123,12 @@ export function EsperantoChatModal({
 			return;
 		}
 
-		if (!esperantoKeys || event.metaKey || event.ctrlKey || event.altKey) {
+		if (
+			inputMode !== "esperanto" ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.altKey
+		) {
 			return;
 		}
 
@@ -139,7 +155,7 @@ export function EsperantoChatModal({
 			<button
 				type="button"
 				className="esperanto-bot-character"
-				onClick={isOpen ? onClose : onOpen}
+				onClick={isOpen ? closeChat : onOpen}
 				aria-label={isOpen ? "Close Esperanto Bot" : "Ask Esperanto Bot"}
 				title={isOpen ? "Close Esperanto Bot" : "Ask Esperanto Bot"}
 			>
@@ -165,7 +181,7 @@ export function EsperantoChatModal({
 						<button
 							type="button"
 							className="esperanto-chat-close"
-							onClick={onClose}
+							onClick={closeChat}
 							aria-label="Close Esperanto Bot"
 						>
 							✕
@@ -176,27 +192,19 @@ export function EsperantoChatModal({
 						<div className="esperanto-chat-toggle">
 							<button
 								type="button"
-								data-active={language === "english"}
-								onClick={() => setLanguage("english")}
+								data-active={inputMode === "english"}
+								onClick={() => setInputMode("english")}
 							>
 								EN
 							</button>
 							<button
 								type="button"
-								data-active={language === "esperanto"}
-								onClick={() => setLanguage("esperanto")}
+								data-active={inputMode === "esperanto"}
+								onClick={() => setInputMode("esperanto")}
 							>
 								EO
 							</button>
 						</div>
-						<button
-							type="button"
-							className="esperanto-chat-key-toggle"
-							data-active={esperantoKeys}
-							onClick={() => setEsperantoKeys((value) => !value)}
-						>
-							EO keys
-						</button>
 					</div>
 
 					<div className="esperanto-chat-log" ref={logRef}>
@@ -206,12 +214,6 @@ export function EsperantoChatModal({
 									Saluton. I can explain the current passage or answer follow-up
 									questions.
 								</p>
-								<button
-									type="button"
-									onClick={() => void submitQuestion(STARTER_QUESTION)}
-								>
-									{STARTER_QUESTION}
-								</button>
 							</div>
 						) : (
 							messages.map((message) => (
@@ -245,10 +247,14 @@ export function EsperantoChatModal({
 							onChange={(event) => setInput(event.target.value)}
 							onKeyDown={handleKeyDown}
 							rows={3}
-							placeholder="Ask in English or Esperanto..."
+							placeholder={
+								inputMode === "esperanto"
+									? "Demandu vian demandon..."
+									: "Ask your question..."
+							}
 						/>
 						<button type="submit" disabled={!input.trim() || isSending}>
-							Send
+							{inputMode === "esperanto" ? "Sendu" : "Send"}
 						</button>
 					</form>
 				</section>
