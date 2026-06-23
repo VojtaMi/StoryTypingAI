@@ -18,6 +18,23 @@ import type { StoryBackgroundImage } from "./storyBackground";
 
 export type { ChatMessage, StoryMemory };
 
+export type EsperantoTutorLanguage = "english" | "esperanto";
+
+export type EsperantoTutorChatMessage = {
+	role: "user" | "assistant";
+	content: string;
+};
+
+interface EsperantoTutorRequest {
+	segments: Array<{ author: "ai" | "user"; text: string }>;
+	currentTarget: string | null;
+	backgroundIntro?: string;
+	conversation: EsperantoTutorChatMessage[];
+	question: string;
+	language: EsperantoTutorLanguage;
+	model?: TextModelId;
+}
+
 type StreamEvent =
 	| { type: "chunk"; text?: string }
 	| { type: "done"; text?: string }
@@ -198,6 +215,60 @@ export async function generateStoryIntro(
 	model: TextModelId = DEFAULT_TEXT_MODEL,
 ): Promise<string> {
 	return generateIntro(httpCompleter(model), genreLabel, openingText);
+}
+
+export async function askEsperantoTutor({
+	segments,
+	currentTarget,
+	backgroundIntro,
+	conversation,
+	question,
+	language,
+	model = DEFAULT_TEXT_MODEL,
+}: EsperantoTutorRequest): Promise<string> {
+	const storyContext = [
+		backgroundIntro ? `Player context: ${backgroundIntro}` : "",
+		segments.length > 0
+			? `Completed story segments:\n${segments
+					.map((segment) =>
+						segment.author === "ai"
+							? `Story text: ${segment.text}`
+							: `Learner continuation: ${segment.text}`,
+					)
+					.join("\n\n")}`
+			: "",
+		currentTarget ? `Current typing passage:\n${currentTarget}` : "",
+	]
+		.filter(Boolean)
+		.join("\n\n")
+		.slice(-6000);
+
+	const responseLanguage =
+		language === "esperanto" ? "simple Esperanto" : "English";
+	const messages: ChatMessage[] = [
+		{
+			role: "system",
+			content:
+				"You are Esperanto Bot, a friendly tutor inside an Esperanto story typing exercise. " +
+				"Explain Esperanto clearly and practically: vocabulary, roots, affixes, grammar, pronunciation, and why sentences mean what they mean. " +
+				"Use the provided story context when it helps. Do not continue or rewrite the story unless the learner asks for that. " +
+				"If the learner asks for an exercise answer, prefer a helpful hint and explanation before giving the full answer. " +
+				`Reply in ${responseLanguage}. Keep answers concise, warm, and easy for a beginner to act on.`,
+		},
+		{
+			role: "user",
+			content: `Story context for this tutoring session:\n${
+				storyContext || "No story text is available yet."
+			}`,
+		},
+		...conversation.map((message) => ({
+			role: message.role,
+			content: message.content,
+		})),
+		{ role: "user", content: question },
+	];
+
+	return complete(messages, model, 520);
 }
 
 /** Creates a short title for a saved story without changing the story history. */

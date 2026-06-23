@@ -1,7 +1,9 @@
 import { useState } from "react";
 import "../gallery/gallery.css";
 import { GalleryModal } from "../gallery/GalleryModal";
+import type { TextModelId } from "../models";
 import { AuthoringInput } from "./authoring/AuthoringInput";
+import { EsperantoChatModal } from "./chatbot/EsperantoChatModal";
 import { ExerciseControls } from "./controls/ExerciseControls";
 import { OpeningAudioControl } from "./story/OpeningAudioControl";
 import { StoryLoading } from "./story/StoryLoading";
@@ -17,6 +19,7 @@ interface ExerciseScreenProps {
 	error: string | null;
 	backgroundIntro?: string;
 	storyId: string | null;
+	model: TextModelId;
 	currentImageUrl: string | null;
 	openingAudioUrl: string | null;
 	onTypingComplete: (stats: TypingStats) => void;
@@ -33,6 +36,7 @@ export default function ExerciseScreen({
 	error,
 	backgroundIntro,
 	storyId,
+	model,
 	currentImageUrl,
 	openingAudioUrl,
 	onTypingComplete,
@@ -41,6 +45,7 @@ export default function ExerciseScreen({
 	onBackToMenu,
 }: ExerciseScreenProps) {
 	const [galleryOpen, setGalleryOpen] = useState(false);
+	const [chatOpen, setChatOpen] = useState(false);
 	const canShowGallery =
 		Boolean(storyId) &&
 		Boolean(currentImageUrl?.startsWith("/api/story-images/"));
@@ -82,7 +87,17 @@ export default function ExerciseScreen({
 				storyId={storyId}
 				currentImageUrl={currentImageUrl}
 				onBackToMenu={onBackToMenu}
+				onOpenChat={() => setChatOpen(true)}
 				onOpenGallery={() => setGalleryOpen(true)}
+			/>
+
+			<EsperantoChatModal
+				isOpen={chatOpen}
+				segments={segments}
+				currentTarget={currentTarget}
+				backgroundIntro={backgroundIntro}
+				model={model}
+				onClose={() => setChatOpen(false)}
 			/>
 
 			{galleryOpen && canShowGallery && storyId && currentImageUrl && (

@@ -184,6 +184,7 @@ body[data-view="menu"] {
 .controls {
 	margin-top: 1.5rem;
 	display: flex;
+	flex-wrap: wrap;
 	gap: 0.75rem;
 }
 
@@ -204,6 +205,272 @@ body[data-view="menu"] {
 .controls button:hover {
 	border-color: var(--accent);
 	background: #2a2f44;
+}
+
+.esperanto-chat-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
+	margin-left: auto;
+	color: #b9f08a;
+}
+
+.esperanto-chat-btn svg {
+	flex: 0 0 auto;
+}
+
+.esperanto-chat-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 110;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 1rem;
+	background: rgba(9, 12, 16, 0.78);
+	backdrop-filter: blur(10px);
+}
+
+.esperanto-chat-backdrop {
+	position: absolute;
+	inset: 0;
+	border: 0;
+	background: transparent;
+	cursor: default;
+}
+
+.esperanto-chat-modal {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	width: min(94vw, 620px);
+	max-height: min(86vh, 720px);
+	border: 1px solid rgba(185, 240, 138, 0.26);
+	border-radius: 12px;
+	background: rgba(18, 22, 30, 0.96);
+	box-shadow: 0 26px 80px rgba(0, 0, 0, 0.6);
+	overflow: hidden;
+}
+
+.esperanto-chat-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 1rem 1.1rem 0.85rem;
+	border-bottom: 1px solid rgba(192, 202, 245, 0.14);
+	background: rgba(36, 40, 59, 0.72);
+}
+
+.esperanto-chat-title {
+	display: flex;
+	align-items: center;
+	gap: 0.8rem;
+	min-width: 0;
+}
+
+.esperanto-chat-title h2 {
+	margin: 0;
+	font-size: 1rem;
+	font-weight: 700;
+}
+
+.esperanto-chat-title p {
+	margin: 0.18rem 0 0;
+	color: #9fa9cc;
+	font-size: 0.78rem;
+	line-height: 1.35;
+}
+
+.esperanto-chat-avatar {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 2.25rem;
+	height: 2.25rem;
+	border: 1px solid rgba(185, 240, 138, 0.32);
+	border-radius: 8px;
+	background: rgba(185, 240, 138, 0.1);
+	color: #b9f08a;
+}
+
+.esperanto-chat-close {
+	flex: 0 0 auto;
+	width: 2rem;
+	height: 2rem;
+	padding: 0;
+	border: 1px solid rgba(192, 202, 245, 0.18);
+	border-radius: 8px;
+	background: transparent;
+	color: #9fa9cc;
+	font: inherit;
+	cursor: pointer;
+}
+
+.esperanto-chat-close:hover {
+	border-color: var(--incorrect);
+	color: var(--incorrect);
+}
+
+.esperanto-chat-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	padding: 0.75rem 1.1rem;
+	border-bottom: 1px solid rgba(192, 202, 245, 0.1);
+}
+
+.esperanto-chat-toggle {
+	display: inline-flex;
+	padding: 0.18rem;
+	border: 1px solid rgba(192, 202, 245, 0.16);
+	border-radius: 8px;
+	background: rgba(8, 10, 16, 0.4);
+}
+
+.esperanto-chat-toggle button,
+.esperanto-chat-key-toggle {
+	font: inherit;
+	font-size: 0.78rem;
+	font-weight: 700;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: #9fa9cc;
+	cursor: pointer;
+}
+
+.esperanto-chat-toggle button {
+	min-width: 2.4rem;
+	padding: 0.36rem 0.55rem;
+}
+
+.esperanto-chat-toggle button[data-active="true"],
+.esperanto-chat-key-toggle[data-active="true"] {
+	background: rgba(185, 240, 138, 0.16);
+	color: #d5ffb3;
+}
+
+.esperanto-chat-key-toggle {
+	padding: 0.46rem 0.7rem;
+	border: 1px solid rgba(192, 202, 245, 0.16);
+}
+
+.esperanto-chat-log {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 0.75rem;
+	min-height: 17rem;
+	padding: 1rem 1.1rem;
+	overflow-y: auto;
+}
+
+.esperanto-chat-empty {
+	margin: auto;
+	max-width: 24rem;
+	text-align: center;
+	color: #aeb8db;
+	line-height: 1.5;
+}
+
+.esperanto-chat-empty p {
+	margin: 0 0 0.85rem;
+}
+
+.esperanto-chat-empty button {
+	font: inherit;
+	font-weight: 700;
+	padding: 0.55rem 0.75rem;
+	border: 1px solid rgba(185, 240, 138, 0.4);
+	border-radius: 8px;
+	background: rgba(185, 240, 138, 0.12);
+	color: #d5ffb3;
+	cursor: pointer;
+}
+
+.esperanto-chat-message {
+	max-width: 82%;
+	padding: 0.75rem 0.9rem;
+	border-radius: 10px;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+	line-height: 1.5;
+}
+
+.esperanto-chat-message--user {
+	align-self: flex-end;
+	background: rgba(122, 162, 247, 0.2);
+	border: 1px solid rgba(122, 162, 247, 0.34);
+	color: #e1e8ff;
+}
+
+.esperanto-chat-message--assistant {
+	align-self: flex-start;
+	background: rgba(185, 240, 138, 0.12);
+	border: 1px solid rgba(185, 240, 138, 0.22);
+	color: #eefce3;
+}
+
+.esperanto-chat-message--thinking {
+	color: #b9f08a;
+	font-style: italic;
+}
+
+.esperanto-chat-error {
+	margin: 0 1.1rem 0.75rem;
+	padding: 0.65rem 0.75rem;
+	border: 1px solid var(--incorrect);
+	border-radius: 8px;
+	background: var(--incorrect-bg);
+	color: var(--incorrect);
+	font-size: 0.82rem;
+}
+
+.esperanto-chat-form {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 0.75rem;
+	padding: 0.85rem 1.1rem 1rem;
+	border-top: 1px solid rgba(192, 202, 245, 0.12);
+	background: rgba(8, 10, 16, 0.36);
+}
+
+.esperanto-chat-form textarea {
+	width: 100%;
+	min-width: 0;
+	resize: vertical;
+	padding: 0.75rem 0.85rem;
+	border: 1px solid rgba(192, 202, 245, 0.2);
+	border-radius: 8px;
+	background: rgba(20, 23, 34, 0.9);
+	color: var(--text);
+	font: inherit;
+	line-height: 1.45;
+}
+
+.esperanto-chat-form textarea:focus {
+	outline: none;
+	border-color: #b9f08a;
+}
+
+.esperanto-chat-form button {
+	align-self: end;
+	font: inherit;
+	font-weight: 700;
+	padding: 0.65rem 1rem;
+	border: 1px solid #b9f08a;
+	border-radius: 8px;
+	background: #b9f08a;
+	color: #11151d;
+	cursor: pointer;
+}
+
+.esperanto-chat-form button:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
 }
 
 /* ---- Story ---- */
@@ -545,5 +812,40 @@ body[data-view="menu"] {
 
 	.saved-story__actions button {
 		flex: 1;
+	}
+
+	.controls {
+		align-items: stretch;
+	}
+
+	.controls button {
+		flex: 1 1 auto;
+	}
+
+	.esperanto-chat-btn {
+		margin-left: 0;
+		justify-content: center;
+	}
+
+	.esperanto-chat-overlay {
+		padding: 0.5rem;
+		align-items: flex-end;
+	}
+
+	.esperanto-chat-modal {
+		width: 100%;
+		max-height: 92vh;
+	}
+
+	.esperanto-chat-log {
+		min-height: 14rem;
+	}
+
+	.esperanto-chat-message {
+		max-width: 94%;
+	}
+
+	.esperanto-chat-form {
+		grid-template-columns: 1fr;
 	}
 }
