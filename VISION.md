@@ -95,6 +95,24 @@ whole interface. The main concepts are:
 The current story session model can remain useful, but learning progress should
 become its own domain rather than being hidden inside story text alone.
 
+## Idea: Chat Questions as a Weak-Signal Source
+
+The Esperanto Bot chat is currently a one-off Q&A that is discarded when the
+panel closes. A learner's questions are a strong signal of what they find
+confusing: asking "what does `mia` mean?" or "why is this word `-n`?" is a
+direct, high-confidence flag that the word or grammar concept is weak for them.
+
+When a chat session closes, the app could run one cheap pass over the transcript
+to extract a small structured list of the words and grammar concepts the learner
+asked about, then feed those into the curriculum state as `weak` or `review due`
+so they resurface in upcoming exercises. The free-text summary is secondary; the
+actionable output is structured items tied to the existing vocabulary and
+grammar-concept model, not prose a human has to read.
+
+This belongs in the AI-adaptive stage (V2/V3), not the hand-authored V1. One
+implementation note: the chat panel currently clears its messages on close, so
+the extraction has to run before that state is wiped.
+
 ## AI Boundary
 
 AI should be introduced in stages:
