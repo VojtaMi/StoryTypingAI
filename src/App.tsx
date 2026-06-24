@@ -141,7 +141,6 @@ export default function App() {
 					error={error}
 					backgroundIntro={backgroundIntro ?? undefined}
 					storyId={activeSaveId}
-					model={model}
 					currentImageUrl={backgroundImage?.backgroundImageUrl ?? null}
 					openingAudioUrl={openingAudio?.openingAudioUrl ?? null}
 					onTypingComplete={handleTypingComplete}

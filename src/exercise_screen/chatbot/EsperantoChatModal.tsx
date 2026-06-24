@@ -7,7 +7,11 @@ import {
 } from "react";
 import { askEsperantoTutor, type EsperantoTutorChatMessage } from "../../ai";
 import { ESPERANTO_KEY_MAP } from "../../esperantoKeyboard";
-import type { TextModelId } from "../../models";
+import {
+	readSelectedChatModel,
+	saveSelectedChatModel,
+} from "../../modelSelection/modelSelectionStore";
+import { TEXT_MODELS, type TextModelId } from "../../models";
 import type { StorySegment } from "../types";
 
 interface EsperantoChatModalProps {
@@ -16,7 +20,6 @@ interface EsperantoChatModalProps {
 	segments: StorySegment[];
 	currentTarget: string | null;
 	backgroundIntro?: string;
-	model: TextModelId;
 	onClose: () => void;
 }
 
@@ -30,12 +33,12 @@ export function EsperantoChatModal({
 	segments,
 	currentTarget,
 	backgroundIntro,
-	model,
 	onClose,
 }: EsperantoChatModalProps) {
 	const [messages, setMessages] = useState<ChatEntry[]>([]);
 	const [input, setInput] = useState("");
 	const [inputMode, setInputMode] = useState<InputMode>("english");
+	const [model, setModel] = useState<TextModelId>(readSelectedChatModel);
 	const [isSending, setIsSending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -205,6 +208,23 @@ export function EsperantoChatModal({
 								EO
 							</button>
 						</div>
+						<label className="esperanto-chat-model">
+							<span className="esperanto-chat-model-label">Model</span>
+							<select
+								value={model}
+								onChange={(event) => {
+									const next = event.target.value as TextModelId;
+									setModel(next);
+									saveSelectedChatModel(next);
+								}}
+							>
+								{TEXT_MODELS.map((textModel) => (
+									<option key={textModel.id} value={textModel.id}>
+										{textModel.label}
+									</option>
+								))}
+							</select>
+						</label>
 					</div>
 
 					<div className="esperanto-chat-log" ref={logRef}>

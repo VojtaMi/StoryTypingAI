@@ -1,7 +1,6 @@
 import { useState } from "react";
 import "../gallery/gallery.css";
 import { GalleryModal } from "../gallery/GalleryModal";
-import type { TextModelId } from "../models";
 import { AuthoringInput } from "./authoring/AuthoringInput";
 import { EsperantoChatModal } from "./chatbot/EsperantoChatModal";
 import { ExerciseControls } from "./controls/ExerciseControls";
@@ -19,7 +18,6 @@ interface ExerciseScreenProps {
 	error: string | null;
 	backgroundIntro?: string;
 	storyId: string | null;
-	model: TextModelId;
 	currentImageUrl: string | null;
 	openingAudioUrl: string | null;
 	onTypingComplete: (stats: TypingStats) => void;
@@ -36,7 +34,6 @@ export default function ExerciseScreen({
 	error,
 	backgroundIntro,
 	storyId,
-	model,
 	currentImageUrl,
 	openingAudioUrl,
 	onTypingComplete,
@@ -96,7 +93,6 @@ export default function ExerciseScreen({
 				segments={segments}
 				currentTarget={currentTarget}
 				backgroundIntro={backgroundIntro}
-				model={model}
 				onClose={() => setChatOpen(false)}
 			/>
 
