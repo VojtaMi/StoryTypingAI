@@ -98,21 +98,11 @@ export default function KeyboardIntroExercise({
 	);
 	const { ready, playing, play } = useCharAudio();
 	const [demoText, setDemoText] = useState("");
-	const [keyboardStatus, setKeyboardStatus] = useState<string | null>(null);
 	const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 	const continueButtonRef = useRef<HTMLButtonElement | null>(null);
-	const keyboardStatusTimer = useRef<number | null>(null);
 
 	useEffect(() => {
 		inputRefs.current[0]?.focus();
-	}, []);
-
-	useEffect(() => {
-		return () => {
-			if (keyboardStatusTimer.current !== null) {
-				window.clearTimeout(keyboardStatusTimer.current);
-			}
-		};
 	}, []);
 
 	const allCorrect = KEYBOARD_CHARS.every((c, i) => values[i] === c.char);
@@ -171,21 +161,6 @@ export default function KeyboardIntroExercise({
 		const mapped = ESPERANTO_KEY_MAP[key];
 		const output = mapped ? mapped.toLowerCase() : key;
 		setDemoText((prev) => `${prev}${output}`);
-
-		if (keyboardStatusTimer.current !== null) {
-			window.clearTimeout(keyboardStatusTimer.current);
-		}
-
-		if (mapped) {
-			void navigator.clipboard?.writeText(output).catch(() => undefined);
-			setKeyboardStatus(`Copied and inserted ${output}`);
-		} else {
-			setKeyboardStatus(`Inserted ${output}`);
-		}
-
-		keyboardStatusTimer.current = window.setTimeout(() => {
-			setKeyboardStatus(null);
-		}, 1800);
 	}, []);
 
 	return (
@@ -232,7 +207,7 @@ export default function KeyboardIntroExercise({
 											onClick={() => handleMiniKeyboardPress(key)}
 											aria-label={
 												mapped
-													? `Insert and copy ${mapped}, typed with ${key}`
+													? `Insert ${mapped}, typed with ${key}`
 													: `Insert ${key}`
 											}
 										>
@@ -247,9 +222,6 @@ export default function KeyboardIntroExercise({
 								})}
 							</div>
 						))}
-					</div>
-					<div className="mini-keyboard__status" aria-live="polite">
-						{keyboardStatus}
 					</div>
 				</fieldset>
 

@@ -586,13 +586,6 @@
 	color: var(--lesson-soft);
 }
 
-.mini-keyboard__status {
-	min-height: 1.15rem;
-	margin-top: 0.55rem;
-	color: var(--lesson-soft);
-	font-size: 0.78rem;
-}
-
 .key-intro__grid {
 	display: grid;
 	grid-template-columns: repeat(3, 1fr);
