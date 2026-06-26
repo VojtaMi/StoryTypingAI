@@ -74,11 +74,14 @@ body[data-view="lesson-typing"] {
 	padding-top: 2rem;
 }
 
+.app--lessons-menu,
 .app--lesson,
 .app--word-match,
 .app--lesson-typing,
 .app--esperanto-intro,
-.app--keyboard-intro {
+.app--keyboard-intro,
+.app--keyboard-words,
+.app--keyboard-word-match {
 	max-width: none;
 	padding: 0;
 }

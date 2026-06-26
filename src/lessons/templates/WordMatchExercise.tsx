@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import "./lesson.css";
-import { audioUrlCache, ensureLessonAudioUrl } from "./lessonAudio";
-import type { IntroducedWord } from "./types";
+import "../lesson.css";
+import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
+import type { IntroducedWord } from "../types";
 
 interface WordMatchExerciseProps {
 	lessonId: string;
 	words: IntroducedWord[];
+	completeLabel?: string;
 	onComplete: () => void;
 	onBack: () => void;
 }
@@ -22,6 +23,7 @@ function shuffle<T>(arr: T[]): T[] {
 export default function WordMatchExercise({
 	lessonId,
 	words,
+	completeLabel = "Continue to Practice →",
 	onComplete,
 	onBack,
 }: WordMatchExerciseProps) {
@@ -134,7 +136,7 @@ export default function WordMatchExercise({
 		<div className="lesson-page">
 			<div className="lesson-doc word-match">
 				<button type="button" className="lesson-doc__back" onClick={onBack}>
-					← Back to lesson
+					← Back to lessons
 				</button>
 
 				<p className="lesson-doc__eyebrow">Exercise</p>
@@ -205,7 +207,7 @@ export default function WordMatchExercise({
 							className="lesson-doc__begin"
 							onClick={onComplete}
 						>
-							Continue to Practice →
+							{completeLabel}
 						</button>
 					</div>
 				)}

@@ -1,8 +1,8 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import "./lesson.css";
-import { audioUrlCache, ensureLessonAudioUrl } from "./lessonAudio";
-import type { Lesson } from "./types";
-import { LESSON_LEVEL_LABELS } from "./types";
+import "../lesson.css";
+import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
+import type { Lesson } from "../types";
+import { LESSON_LEVEL_LABELS } from "../types";
 
 interface LessonIntroProps {
 	lesson: Lesson;
@@ -95,7 +95,7 @@ function SpeakButton({
 			onClick={() => onPlay(id, text)}
 			disabled={!ready || (playing !== null && !isPlaying)}
 		>
-			{isPlaying ? "▶" : "🔊"}
+			🔊
 		</button>
 	);
 }
@@ -121,7 +121,7 @@ export default function LessonIntro({
 		<div className="lesson-page">
 			<article className="lesson-doc" aria-labelledby="lesson-title">
 				<button type="button" className="lesson-doc__back" onClick={onBack}>
-					← Back to menu
+					← Back to lessons
 				</button>
 
 				<p className="lesson-doc__eyebrow">

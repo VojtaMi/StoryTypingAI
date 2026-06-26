@@ -10,11 +10,14 @@ export function backgroundLayerStyle(url: string): CSSProperties {
 export function useBackgroundLayers(
 	view:
 		| "menu"
+		| "lessons-menu"
 		| "esperanto-intro"
 		| "lesson"
 		| "word-match"
 		| "lesson-typing"
 		| "keyboard-intro"
+		| "keyboard-words"
+		| "keyboard-word-match"
 		| "story",
 	backgroundImage: StoryBackgroundImage | null,
 ) {

@@ -5,9 +5,9 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { ESPERANTO_KEY_MAP } from "../esperantoKeyboard";
-import "./lesson.css";
-import { audioUrlCache, ensureLessonAudioUrl } from "./lessonAudio";
+import { ESPERANTO_KEY_MAP } from "../../esperantoKeyboard";
+import "../lesson.css";
+import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
 
 const LESSON_ID = "keyboard-intro";
 
@@ -127,6 +127,7 @@ export default function KeyboardIntroExercise({
 					return next;
 				});
 				if (lc === KEYBOARD_CHARS[index].char) {
+					play(KEYBOARD_CHARS[index].word);
 					const nextInput = inputRefs.current[index + 1];
 					if (nextInput) {
 						window.requestAnimationFrame(() => nextInput.focus());
@@ -154,7 +155,7 @@ export default function KeyboardIntroExercise({
 				});
 			}
 		},
-		[],
+		[play],
 	);
 
 	const handleMiniKeyboardPress = useCallback((key: string) => {
@@ -167,7 +168,7 @@ export default function KeyboardIntroExercise({
 		<div className="lesson-page">
 			<article className="lesson-doc" aria-labelledby="keyboard-intro-title">
 				<button type="button" className="lesson-doc__back" onClick={onBack}>
-					← Back
+					← Back to lessons
 				</button>
 
 				<p className="lesson-doc__eyebrow">Absolute beginner · Lesson</p>
@@ -258,7 +259,7 @@ export default function KeyboardIntroExercise({
 											!ready.has(word) || (playing !== null && playing !== word)
 										}
 									>
-										{playing === char ? "▶" : "🔊"}
+										🔊
 									</button>
 									<div className="key-intro__mapping">
 										type <kbd className="key-intro__kbd">{key}</kbd>

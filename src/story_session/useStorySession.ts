@@ -40,11 +40,14 @@ import {
 
 type View =
 	| "menu"
+	| "lessons-menu"
 	| "esperanto-intro"
 	| "lesson"
 	| "word-match"
 	| "lesson-typing"
 	| "keyboard-intro"
+	| "keyboard-words"
+	| "keyboard-word-match"
 	| "story";
 
 interface UseStorySessionOptions {

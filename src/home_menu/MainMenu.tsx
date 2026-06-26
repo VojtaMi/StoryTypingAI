@@ -46,7 +46,7 @@ export default function MainMenu({
 							className="lesson-hero__start"
 							onClick={onStartLesson}
 						>
-							{hasLessonProgress ? "Continue Lesson" : "Start Lesson"}
+							{hasLessonProgress ? "Lessons" : "Start Lessons"}
 						</button>
 						<button
 							type="button"

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { TypingPassage } from "../exercise_screen/typing/TypingPassage";
-import { useTypingSession } from "../exercise_screen/typing/useTypingSession";
-import "./lesson.css";
-import { audioUrlCache, ensureLessonAudioUrl } from "./lessonAudio";
+import { TypingPassage } from "../../exercise_screen/typing/TypingPassage";
+import { useTypingSession } from "../../exercise_screen/typing/useTypingSession";
+import "../lesson.css";
+import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
 
 interface LessonTypingExerciseProps {
 	lessonId: string;
@@ -72,7 +72,7 @@ export default function LessonTypingExercise({
 					className="lesson-doc__back lesson-doc__back--light"
 					onClick={onBack}
 				>
-					← Back
+					← Back to lessons
 				</button>
 
 				<p className="lesson-doc__eyebrow">Exercise</p>

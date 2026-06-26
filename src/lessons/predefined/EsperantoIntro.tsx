@@ -1,4 +1,4 @@
-import "./lesson.css";
+import "../lesson.css";
 
 interface EsperantoIntroProps {
 	onStart: () => void;
@@ -13,7 +13,7 @@ export default function EsperantoIntro({
 		<div className="lesson-page">
 			<article className="lesson-doc" aria-labelledby="esperanto-intro-title">
 				<button type="button" className="lesson-doc__back" onClick={onBack}>
-					← Back to menu
+					← Back to lessons
 				</button>
 
 				<p className="lesson-doc__eyebrow">Absolute beginner · Introduction</p>

@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 import ExerciseScreen from "./exercise_screen/ExerciseScreen";
 import MainMenu from "./home_menu/MainMenu";
-import EsperantoIntro from "./lessons/EsperantoIntro";
-import KeyboardIntroExercise from "./lessons/KeyboardIntroExercise";
-import LessonIntro from "./lessons/LessonIntro";
-import LessonTypingExercise from "./lessons/LessonTypingExercise";
+import LessonsMenu from "./lessons/LessonsMenu";
 import {
 	completeLessonStage,
 	readLessonProgress,
 	rememberLessonPath,
 } from "./lessons/lessonProgress";
-import { firstLesson } from "./lessons/lessons";
+import EsperantoIntro from "./lessons/predefined/EsperantoIntro";
+import KeyboardIntroExercise from "./lessons/predefined/KeyboardIntroExercise";
+import KeyboardWordsExercise from "./lessons/predefined/KeyboardWordsExercise";
+import { KEYBOARD_PRACTICE_WORDS } from "./lessons/predefined/keyboardPracticeWords";
+import { firstLesson } from "./lessons/predefined/lessons";
+import LessonIntro from "./lessons/templates/LessonIntro";
+import LessonTypingExercise from "./lessons/templates/LessonTypingExercise";
+import WordMatchExercise from "./lessons/templates/WordMatchExercise";
 import type { Lesson } from "./lessons/types";
-import WordMatchExercise from "./lessons/WordMatchExercise";
 import {
 	readSelectedTextModel,
 	saveSelectedTextModel,
@@ -31,20 +34,26 @@ import { useStorySession } from "./story_session/useStorySession";
 
 type View =
 	| "menu"
+	| "lessons-menu"
 	| "esperanto-intro"
 	| "lesson"
 	| "word-match"
 	| "lesson-typing"
 	| "keyboard-intro"
+	| "keyboard-words"
+	| "keyboard-word-match"
 	| "story";
 
 const ROUTES = {
 	menu: "/",
+	lessons: "/lessons",
 	intro: "/lessons/intro",
 	hundo: "/lessons/hundo-estas-besto",
 	hundoWordMatch: "/lessons/hundo-estas-besto/word-match",
 	hundoTyping: "/lessons/hundo-estas-besto/typing",
 	keyboard: "/lessons/esperanto-keyboard",
+	keyboardWords: "/lessons/esperanto-keyboard/words",
+	keyboardWordMatch: "/lessons/esperanto-keyboard/word-match",
 } as const;
 
 const LESSON_PATHS = new Set<string>([
@@ -53,6 +62,8 @@ const LESSON_PATHS = new Set<string>([
 	ROUTES.hundoWordMatch,
 	ROUTES.hundoTyping,
 	ROUTES.keyboard,
+	ROUTES.keyboardWords,
+	ROUTES.keyboardWordMatch,
 ]);
 
 const NUMBERED_LESSON_PATHS: Record<string, string> = {
@@ -61,6 +72,8 @@ const NUMBERED_LESSON_PATHS: Record<string, string> = {
 	"/lessons/2": ROUTES.hundoWordMatch,
 	"/lessons/3": ROUTES.hundoTyping,
 	"/lessons/4": ROUTES.keyboard,
+	"/lessons/5": ROUTES.keyboardWords,
+	"/lessons/6": ROUTES.keyboardWordMatch,
 };
 
 function canonicalLessonPath(pathname: string) {
@@ -69,6 +82,8 @@ function canonicalLessonPath(pathname: string) {
 
 function viewFromPath(pathname: string): View {
 	switch (canonicalLessonPath(pathname)) {
+		case ROUTES.lessons:
+			return "lessons-menu";
 		case ROUTES.intro:
 			return "esperanto-intro";
 		case ROUTES.hundo:
@@ -79,6 +94,10 @@ function viewFromPath(pathname: string): View {
 			return "lesson-typing";
 		case ROUTES.keyboard:
 			return "keyboard-intro";
+		case ROUTES.keyboardWords:
+			return "keyboard-words";
+		case ROUTES.keyboardWordMatch:
+			return "keyboard-word-match";
 		default:
 			return "menu";
 	}
@@ -86,6 +105,8 @@ function viewFromPath(pathname: string): View {
 
 function pathForView(view: View) {
 	switch (view) {
+		case "lessons-menu":
+			return ROUTES.lessons;
 		case "esperanto-intro":
 			return ROUTES.intro;
 		case "lesson":
@@ -96,10 +117,41 @@ function pathForView(view: View) {
 			return ROUTES.hundoTyping;
 		case "keyboard-intro":
 			return ROUTES.keyboard;
+		case "keyboard-words":
+			return ROUTES.keyboardWords;
+		case "keyboard-word-match":
+			return ROUTES.keyboardWordMatch;
 		default:
 			return ROUTES.menu;
 	}
 }
+
+const LESSON_MENU_ITEMS = [
+	{
+		id: "intro",
+		title: "Intro",
+		description: "Meet the course and the tiny-story format.",
+		path: ROUTES.intro,
+		completedStageIds: ["intro"],
+	},
+	{
+		id: "hundo-estas-besto",
+		title: firstLesson.title,
+		description: "Learn hundo, estas, and besto through your first sentence.",
+		path: ROUTES.hundo,
+		completedStageIds: [
+			"hundo-estas-besto.word-match",
+			"hundo-estas-besto.typing",
+		],
+	},
+	{
+		id: "keyboard",
+		title: "Keyboard",
+		description: "Practise Esperanto characters, then type beginner words.",
+		path: ROUTES.keyboard,
+		completedStageIds: ["esperanto-keyboard"],
+	},
+];
 
 export default function App() {
 	const [view, setView] = useState<View>(() =>
@@ -217,6 +269,10 @@ export default function App() {
 		openLessonPath(LESSON_PATHS.has(lastPath) ? lastPath : ROUTES.intro);
 	}
 
+	function openLessonsMenu() {
+		navigateToView("lessons-menu");
+	}
+
 	function returnToMenu() {
 		navigateToView("menu");
 	}
@@ -242,6 +298,16 @@ export default function App() {
 	}
 
 	function handleKeyboardIntroComplete() {
+		completeLessonStage("esperanto-keyboard.chars", ROUTES.keyboardWords);
+		navigateToView("keyboard-words");
+	}
+
+	function handleKeyboardWordsComplete() {
+		completeLessonStage("esperanto-keyboard.words", ROUTES.keyboardWordMatch);
+		navigateToView("keyboard-word-match");
+	}
+
+	function handleKeyboardWordMatchComplete() {
 		completeLessonStage("esperanto-keyboard", ROUTES.keyboard);
 		startLessonStory({
 			title: activeLesson.title,
@@ -296,21 +362,31 @@ export default function App() {
 					hasLessonProgress={hasLessonProgress}
 					onModelChange={handleModelChange}
 					onSelect={selectGenre}
-					onStartLesson={openLesson}
+					onStartLesson={openLessonsMenu}
 					onResume={resumeStory}
 					onDelete={removeSavedStory}
 				/>
 			)}
 
+			{view === "lessons-menu" && (
+				<LessonsMenu
+					progress={lessonProgress}
+					items={LESSON_MENU_ITEMS}
+					onBack={returnToMenu}
+					onContinue={openLesson}
+					onOpenLessonPath={openLessonPath}
+				/>
+			)}
+
 			{view === "esperanto-intro" && (
-				<EsperantoIntro onStart={beginFirstExercise} onBack={returnToMenu} />
+				<EsperantoIntro onStart={beginFirstExercise} onBack={openLessonsMenu} />
 			)}
 
 			{view === "lesson" && (
 				<LessonIntro
 					lesson={activeLesson}
 					onBeginPractice={beginLessonPractice}
-					onBack={() => navigateToView("esperanto-intro")}
+					onBack={openLessonsMenu}
 				/>
 			)}
 
@@ -319,7 +395,7 @@ export default function App() {
 					lessonId={activeLesson.id}
 					words={activeLesson.introducedWords}
 					onComplete={handleWordMatchComplete}
-					onBack={() => navigateToView("lesson")}
+					onBack={openLessonsMenu}
 				/>
 			)}
 
@@ -329,14 +405,31 @@ export default function App() {
 					text={activeLesson.story.join(" ")}
 					imageUrl="/images/lesson-typing-bg.webp"
 					onComplete={handleLessonTypingComplete}
-					onBack={() => navigateToView("word-match")}
+					onBack={openLessonsMenu}
 				/>
 			)}
 
 			{view === "keyboard-intro" && (
 				<KeyboardIntroExercise
 					onComplete={handleKeyboardIntroComplete}
-					onBack={() => navigateToView("lesson-typing")}
+					onBack={openLessonsMenu}
+				/>
+			)}
+
+			{view === "keyboard-words" && (
+				<KeyboardWordsExercise
+					onComplete={handleKeyboardWordsComplete}
+					onBack={openLessonsMenu}
+				/>
+			)}
+
+			{view === "keyboard-word-match" && (
+				<WordMatchExercise
+					lessonId="keyboard-intro"
+					words={KEYBOARD_PRACTICE_WORDS}
+					completeLabel="Continue →"
+					onComplete={handleKeyboardWordMatchComplete}
+					onBack={openLessonsMenu}
 				/>
 			)}
 
