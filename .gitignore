@@ -33,3 +33,6 @@ story-audio/
 # Playwright MCP session snapshots
 .playwright-mcp/
 .rostistate
+
+# Local visual/debug screenshots
+word-match-*.png
