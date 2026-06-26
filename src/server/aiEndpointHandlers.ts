@@ -66,12 +66,14 @@ export async function handleSpeakRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { text } = JSON.parse(await readBody(req));
+	const { text, instructions } = JSON.parse(await readBody(req));
 	if (!text || typeof text !== "string") {
 		sendJson(res, 400, { error: "text is required." });
 		return;
 	}
-	const audio = await synthesizeSpeech(openai, text);
+	const audio = await synthesizeSpeech(openai, text, {
+		instructions: typeof instructions === "string" ? instructions : undefined,
+	});
 	res.statusCode = 200;
 	res.setHeader("Content-Type", "audio/mpeg");
 	res.setHeader("Cache-Control", "no-store");

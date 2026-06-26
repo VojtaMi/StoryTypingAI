@@ -35,6 +35,25 @@ export const lessons: Lesson[] = [
 		],
 		story: ["Hundo estas besto."],
 		exercises: [],
+		resources: [
+			{
+				type: "link",
+				title: "Esperanto on Duolingo",
+				url: "https://www.duolingo.com/course/eo/en/Learn-Esperanto",
+			},
+			{
+				type: "link",
+				title: "Lernu! — free beginner course",
+				url: "https://lernu.net/en",
+			},
+			{
+				type: "note",
+				title: "Pronunciation tip",
+				content:
+					"Every letter in Esperanto is always pronounced — there are no silent letters. " +
+					"The stress always falls on the second-to-last syllable: HUN-do, ES-tas, BES-to.",
+			},
+		],
 	},
 ];
 

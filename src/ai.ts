@@ -195,14 +195,33 @@ export async function generateOpeningAudio(
 }
 
 /** Narrates a story segment, returning the spoken audio as an MP3 blob. */
-export async function speakStorySegment(text: string): Promise<Blob> {
+export async function speakStorySegment(
+	text: string,
+	options: { instructions?: string } = {},
+): Promise<Blob> {
 	const res = await fetch("/api/ai/speak", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ text }),
+		body: JSON.stringify({ text, ...options }),
 	});
 	if (!res.ok) throw new Error(`Narration request failed: ${res.status}`);
 	return res.blob();
+}
+
+/** Fetches a stable audio URL for a lesson text, generating and caching it server-side on first call. */
+export async function fetchLessonAudioUrl(
+	lessonId: string,
+	text: string,
+	instructions?: string,
+): Promise<string> {
+	const res = await fetch("/api/lesson-audio", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ lessonId, text, instructions }),
+	});
+	if (!res.ok) throw new Error(`Lesson audio request failed: ${res.status}`);
+	const body = (await res.json()) as { url: string };
+	return body.url;
 }
 
 /** Generates a 1-2 sentence second-person intro describing who the player is and what brought them here. */

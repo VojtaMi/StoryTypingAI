@@ -10,6 +10,12 @@ import { isNarrationVoiceId } from "../narrationVoice";
 import { completeAi, synthesizeSpeech } from "./aiService";
 import { readBody, sendJson } from "./http";
 import {
+	getOrCreateLessonAudio,
+	lessonAudioFilePattern,
+	lessonIdPattern,
+	readLessonAudio,
+} from "./lessonAudioStore";
+import {
 	consumePreparedOpening,
 	createBackgroundImage,
 	findGenre,
@@ -270,16 +276,70 @@ const server = createServer(async (req, res) => {
 		}
 
 		if (pathname === "/api/ai/speak" && req.method === "POST") {
-			const { text } = JSON.parse(await readBody(req));
+			const { text, instructions } = JSON.parse(await readBody(req));
 			if (!text || typeof text !== "string") {
 				sendJson(res, 400, { error: "text is required." });
 				return;
 			}
-			const audio = await synthesizeSpeech(openai, text);
+			const audio = await synthesizeSpeech(openai, text, {
+				instructions:
+					typeof instructions === "string" ? instructions : undefined,
+			});
 			res.statusCode = 200;
 			res.setHeader("Content-Type", "audio/mpeg");
 			res.setHeader("Cache-Control", "no-store");
 			res.end(audio);
+			return;
+		}
+
+		if (pathname === "/api/lesson-audio" && req.method === "POST") {
+			const { lessonId, text, instructions } = JSON.parse(await readBody(req));
+			if (
+				!lessonId ||
+				typeof lessonId !== "string" ||
+				!lessonIdPattern.test(lessonId)
+			) {
+				sendJson(res, 400, { error: "lessonId is required." });
+				return;
+			}
+			if (!text || typeof text !== "string") {
+				sendJson(res, 400, { error: "text is required." });
+				return;
+			}
+			const url = await getOrCreateLessonAudio(
+				openai,
+				lessonId,
+				text,
+				typeof instructions === "string" ? instructions : undefined,
+			);
+			sendJson(res, 200, { url });
+			return;
+		}
+
+		if (
+			parts[0] === "api" &&
+			parts[1] === "lesson-audio" &&
+			parts.length === 4 &&
+			req.method === "GET"
+		) {
+			const lessonId = decodeURIComponent(parts[2] ?? "");
+			const filename = decodeURIComponent(parts[3] ?? "");
+			if (
+				!lessonIdPattern.test(lessonId) ||
+				!lessonAudioFilePattern.test(filename)
+			) {
+				sendJson(res, 404, { error: "Audio not found." });
+				return;
+			}
+			try {
+				const file = await readLessonAudio(lessonId, filename);
+				res.statusCode = 200;
+				res.setHeader("Content-Type", "audio/mpeg");
+				res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+				res.end(file);
+			} catch {
+				sendJson(res, 404, { error: "Audio not found." });
+			}
 			return;
 		}
 
