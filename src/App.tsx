@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ExerciseScreen from "./exercise_screen/ExerciseScreen";
 import MainMenu from "./home_menu/MainMenu";
+import KeyboardIntroExercise from "./lessons/KeyboardIntroExercise";
 import LessonIntro from "./lessons/LessonIntro";
 import LessonTypingExercise from "./lessons/LessonTypingExercise";
 import { firstLesson } from "./lessons/lessons";
@@ -22,7 +23,13 @@ import {
 } from "./story_session/background";
 import { useStorySession } from "./story_session/useStorySession";
 
-type View = "menu" | "lesson" | "word-match" | "lesson-typing" | "story";
+type View =
+	| "menu"
+	| "lesson"
+	| "word-match"
+	| "lesson-typing"
+	| "keyboard-intro"
+	| "story";
 
 export default function App() {
 	const [view, setView] = useState<View>("menu");
@@ -103,6 +110,10 @@ export default function App() {
 	}
 
 	function handleLessonTypingComplete() {
+		setView("keyboard-intro");
+	}
+
+	function handleKeyboardIntroComplete() {
 		startLessonStory({
 			title: activeLesson.title,
 			storyText: activeLesson.story.join(" "),
@@ -185,6 +196,13 @@ export default function App() {
 					imageUrl="/images/lesson-typing-bg.webp"
 					onComplete={handleLessonTypingComplete}
 					onBack={() => setView("word-match")}
+				/>
+			)}
+
+			{view === "keyboard-intro" && (
+				<KeyboardIntroExercise
+					onComplete={handleKeyboardIntroComplete}
+					onBack={() => setView("lesson-typing")}
 				/>
 			)}
 

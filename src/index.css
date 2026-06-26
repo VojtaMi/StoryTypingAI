@@ -25,6 +25,13 @@ body {
 	display: flex;
 	justify-content: center;
 	align-items: flex-start;
+	background: #faf8f2;
+	color: #221c14;
+}
+
+body[data-view="menu"],
+body[data-view="lesson-typing"],
+body[data-view="story"] {
 	background: var(--bg);
 	background-attachment: fixed;
 	background-position: center;
@@ -42,14 +49,8 @@ body[data-view="menu"] {
 		url("/images/esperanto-lesson-hero.png");
 }
 
-body[data-view="lesson"],
-body[data-view="word-match"] {
-	background: #faf8f2;
-	color: #221c14;
-}
-
 body[data-view="lesson-typing"] {
-	background: #1a1510;
+	background-color: #1a1510;
 }
 
 .app {

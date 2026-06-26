@@ -6,7 +6,7 @@ import { synthesizeSpeech } from "./aiService";
 const lessonAudioDir = join(process.cwd(), "lesson-audio");
 
 export const lessonIdPattern = /^[a-zA-Z0-9_-]+$/;
-export const lessonAudioFilePattern = /^[a-zA-Z0-9_-]+\.mp3$/;
+export const lessonAudioFilePattern = /^[a-zA-Z0-9_Ā-ſ-]+\.mp3$/;
 
 /** Converts lesson text to a stable filename slug. */
 function textToSlug(text: string): string {
@@ -36,10 +36,10 @@ export async function getOrCreateLessonAudio(
 
 	try {
 		await readFile(filepath);
-		// File exists — return the URL without regenerating.
+		console.log(`[lesson-audio] HIT  ${filepath}`);
 		return `/api/lesson-audio/${lessonId}/${filename}`;
 	} catch {
-		// Not cached yet — generate, save, and return.
+		console.log(`[lesson-audio] MISS ${filepath} — calling TTS`);
 	}
 
 	const audio = await synthesizeSpeech(openai, text, { instructions });

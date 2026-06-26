@@ -65,10 +65,7 @@ export function lessonAudioApi(openaiKey: string): Plugin {
 							const file = await readLessonAudio(lessonId, filename);
 							res.statusCode = 200;
 							res.setHeader("Content-Type", "audio/mpeg");
-							res.setHeader(
-								"Cache-Control",
-								"public, max-age=31536000, immutable",
-							);
+							res.setHeader("Cache-Control", "no-store");
 							res.end(file);
 						} catch {
 							sendJson(res, 404, { error: "Audio not found." });

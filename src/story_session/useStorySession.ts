@@ -38,7 +38,13 @@ import {
 	fallbackTitle,
 } from "./storySnapshot";
 
-type View = "menu" | "lesson" | "word-match" | "lesson-typing" | "story";
+type View =
+	| "menu"
+	| "lesson"
+	| "word-match"
+	| "lesson-typing"
+	| "keyboard-intro"
+	| "story";
 
 interface UseStorySessionOptions {
 	model: TextModelId;

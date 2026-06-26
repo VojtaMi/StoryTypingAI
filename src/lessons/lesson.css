@@ -317,6 +317,12 @@
 
 /* ---- Lesson typing exercise ---- */
 .lesson-typing-page {
+	--lesson-ink: #221c14;
+	--lesson-soft: #5a5147;
+	--lesson-faint: #8a8174;
+	--lesson-accent: #b04a32;
+	--lesson-rule: rgba(34, 28, 20, 0.14);
+
 	position: relative;
 	min-height: 100vh;
 	display: flex;
@@ -417,4 +423,105 @@
 	font-size: 1.2rem;
 	font-weight: 700;
 	color: var(--lesson-ink, #221c14);
+}
+
+/* ---- Keyboard intro exercise ---- */
+.key-intro__grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 1.25rem;
+	margin-top: 1.5rem;
+}
+
+@media (max-width: 480px) {
+	.key-intro__grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+.key-intro__card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.55rem;
+	padding: 1.25rem 1rem;
+	border: 2px solid var(--lesson-rule);
+	border-radius: 12px;
+	background: #fdf9f3;
+	transition:
+		border-color 0.2s ease,
+		background 0.2s ease;
+}
+
+.key-intro__card--correct {
+	border-color: #27ae60;
+	background: rgba(39, 174, 96, 0.06);
+}
+
+.key-intro__card--wrong {
+	border-color: #c0392b;
+	background: rgba(192, 57, 43, 0.06);
+}
+
+.key-intro__word {
+	font-size: 1.5rem;
+	font-weight: 600;
+	line-height: 1.2;
+	color: var(--lesson-ink);
+	letter-spacing: 0.01em;
+}
+
+.key-intro__word-hl {
+	background: none;
+	color: var(--lesson-accent);
+	font-weight: 800;
+}
+
+.key-intro__mapping {
+	font-size: 0.82rem;
+	font-family: system-ui, sans-serif;
+	color: var(--lesson-faint);
+}
+
+.key-intro__kbd {
+	display: inline-block;
+	padding: 0.1em 0.45em;
+	border: 1px solid rgba(34, 28, 20, 0.25);
+	border-bottom-width: 2px;
+	border-radius: 4px;
+	background: #f3ede3;
+	font-family: "SFMono-Regular", "Cascadia Code", Menlo, Consolas, monospace;
+	font-size: 0.95em;
+	color: var(--lesson-ink);
+}
+
+.key-intro__input {
+	width: 3rem;
+	height: 3rem;
+	border: 2px solid var(--lesson-rule);
+	border-radius: 8px;
+	background: #fff;
+	font: inherit;
+	font-size: 1.5rem;
+	font-weight: 700;
+	text-align: center;
+	color: var(--lesson-ink);
+	outline: none;
+	cursor: text;
+	transition: border-color 0.15s ease;
+	caret-color: transparent;
+}
+
+.key-intro__input:focus {
+	border-color: var(--lesson-accent);
+}
+
+.key-intro__input--correct {
+	border-color: #27ae60;
+	color: #27ae60;
+}
+
+.key-intro__input--wrong {
+	border-color: #c0392b;
+	color: #c0392b;
 }

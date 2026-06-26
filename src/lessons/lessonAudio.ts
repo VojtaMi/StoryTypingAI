@@ -6,6 +6,8 @@ export const ESPERANTO_PRONUNCIATION =
 	"Ĉiu litero estas prononcata; ne ekzistas silentaj literoj. " +
 	"La vokaloj estas puraj kaj mallongaj: a, e, i, o, u. " +
 	"La akcento ĉiam estas sur la antaŭlasta silabo. " +
+	"Prononcu ĉ kiel ch en church, ĝ kiel j en jam, ĥ kiel ch en Czech chod aŭ German Bach, ĵ kiel zh en measure, ŝ kiel sh en ship, kaj ŭ kiel mallonga w-glido en aŭ. " +
+	"Evitu anglan diftongon ĉe fina o; tenu o kiel pura Esperanto oh. " +
 	"Prononcu hundo kiel HUN-do, besto kiel BES-to, kaj estas kiel ES-tas. " +
 	"Ne uzu anglan prononcon.";
 
