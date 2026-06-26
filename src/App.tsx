@@ -56,11 +56,11 @@ const LESSON_PATHS = new Set<string>([
 ]);
 
 const NUMBERED_LESSON_PATHS: Record<string, string> = {
-	"/lessons/1": ROUTES.intro,
-	"/lessons/2": ROUTES.hundo,
-	"/lessons/3": ROUTES.hundoWordMatch,
-	"/lessons/4": ROUTES.hundoTyping,
-	"/lessons/5": ROUTES.keyboard,
+	"/lessons/0": ROUTES.intro,
+	"/lessons/1": ROUTES.hundo,
+	"/lessons/2": ROUTES.hundoWordMatch,
+	"/lessons/3": ROUTES.hundoTyping,
+	"/lessons/4": ROUTES.keyboard,
 };
 
 function canonicalLessonPath(pathname: string) {
