@@ -76,7 +76,9 @@ body[data-view="lesson-typing"] {
 
 .app--lesson,
 .app--word-match,
-.app--lesson-typing {
+.app--lesson-typing,
+.app--esperanto-intro,
+.app--keyboard-intro {
 	max-width: none;
 	padding: 0;
 }

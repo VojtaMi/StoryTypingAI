@@ -61,6 +61,45 @@
 	color: var(--lesson-soft);
 }
 
+.esperanto-intro__figure {
+	margin: 2rem 0 0;
+}
+
+.esperanto-intro__image {
+	display: block;
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	object-fit: cover;
+	border-radius: 8px;
+	box-shadow: 0 18px 48px rgba(34, 28, 20, 0.18);
+}
+
+.esperanto-intro__split {
+	display: grid;
+	grid-template-columns: 132px minmax(0, 1fr);
+	gap: 1.5rem;
+	align-items: center;
+}
+
+.esperanto-intro__spot {
+	display: block;
+	width: 132px;
+	aspect-ratio: 1;
+	object-fit: contain;
+	border-radius: 8px;
+	background: #f1eadf;
+}
+
+@media (max-width: 560px) {
+	.esperanto-intro__split {
+		grid-template-columns: 1fr;
+	}
+
+	.esperanto-intro__spot {
+		width: 104px;
+	}
+}
+
 .lesson-doc__rule {
 	margin: 2.5rem 0;
 	border: 0;

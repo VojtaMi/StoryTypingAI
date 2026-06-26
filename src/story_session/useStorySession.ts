@@ -40,6 +40,7 @@ import {
 
 type View =
 	| "menu"
+	| "esperanto-intro"
 	| "lesson"
 	| "word-match"
 	| "lesson-typing"

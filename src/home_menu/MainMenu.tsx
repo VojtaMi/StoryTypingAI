@@ -10,6 +10,7 @@ interface MainMenuProps {
 	savedStories: SavedStorySummary[];
 	savesError: string | null;
 	model: TextModelId;
+	hasLessonProgress: boolean;
 	onModelChange: (id: TextModelId) => void;
 	onSelect: (genre: Genre) => void;
 	onStartLesson: () => void;
@@ -21,6 +22,7 @@ export default function MainMenu({
 	savedStories,
 	savesError,
 	model,
+	hasLessonProgress,
 	onModelChange,
 	onSelect,
 	onStartLesson,
@@ -44,7 +46,7 @@ export default function MainMenu({
 							className="lesson-hero__start"
 							onClick={onStartLesson}
 						>
-							Start Lesson
+							{hasLessonProgress ? "Continue Lesson" : "Start Lesson"}
 						</button>
 						<button
 							type="button"

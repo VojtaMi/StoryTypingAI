@@ -10,6 +10,7 @@ export function backgroundLayerStyle(url: string): CSSProperties {
 export function useBackgroundLayers(
 	view:
 		| "menu"
+		| "esperanto-intro"
 		| "lesson"
 		| "word-match"
 		| "lesson-typing"
