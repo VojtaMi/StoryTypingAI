@@ -21,6 +21,52 @@ export interface LessonPattern {
 	examples: string[];
 }
 
+export interface LessonOverviewSection {
+	id: string;
+	type: "overview";
+	title: string;
+	body: string[];
+}
+
+export interface LessonPossessiveTableSection {
+	id: string;
+	type: "possessive-table";
+	title: string;
+	rows: {
+		pronoun: string;
+		pronounMeaning: string;
+		possessive: string;
+		possessiveMeaning: string;
+	}[];
+}
+
+export interface LessonColorTableSection {
+	id: string;
+	type: "color-table";
+	title: string;
+	rows: {
+		term: string;
+		meaning: string;
+		color: string;
+	}[];
+}
+
+export interface LessonExamplesSection {
+	id: string;
+	type: "examples";
+	title: string;
+	examples: {
+		phrase: string;
+		meaning: string;
+	}[];
+}
+
+export type LessonTeachingSection =
+	| LessonOverviewSection
+	| LessonPossessiveTableSection
+	| LessonColorTableSection
+	| LessonExamplesSection;
+
 export interface WordMatchLessonExercise {
 	id: string;
 	type: "word-match";
@@ -74,6 +120,7 @@ export interface Lesson {
 	lede?: string;
 	introducedWords: IntroducedWord[];
 	grammarConcepts: GrammarConcept[];
+	teachingSections?: LessonTeachingSection[];
 	patterns?: LessonPattern[];
 	story: string[];
 	storyImagePrompt?: string;

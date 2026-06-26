@@ -60,7 +60,7 @@ export const lessons: Lesson[] = [
 		id: "nia-gardeno",
 		title: "Nia ĝardeno",
 		level: "absolute-beginner",
-		lede: "Add colors and ownership to words you already know, then build a tiny picture-story from reusable adjective and possessive patterns.",
+		lede: "Learn to describe familiar things in a tiny garden scene.",
 		introducedWords: [
 			{
 				term: "mi",
@@ -73,6 +73,18 @@ export const lessons: Lesson[] = [
 				meaning: "my",
 				partOfSpeech: "possessive",
 				example: "Mia ĉambro.",
+			},
+			{
+				term: "vi",
+				meaning: "you",
+				partOfSpeech: "pronoun",
+				example: "Vi.",
+			},
+			{
+				term: "via",
+				meaning: "your",
+				partOfSpeech: "possessive",
+				example: "Via ĉambro.",
 			},
 			{
 				term: "nia",
@@ -114,6 +126,63 @@ export const lessons: Lesson[] = [
 				examples: ["mia ĉambro", "nia ĝardeno"],
 			},
 		],
+		teachingSections: [
+			{
+				id: "describe-things",
+				type: "overview",
+				title: "Describing things",
+				body: [
+					"Esperanto adjectives describe nouns and regularly end in `-a`.",
+					"In this lesson, we describe who something belongs to and what color it is.",
+				],
+			},
+			{
+				id: "personal-adjectives",
+				type: "possessive-table",
+				title: "Personal adjectives",
+				rows: [
+					{
+						pronoun: "mi",
+						pronounMeaning: "I / me",
+						possessive: "mia",
+						possessiveMeaning: "my",
+					},
+					{
+						pronoun: "vi",
+						pronounMeaning: "you",
+						possessive: "via",
+						possessiveMeaning: "your",
+					},
+					{
+						pronoun: "ni",
+						pronounMeaning: "we / us",
+						possessive: "nia",
+						possessiveMeaning: "our",
+					},
+				],
+			},
+			{
+				id: "colors",
+				type: "color-table",
+				title: "Colors",
+				rows: [
+					{ term: "bruna", meaning: "brown", color: "#8a5a2b" },
+					{ term: "blua", meaning: "blue", color: "#2f74c0" },
+					{ term: "blanka", meaning: "white", color: "#fffdf7" },
+				],
+			},
+			{
+				id: "combined-examples",
+				type: "examples",
+				title: "Examples",
+				examples: [
+					{ phrase: "bruna hundo", meaning: "brown dog" },
+					{ phrase: "mia aŭto", meaning: "my car" },
+					{ phrase: "via ĉambro", meaning: "your room" },
+					{ phrase: "nia blanka ŝipo", meaning: "our white ship" },
+				],
+			},
+		],
 		patterns: [
 			{
 				id: "adjective-noun",
@@ -125,7 +194,13 @@ export const lessons: Lesson[] = [
 				id: "possessive-noun",
 				title: "Possessive + noun",
 				slots: ["possessive", "noun"],
-				examples: ["mia ĉambro", "nia ĝardeno"],
+				examples: ["mia ĉambro", "via ĉambro", "nia ĝardeno"],
+			},
+			{
+				id: "possessive-adjective-noun",
+				title: "Possessive + adjective + noun",
+				slots: ["possessive", "adjective", "noun"],
+				examples: ["nia blanka ŝipo"],
 			},
 		],
 		story: [
@@ -143,7 +218,7 @@ export const lessons: Lesson[] = [
 				type: "word-match",
 				title: "Connect the new words",
 				hint: "Match the colors and ownership words to their meanings.",
-				wordTerms: ["mi", "mia", "nia", "bruna", "blua", "blanka"],
+				wordTerms: ["mia", "nia", "blua", "blanka"],
 				completeLabel: "Build phrases →",
 			},
 			{
@@ -167,28 +242,16 @@ export const lessons: Lesson[] = [
 					},
 					{
 						id: "blanka-sipo",
-						meaning: "white ship",
-						answer: ["blanka", "ŝipo"],
-						distractors: ["bruna", "ĉambro"],
-					},
-					{
-						id: "mia-cambro",
-						meaning: "my room",
-						answer: ["mia", "ĉambro"],
-						distractors: ["nia", "ĝardeno"],
-					},
-					{
-						id: "nia-gardeno",
-						meaning: "our garden",
-						answer: ["nia", "ĝardeno"],
-						distractors: ["mia", "ĉambro"],
+						meaning: "our white ship",
+						answer: ["nia", "blanka", "ŝipo"],
+						distractors: ["bruna", "ĉambro", "mia"],
 					},
 				],
 			},
 			{
 				id: "nia-gardeno.typing",
 				type: "typing-story",
-				imageUrl: "/images/lesson-typing-bg.webp",
+				imageUrl: "/images/nia-gardeno-typing-bg.webp",
 			},
 		],
 		resources: [

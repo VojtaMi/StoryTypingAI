@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../lesson.css";
+import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
 import type { PhraseBuilderPrompt } from "../types";
 
 interface PhraseBuilderExerciseProps {
+	lessonId: string;
 	title: string;
 	hint: string;
 	prompts: PhraseBuilderPrompt[];
@@ -27,6 +29,7 @@ function sameAnswer(left: string[], right: string[]) {
 }
 
 export default function PhraseBuilderExercise({
+	lessonId,
 	title,
 	hint,
 	prompts,
@@ -36,32 +39,67 @@ export default function PhraseBuilderExercise({
 }: PhraseBuilderExerciseProps) {
 	const [promptIndex, setPromptIndex] = useState(0);
 	const [selected, setSelected] = useState<string[]>([]);
-	const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 	const [wrong, setWrong] = useState(false);
+	const audioRef = useRef<HTMLAudioElement | null>(null);
 
 	const prompt = prompts[promptIndex];
-	const allDone = completedIds.size === prompts.length;
+	const isLast = promptIndex === prompts.length - 1;
 	const tiles = useMemo(
 		() => shuffle([...prompt.answer, ...(prompt.distractors ?? [])]),
 		[prompt],
 	);
 	const isCorrect = sameAnswer(selected, prompt.answer);
 
+	const playWord = useCallback(
+		(word: string) => {
+			if (audioRef.current) {
+				audioRef.current.pause();
+				audioRef.current = null;
+			}
+
+			const run = (url: string) => {
+				const audio = new Audio(url);
+				audioRef.current = audio;
+				audio.addEventListener("ended", () => {
+					audioRef.current = null;
+				});
+				audio.play().catch(() => {
+					audioRef.current = null;
+				});
+			};
+
+			const cached = audioUrlCache.get(word);
+			if (cached) {
+				run(cached);
+				return;
+			}
+
+			ensureLessonAudioUrl(lessonId, word)
+				.then(run)
+				.catch(() => {});
+		},
+		[lessonId],
+	);
+
+	useEffect(() => {
+		return () => {
+			audioRef.current?.pause();
+		};
+	}, []);
+
 	function chooseTile(tile: string) {
 		if (selected.length >= prompt.answer.length || wrong || isCorrect) return;
+		playWord(tile);
 		setSelected((prev) => [...prev, tile]);
 	}
 
 	function removeSelected(index: number) {
 		if (wrong || isCorrect) return;
+		playWord(selected[index]);
 		setSelected((prev) => prev.filter((_, i) => i !== index));
 	}
 
 	function checkAnswer() {
-		if (sameAnswer(selected, prompt.answer)) {
-			setCompletedIds((prev) => new Set([...prev, prompt.id]));
-			return;
-		}
 		setWrong(true);
 		window.setTimeout(() => {
 			setWrong(false);
@@ -71,10 +109,12 @@ export default function PhraseBuilderExercise({
 
 	function nextPrompt() {
 		const nextIndex = promptIndex + 1;
-		setSelected([]);
-		setWrong(false);
 		if (nextIndex < prompts.length) {
+			setSelected([]);
+			setWrong(false);
 			setPromptIndex(nextIndex);
+		} else {
+			onComplete();
 		}
 	}
 
@@ -150,22 +190,13 @@ export default function PhraseBuilderExercise({
 							Check
 						</button>
 					)}
-					{isCorrect && !allDone && (
+					{isCorrect && (
 						<button
 							type="button"
 							className="lesson-doc__begin"
 							onClick={nextPrompt}
 						>
-							Next →
-						</button>
-					)}
-					{isCorrect && allDone && (
-						<button
-							type="button"
-							className="lesson-doc__begin"
-							onClick={onComplete}
-						>
-							{completeLabel}
+							{isLast ? completeLabel : "Next →"}
 						</button>
 					)}
 				</div>

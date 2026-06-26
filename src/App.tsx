@@ -554,6 +554,7 @@ export default function App() {
 
 			{view === "garden-phrase-builder" && (
 				<PhraseBuilderExercise
+					lessonId={gardenLesson.id}
 					title={gardenPhraseBuilderExercise.title}
 					hint={gardenPhraseBuilderExercise.hint}
 					prompts={gardenPhraseBuilderExercise.prompts}

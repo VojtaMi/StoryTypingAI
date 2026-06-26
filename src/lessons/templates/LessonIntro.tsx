@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import "../lesson.css";
 import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
-import type { Lesson } from "../types";
+import type { Lesson, LessonTeachingSection } from "../types";
 import { LESSON_LEVEL_LABELS } from "../types";
 
 interface LessonIntroProps {
@@ -100,6 +100,94 @@ function SpeakButton({
 	);
 }
 
+function TeachingSection({
+	section,
+	sectionNumber,
+}: {
+	section: LessonTeachingSection;
+	sectionNumber: number;
+}) {
+	return (
+		<>
+			<hr className="lesson-doc__rule" />
+			<section className="lesson-doc__section">
+				<h2 className="lesson-doc__heading">
+					<span className="lesson-doc__num">{sectionNumber}.</span>{" "}
+					{section.title}
+				</h2>
+
+				{section.type === "overview" &&
+					section.body.map((paragraph) => (
+						<p key={paragraph} className="lesson-doc__paragraph">
+							{renderWithCode(paragraph)}
+						</p>
+					))}
+
+				{section.type === "possessive-table" && (
+					<table className="lesson-table">
+						<thead>
+							<tr className="lesson-table__row lesson-table__row--head">
+								<th scope="col">Pronoun</th>
+								<th scope="col">Meaning</th>
+								<th scope="col">Adjective</th>
+								<th scope="col">Meaning</th>
+							</tr>
+						</thead>
+						<tbody>
+							{section.rows.map((row) => (
+								<tr
+									key={`${row.pronoun}-${row.possessive}`}
+									className="lesson-table__row"
+								>
+									<td className="lesson-table__term">{row.pronoun}</td>
+									<td>{row.pronounMeaning}</td>
+									<td className="lesson-table__term">{row.possessive}</td>
+									<td>{row.possessiveMeaning}</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				)}
+
+				{section.type === "color-table" && (
+					<table className="lesson-color-table">
+						<tbody>
+							{section.rows.map((row) => (
+								<tr key={row.term} className="lesson-color-table__row">
+									<td className="lesson-color-table__swatch-cell">
+										<span
+											className="lesson-color-table__swatch"
+											style={{ backgroundColor: row.color }}
+											aria-hidden="true"
+										/>
+									</td>
+									<td className="lesson-table__term">{row.term}</td>
+									<td>{row.meaning}</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				)}
+
+				{section.type === "examples" && (
+					<div className="lesson-examples">
+						{section.examples.map((example) => (
+							<div key={example.phrase} className="lesson-examples__row">
+								<span className="lesson-examples__phrase">
+									{example.phrase}
+								</span>
+								<span className="lesson-examples__meaning">
+									{example.meaning}
+								</span>
+							</div>
+						))}
+					</div>
+				)}
+			</section>
+		</>
+	);
+}
+
 export default function LessonIntro({
 	lesson,
 	onBeginPractice,
@@ -107,8 +195,10 @@ export default function LessonIntro({
 }: LessonIntroProps) {
 	const storyText = lesson.story.join(" ");
 	const wordCount = lesson.introducedWords.length;
-	const hasGrammar = lesson.grammarConcepts.length > 0;
-	const hasPatterns = (lesson.patterns?.length ?? 0) > 0;
+	const hasTeachingSections = (lesson.teachingSections?.length ?? 0) > 0;
+	const hasGrammar = !hasTeachingSections && lesson.grammarConcepts.length > 0;
+	const hasPatterns =
+		!hasTeachingSections && (lesson.patterns?.length ?? 0) > 0;
 	const { ready, playing, play } = useLessonAudio(lesson);
 
 	// Number the sections that are actually shown.
@@ -138,37 +228,50 @@ export default function LessonIntro({
 						} and one tiny sentence you'll be able to read, understand, and type by the end.`}
 				</p>
 
-				<hr className="lesson-doc__rule" />
+				{hasTeachingSections ? (
+					lesson.teachingSections?.map((section) => (
+						<TeachingSection
+							key={section.id}
+							section={section}
+							sectionNumber={nextSection()}
+						/>
+					))
+				) : (
+					<>
+						<hr className="lesson-doc__rule" />
 
-				<section className="lesson-doc__section">
-					<h2 className="lesson-doc__heading">
-						<span className="lesson-doc__num">{nextSection()}.</span> New words
-					</h2>
-					<dl className="lesson-doc__words">
-						{lesson.introducedWords.map((word) => (
-							<div key={word.term} className="lesson-doc__word">
-								<dt className="lesson-doc__word-term">
-									{word.term}
-									<span className="lesson-doc__word-pos">
-										{word.partOfSpeech}
-									</span>
-									<SpeakButton
-										id={`word-${word.term}`}
-										text={word.term}
-										ready={ready.has(word.term)}
-										playing={playing}
-										onPlay={play}
-									/>
-								</dt>
-								<dd className="lesson-doc__word-body">
-									<span className="lesson-doc__word-meaning">
-										{word.meaning}
-									</span>
-								</dd>
-							</div>
-						))}
-					</dl>
-				</section>
+						<section className="lesson-doc__section">
+							<h2 className="lesson-doc__heading">
+								<span className="lesson-doc__num">{nextSection()}.</span> New
+								words
+							</h2>
+							<dl className="lesson-doc__words">
+								{lesson.introducedWords.map((word) => (
+									<div key={word.term} className="lesson-doc__word">
+										<dt className="lesson-doc__word-term">
+											{word.term}
+											<span className="lesson-doc__word-pos">
+												{word.partOfSpeech}
+											</span>
+											<SpeakButton
+												id={`word-${word.term}`}
+												text={word.term}
+												ready={ready.has(word.term)}
+												playing={playing}
+												onPlay={play}
+											/>
+										</dt>
+										<dd className="lesson-doc__word-body">
+											<span className="lesson-doc__word-meaning">
+												{word.meaning}
+											</span>
+										</dd>
+									</div>
+								))}
+							</dl>
+						</section>
+					</>
+				)}
 
 				{hasGrammar && (
 					<>
@@ -220,26 +323,31 @@ export default function LessonIntro({
 					</>
 				)}
 
-				<hr className="lesson-doc__rule" />
+				{!hasTeachingSections && (
+					<>
+						<hr className="lesson-doc__rule" />
 
-				<section className="lesson-doc__section">
-					<h2 className="lesson-doc__heading">
-						<span className="lesson-doc__num">{nextSection()}.</span> Your story
-					</h2>
-					<p className="lesson-doc__paragraph">
-						Read it aloud, then type it from memory on the next screen.
-					</p>
-					<blockquote className="lesson-doc__story">
-						{storyText}
-						<SpeakButton
-							id="story"
-							text={storyText}
-							ready={ready.has(storyText)}
-							playing={playing}
-							onPlay={play}
-						/>
-					</blockquote>
-				</section>
+						<section className="lesson-doc__section">
+							<h2 className="lesson-doc__heading">
+								<span className="lesson-doc__num">{nextSection()}.</span> Your
+								story
+							</h2>
+							<p className="lesson-doc__paragraph">
+								Read it aloud, then type it from memory on the next screen.
+							</p>
+							<blockquote className="lesson-doc__story">
+								{storyText}
+								<SpeakButton
+									id="story"
+									text={storyText}
+									ready={ready.has(storyText)}
+									playing={playing}
+									onPlay={play}
+								/>
+							</blockquote>
+						</section>
+					</>
+				)}
 
 				<div className="lesson-doc__actions">
 					<button

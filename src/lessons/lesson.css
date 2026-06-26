@@ -188,6 +188,84 @@
 	color: var(--lesson-accent);
 }
 
+.lesson-table,
+.lesson-color-table {
+	width: 100%;
+	border-collapse: collapse;
+	border-top: 1px solid var(--lesson-rule);
+}
+
+.lesson-examples {
+	display: grid;
+	gap: 0;
+	border-top: 1px solid var(--lesson-rule);
+}
+
+.lesson-table th,
+.lesson-table td,
+.lesson-color-table td {
+	padding: 0.8rem 0;
+	border-bottom: 1px solid var(--lesson-rule);
+	text-align: left;
+	vertical-align: middle;
+}
+
+.lesson-table th:not(:last-child),
+.lesson-table td:not(:last-child),
+.lesson-color-table td:not(:last-child) {
+	padding-right: 0.85rem;
+}
+
+.lesson-table__row--head {
+	color: var(--lesson-faint);
+	font-family: system-ui, sans-serif;
+	font-size: 0.72rem;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.lesson-table__term,
+.lesson-examples__phrase {
+	font-size: 1.18rem;
+	font-weight: 700;
+	color: var(--lesson-ink);
+}
+
+.lesson-color-table__swatch {
+	display: block;
+	width: 1.5rem;
+	aspect-ratio: 1;
+	border: 1px solid rgba(34, 28, 20, 0.24);
+	border-radius: 5px;
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.lesson-color-table__swatch-cell {
+	width: 2.35rem;
+}
+
+.lesson-examples__row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 1rem;
+	align-items: baseline;
+	padding: 0.8rem 0;
+	border-bottom: 1px solid var(--lesson-rule);
+}
+
+.lesson-examples__meaning {
+	color: var(--lesson-soft);
+	font-style: italic;
+}
+
+@media (max-width: 560px) {
+	.lesson-examples__row {
+		grid-template-columns: 1fr;
+		gap: 0.15rem;
+	}
+}
+
 .lesson-doc__story {
 	display: flex;
 	align-items: center;
