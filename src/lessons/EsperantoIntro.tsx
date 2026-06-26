@@ -65,10 +65,11 @@ export default function EsperantoIntro({
 							<span className="lesson-doc__num">2.</span> Learn by doing
 						</h2>
 						<p className="lesson-doc__paragraph">
-							This little helper will stay with you through the course. The
-							first exercise starts with one clear idea, then turns it into
-							matching, listening, and typing. After that, you will learn the
-							special Esperanto letters so typing feels natural.
+							This little helper will stay with you through the course. When you
+							see it, you can click on it to ask questions.
+						</p>
+						<p className="lesson-doc__paragraph">
+							Now let’s start with your first practice.
 						</p>
 					</div>
 				</section>
