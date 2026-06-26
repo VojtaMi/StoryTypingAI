@@ -224,3 +224,197 @@
 	border-color: var(--lesson-accent);
 	transform: translateY(-2px);
 }
+
+/* ---- Word-match exercise ---- */
+.word-match__title {
+	margin: 0;
+	font-size: clamp(2rem, 1rem + 4vw, 3rem);
+	font-weight: 700;
+	line-height: 1.1;
+}
+
+.word-match__hint {
+	margin: 0.75rem 0 2.5rem;
+	color: var(--lesson-soft);
+	font-style: italic;
+}
+
+.word-match__columns {
+	display: flex;
+	gap: 1.25rem;
+}
+
+.word-match__col {
+	display: flex;
+	flex-direction: column;
+	gap: 0.85rem;
+	flex: 1;
+}
+
+@keyframes word-match-correct {
+	from {
+		border-color: #27ae60;
+		background: rgba(39, 174, 96, 0.14);
+		color: #27ae60;
+	}
+	to {
+		border-color: var(--lesson-rule);
+		background: rgba(34, 28, 20, 0.04);
+		color: var(--lesson-faint);
+	}
+}
+
+.word-match__item {
+	padding: 0.85rem 1.25rem;
+	border: 2px solid var(--lesson-rule);
+	border-radius: 10px;
+	background: #fdf9f3;
+	color: var(--lesson-ink);
+	font: inherit;
+	font-size: 1.1rem;
+	font-weight: 600;
+	cursor: pointer;
+	text-align: center;
+	transition:
+		border-color 0.12s ease,
+		background 0.12s ease,
+		transform 0.12s ease;
+}
+
+.word-match__item:hover:not(:disabled):not(.word-match__item--wrong) {
+	border-color: var(--lesson-ink);
+	transform: translateY(-1px);
+}
+
+.word-match__item--selected {
+	border-color: #3b6fa0;
+	background: rgba(59, 111, 160, 0.08);
+	color: #3b6fa0;
+}
+
+.word-match__item--wrong {
+	border-color: #c0392b;
+	background: rgba(192, 57, 43, 0.08);
+	color: #c0392b;
+	cursor: default;
+}
+
+.word-match__item--matched {
+	animation: word-match-correct 0.55s ease forwards;
+	cursor: default;
+}
+
+.word-match__done {
+	margin-top: 3rem;
+}
+
+.word-match__done-msg {
+	margin: 0 0 1.25rem;
+	font-size: 1.2rem;
+	font-weight: 700;
+	color: var(--lesson-ink);
+}
+
+/* ---- Lesson typing exercise ---- */
+.lesson-typing-page {
+	position: relative;
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2rem 1.5rem;
+	font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+
+.lesson-typing-bg {
+	position: fixed;
+	inset: 0;
+	z-index: 0;
+	background-size: cover;
+	background-position: center;
+}
+
+.lesson-typing-card {
+	position: relative;
+	z-index: 1;
+	width: min(100%, 580px);
+	padding: clamp(2rem, 5vw, 3rem);
+	border-radius: 18px;
+	background: rgba(250, 248, 242, 0.96);
+	box-shadow: 0 24px 72px rgba(0, 0, 0, 0.45);
+	color: var(--lesson-ink, #221c14);
+}
+
+.lesson-typing__title {
+	margin: 0 0 0.5rem;
+	font-size: clamp(2rem, 1rem + 4vw, 2.8rem);
+	font-weight: 700;
+	line-height: 1.1;
+	color: var(--lesson-ink, #221c14);
+}
+
+.lesson-typing__hint {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	margin: 0 0 1.75rem;
+	font-size: 1rem;
+	font-style: italic;
+	color: var(--lesson-soft, #5a5147);
+}
+
+.lesson-typing__replay {
+	padding: 0;
+	border: 0;
+	background: none;
+	font-size: 1.15em;
+	line-height: 1;
+	cursor: pointer;
+	opacity: 0.75;
+	transition: opacity 0.15s ease;
+}
+
+.lesson-typing__replay:hover {
+	opacity: 1;
+}
+
+.lesson-typing__passage {
+	margin-bottom: 1.5rem;
+}
+
+.lesson-typing-card .passage {
+	background: rgba(34, 28, 20, 0.05);
+	border: 1px solid rgba(34, 28, 20, 0.12);
+	border-radius: 10px;
+	font-size: 1.5rem;
+	line-height: 2.2rem;
+}
+
+.lesson-typing-card .char {
+	color: #8a8174;
+}
+
+.lesson-typing-card .char--correct {
+	color: #2d7a3a;
+}
+
+.lesson-typing-card .char--incorrect {
+	color: #c0392b;
+	background: rgba(192, 57, 43, 0.1);
+}
+
+.lesson-typing-card .char--current {
+	color: #221c14;
+	border-left-color: #b04a32;
+}
+
+.lesson-typing__done {
+	margin-top: 2rem;
+}
+
+.lesson-typing__done-msg {
+	margin: 0 0 1.25rem;
+	font-size: 1.2rem;
+	font-weight: 700;
+	color: var(--lesson-ink, #221c14);
+}

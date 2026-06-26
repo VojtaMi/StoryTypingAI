@@ -15,7 +15,9 @@ export type CharStatus = "correct" | "incorrect" | "current" | "pending";
 export function useTypingSession(
 	target: string,
 	onComplete: (stats: TypingStats) => void,
+	options?: { requireAllCorrect?: boolean },
 ) {
+	const requireAllCorrect = options?.requireAllCorrect ?? false;
 	const [typedValue, setTypedValue] = useState("");
 	const [startedAt, setStartedAt] = useState<number | null>(null);
 	const [finishedAt, setFinishedAt] = useState<number | null>(null);
@@ -80,13 +82,14 @@ export function useTypingSession(
 			setTypedValue(value);
 
 			if (value.length === target.length) {
-				const end = Date.now();
-				setFinishedAt(end);
-
 				let correct = 0;
 				for (let i = 0; i < value.length; i++) {
 					if (value[i] === target[i]) correct++;
 				}
+				if (requireAllCorrect && correct < value.length) return;
+
+				const end = Date.now();
+				setFinishedAt(end);
 				const finalAccuracy = Math.round((correct / value.length) * 100);
 				const seconds = (end - (startedAt ?? end)) / 1000;
 				const finalWpm =
@@ -94,7 +97,7 @@ export function useTypingSession(
 				onComplete({ wpm: finalWpm, accuracy: finalAccuracy });
 			}
 		},
-		[onComplete, startedAt, target],
+		[onComplete, requireAllCorrect, startedAt, target],
 	);
 
 	const handleChange = useCallback(

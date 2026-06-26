@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import ExerciseScreen from "./exercise_screen/ExerciseScreen";
 import MainMenu from "./home_menu/MainMenu";
 import LessonIntro from "./lessons/LessonIntro";
+import LessonTypingExercise from "./lessons/LessonTypingExercise";
 import { firstLesson } from "./lessons/lessons";
 import type { Lesson } from "./lessons/types";
+import WordMatchExercise from "./lessons/WordMatchExercise";
 import {
 	readSelectedTextModel,
 	saveSelectedTextModel,
@@ -20,7 +22,7 @@ import {
 } from "./story_session/background";
 import { useStorySession } from "./story_session/useStorySession";
 
-type View = "menu" | "lesson" | "story";
+type View = "menu" | "lesson" | "word-match" | "lesson-typing" | "story";
 
 export default function App() {
 	const [view, setView] = useState<View>("menu");
@@ -92,9 +94,18 @@ export default function App() {
 	}
 
 	function beginLessonPractice(lesson: Lesson) {
+		setActiveLesson(lesson);
+		setView("word-match");
+	}
+
+	function handleWordMatchComplete() {
+		setView("lesson-typing");
+	}
+
+	function handleLessonTypingComplete() {
 		startLessonStory({
-			title: lesson.title,
-			storyText: lesson.story.join(" "),
+			title: activeLesson.title,
+			storyText: activeLesson.story.join(" "),
 		});
 	}
 
@@ -155,6 +166,25 @@ export default function App() {
 					lesson={activeLesson}
 					onBeginPractice={beginLessonPractice}
 					onBack={() => setView("menu")}
+				/>
+			)}
+
+			{view === "word-match" && (
+				<WordMatchExercise
+					lessonId={activeLesson.id}
+					words={activeLesson.introducedWords}
+					onComplete={handleWordMatchComplete}
+					onBack={() => setView("lesson")}
+				/>
+			)}
+
+			{view === "lesson-typing" && (
+				<LessonTypingExercise
+					lessonId={activeLesson.id}
+					text={activeLesson.story.join(" ")}
+					imageUrl="/images/lesson-typing-bg.webp"
+					onComplete={handleLessonTypingComplete}
+					onBack={() => setView("word-match")}
 				/>
 			)}
 

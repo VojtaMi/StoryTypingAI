@@ -42,9 +42,14 @@ body[data-view="menu"] {
 		url("/images/esperanto-lesson-hero.png");
 }
 
-body[data-view="lesson"] {
+body[data-view="lesson"],
+body[data-view="word-match"] {
 	background: #faf8f2;
 	color: #221c14;
+}
+
+body[data-view="lesson-typing"] {
+	background: #1a1510;
 }
 
 .app {
@@ -68,7 +73,9 @@ body[data-view="lesson"] {
 	padding-top: 2rem;
 }
 
-.app--lesson {
+.app--lesson,
+.app--word-match,
+.app--lesson-typing {
 	max-width: none;
 	padding: 0;
 }

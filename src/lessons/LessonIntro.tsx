@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { fetchLessonAudioUrl } from "../ai";
 import "./lesson.css";
+import { audioUrlCache, ensureLessonAudioUrl } from "./lessonAudio";
 import type { Lesson } from "./types";
 import { LESSON_LEVEL_LABELS } from "./types";
 
@@ -25,18 +25,6 @@ function renderWithCode(text: string) {
 	);
 }
 
-const ESPERANTO_PRONUNCIATION =
-	"Pronounce this text as Esperanto. " +
-	"Key rules: every vowel (a, e, i, o, u) is pure and clearly enunciated; " +
-	"stress always falls on the second-to-last syllable; " +
-	"'j' sounds like English 'y' (as in 'yes'); " +
-	"'c' sounds like 'ts'; 'ĉ' like 'ch'; 'ŝ' like 'sh'; " +
-	"'g' is always hard (as in 'go'); 'r' is lightly rolled; " +
-	"every letter is always pronounced — no silent letters.";
-
-/** Module-level URL cache — server URLs are stable, no revocation needed. */
-const audioUrlCache = new Map<string, string>();
-
 function useLessonAudio(lesson: Lesson) {
 	const storyText = lesson.story.join(" ");
 	const allTexts = [...lesson.introducedWords.map((w) => w.term), storyText];
@@ -52,10 +40,9 @@ function useLessonAudio(lesson: Lesson) {
 		let cancelled = false;
 		for (const text of allTexts) {
 			if (audioUrlCache.has(text)) continue;
-			fetchLessonAudioUrl(lesson.id, text, ESPERANTO_PRONUNCIATION)
-				.then((url) => {
+			ensureLessonAudioUrl(lesson.id, text)
+				.then(() => {
 					if (cancelled) return;
-					audioUrlCache.set(text, url);
 					setReady((prev) => new Set([...prev, text]));
 				})
 				.catch((err) => {
