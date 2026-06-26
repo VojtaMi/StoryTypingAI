@@ -38,7 +38,7 @@ import {
 	fallbackTitle,
 } from "./storySnapshot";
 
-type View = "menu" | "story";
+type View = "menu" | "lesson" | "story";
 
 interface UseStorySessionOptions {
 	model: TextModelId;
@@ -327,6 +327,57 @@ export function useStorySession({
 			persistStory,
 			prepareOpeningsInBackground,
 		],
+	);
+
+	const startLessonStory = useCallback(
+		({ title, storyText }: { title: string; storyText: string }) => {
+			const selected =
+				genres.find((candidate) => candidate.id === "esperanto") ?? genres[0];
+			const saveId = createSaveId();
+			const nextNarrationVoice = pickRandomNarrationVoice();
+			// Seed the history as if the AI had opened with the lesson sentence, so
+			// the existing continuation flow works once the learner types it.
+			const seeded: ChatMessage[] = [
+				{ role: "system", content: selected.systemPrompt },
+				{ role: "user", content: "Begin the story." },
+				{ role: "assistant", content: storyText },
+			];
+			const nextBackgroundImage = fallbackBackgroundImage(selected);
+
+			narrationVoiceRef.current = nextNarrationVoice;
+			activeSaveIdRef.current = saveId;
+			setGenre(selected);
+			setActiveSaveId(saveId);
+			setActiveTitle(title);
+			setNarrationVoice(nextNarrationVoice);
+			setMessages(seeded);
+			setMemory(undefined);
+			setSegments([]);
+			setCurrentTarget(storyText);
+			setStreamingTarget("");
+			setBackgroundIntro(null);
+			setBackgroundImage(nextBackgroundImage);
+			setOpeningAudio(null);
+			setError(null);
+			setPhase("typing");
+			onViewChange("story");
+			void persistStory(
+				buildStorySaveSnapshot({
+					id: saveId,
+					genre: selected,
+					title,
+					messages: seeded,
+					memory: undefined,
+					segments: [],
+					currentTarget: storyText,
+					phase: "typing",
+					backgroundImage: nextBackgroundImage,
+					openingAudio: null,
+					narrationVoice: nextNarrationVoice,
+				}),
+			);
+		},
+		[onViewChange, persistStory],
 	);
 
 	const handleTypingComplete = useCallback(
@@ -629,6 +680,7 @@ export function useStorySession({
 		resumeStory,
 		segments,
 		selectGenre,
+		startLessonStory,
 		streamingTarget,
 		submitContinuation,
 	};

@@ -8,7 +8,7 @@ export function backgroundLayerStyle(url: string): CSSProperties {
 }
 
 export function useBackgroundLayers(
-	view: "menu" | "story",
+	view: "menu" | "lesson" | "story",
 	backgroundImage: StoryBackgroundImage | null,
 ) {
 	const [visibleBackgroundUrl, setVisibleBackgroundUrl] = useState<

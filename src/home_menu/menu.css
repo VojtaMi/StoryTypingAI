@@ -32,8 +32,15 @@
 	text-shadow: 0 4px 28px rgba(0, 0, 0, 0.82);
 }
 
-.lesson-hero__start {
+.lesson-hero__actions {
 	margin-top: 2rem;
+	display: flex;
+	gap: 0.85rem;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+.lesson-hero__start {
 	min-height: 3.2rem;
 	padding: 0 1.55rem;
 	border: 1px solid rgba(244, 251, 239, 0.84);
@@ -55,6 +62,16 @@
 	background: #91e6af;
 	border-color: #91e6af;
 	transform: translateY(-2px);
+}
+
+.lesson-hero__start--secondary {
+	background: transparent;
+	color: #f4fbef;
+}
+
+.lesson-hero__start--secondary:hover {
+	background: rgba(244, 251, 239, 0.14);
+	border-color: rgba(244, 251, 239, 0.84);
 }
 
 .menu__settings {

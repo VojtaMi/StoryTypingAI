@@ -1,0 +1,190 @@
+/* ---- Lesson intro: full-page reading document ---- */
+.lesson-page {
+	--lesson-ink: #221c14;
+	--lesson-soft: #5a5147;
+	--lesson-faint: #8a8174;
+	--lesson-accent: #b04a32;
+	--lesson-rule: rgba(34, 28, 20, 0.14);
+
+	min-height: 100vh;
+	display: flex;
+	justify-content: center;
+	padding: clamp(2.5rem, 7vh, 6rem) 1.5rem clamp(3rem, 10vh, 7rem);
+	color: var(--lesson-ink);
+	font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+
+.lesson-doc {
+	width: min(100%, 640px);
+	font-size: clamp(1.05rem, 0.6rem + 1vw, 1.2rem);
+	line-height: 1.7;
+}
+
+.lesson-doc__back {
+	display: inline-block;
+	margin-bottom: 2.5rem;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--lesson-faint);
+	font: inherit;
+	font-size: 0.9rem;
+	cursor: pointer;
+	transition: color 0.15s ease;
+}
+
+.lesson-doc__back:hover {
+	color: var(--lesson-accent);
+}
+
+.lesson-doc__eyebrow {
+	margin: 0 0 0.4rem;
+	font-size: 0.78rem;
+	font-family: system-ui, sans-serif;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--lesson-accent);
+}
+
+.lesson-doc__title {
+	margin: 0;
+	font-size: clamp(2.4rem, 1rem + 5vw, 3.6rem);
+	font-weight: 700;
+	line-height: 1.05;
+	letter-spacing: -0.01em;
+}
+
+.lesson-doc__lede {
+	margin: 1.1rem 0 0;
+	font-size: 1.15em;
+	font-style: italic;
+	color: var(--lesson-soft);
+}
+
+.lesson-doc__rule {
+	margin: 2.5rem 0;
+	border: 0;
+	border-top: 1px solid var(--lesson-rule);
+}
+
+.lesson-doc__section {
+	margin: 0;
+}
+
+.lesson-doc__heading {
+	margin: 0 0 1.1rem;
+	font-size: 1.7rem;
+	font-weight: 700;
+	line-height: 1.2;
+}
+
+.lesson-doc__num {
+	margin-right: 0.5rem;
+	color: var(--lesson-accent);
+	font-weight: 700;
+}
+
+.lesson-doc__subheading {
+	margin: 0 0 0.4rem;
+	font-size: 1.2rem;
+	font-weight: 700;
+}
+
+.lesson-doc__paragraph {
+	margin: 0 0 0.75rem;
+}
+
+/* New-word glossary entries */
+.lesson-doc__words {
+	margin: 0;
+}
+
+.lesson-doc__word {
+	padding: 0.9rem 0;
+	border-top: 1px solid var(--lesson-rule);
+}
+
+.lesson-doc__word:first-child {
+	border-top: 0;
+	padding-top: 0;
+}
+
+.lesson-doc__word-term {
+	display: flex;
+	align-items: baseline;
+	gap: 0.6rem;
+	font-size: 1.35rem;
+	font-weight: 700;
+}
+
+.lesson-doc__word-pos {
+	font-size: 0.82rem;
+	font-weight: 400;
+	font-style: italic;
+	color: var(--lesson-faint);
+}
+
+.lesson-doc__word-body {
+	margin: 0.2rem 0 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.lesson-doc__word-meaning {
+	font-weight: 600;
+}
+
+.lesson-doc__word-example {
+	font-style: italic;
+	color: var(--lesson-soft);
+}
+
+.lesson-doc__example {
+	margin: 0.35rem 0 0;
+	font-style: italic;
+	color: var(--lesson-soft);
+}
+
+.lesson-doc__code {
+	font-family: "SFMono-Regular", "Cascadia Code", Menlo, Consolas, monospace;
+	font-size: 0.88em;
+	padding: 0.05em 0.3em;
+	border-radius: 4px;
+	background: rgba(176, 74, 50, 0.1);
+	color: var(--lesson-accent);
+}
+
+.lesson-doc__story {
+	margin: 1rem 0 0;
+	padding: 0 0 0 1.1rem;
+	border-left: 3px solid var(--lesson-accent);
+	font-size: 1.5rem;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.lesson-doc__actions {
+	margin-top: 3rem;
+}
+
+.lesson-doc__begin {
+	min-height: 3.1rem;
+	padding: 0 1.8rem;
+	border: 1px solid var(--lesson-ink);
+	border-radius: 8px;
+	background: var(--lesson-ink);
+	color: #faf8f2;
+	font: inherit;
+	font-size: 1rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition:
+		background 0.15s ease,
+		transform 0.15s ease;
+}
+
+.lesson-doc__begin:hover {
+	background: var(--lesson-accent);
+	border-color: var(--lesson-accent);
+	transform: translateY(-2px);
+}

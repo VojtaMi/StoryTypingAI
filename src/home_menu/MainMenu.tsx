@@ -12,6 +12,7 @@ interface MainMenuProps {
 	model: TextModelId;
 	onModelChange: (id: TextModelId) => void;
 	onSelect: (genre: Genre) => void;
+	onStartLesson: () => void;
 	onResume: (id: string) => void;
 	onDelete: (id: string) => void;
 }
@@ -22,6 +23,7 @@ export default function MainMenu({
 	model,
 	onModelChange,
 	onSelect,
+	onStartLesson,
 	onResume,
 	onDelete,
 }: MainMenuProps) {
@@ -36,13 +38,22 @@ export default function MainMenu({
 			<section className="lesson-hero" aria-labelledby="lesson-hero-title">
 				<div className="lesson-hero__content">
 					<h1 id="lesson-hero-title">Esperanto through tiny stories</h1>
-					<button
-						type="button"
-						className="lesson-hero__start"
-						onClick={() => onSelect(lessonGenre)}
-					>
-						Start lesson
-					</button>
+					<div className="lesson-hero__actions">
+						<button
+							type="button"
+							className="lesson-hero__start"
+							onClick={onStartLesson}
+						>
+							Start Lesson
+						</button>
+						<button
+							type="button"
+							className="lesson-hero__start lesson-hero__start--secondary"
+							onClick={() => onSelect(lessonGenre)}
+						>
+							New Story
+						</button>
+					</div>
 				</div>
 			</section>
 			<ModelSelector model={model} onModelChange={onModelChange} />

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import ExerciseScreen from "./exercise_screen/ExerciseScreen";
 import MainMenu from "./home_menu/MainMenu";
+import LessonIntro from "./lessons/LessonIntro";
+import { firstLesson } from "./lessons/lessons";
+import type { Lesson } from "./lessons/types";
 import {
 	readSelectedTextModel,
 	saveSelectedTextModel,
@@ -17,10 +20,11 @@ import {
 } from "./story_session/background";
 import { useStorySession } from "./story_session/useStorySession";
 
-type View = "menu" | "story";
+type View = "menu" | "lesson" | "story";
 
 export default function App() {
 	const [view, setView] = useState<View>("menu");
+	const [activeLesson, setActiveLesson] = useState<Lesson>(firstLesson);
 	const [savedStories, setSavedStories] = useState<SavedStorySummary[]>([]);
 	const [savesError, setSavesError] = useState<string | null>(null);
 	const [model, setModel] = useState<TextModelId>(readSelectedTextModel);
@@ -50,6 +54,7 @@ export default function App() {
 		resumeStory,
 		segments,
 		selectGenre,
+		startLessonStory,
 		streamingTarget,
 		submitContinuation,
 	} = useStorySession({
@@ -79,6 +84,18 @@ export default function App() {
 	function handleModelChange(id: TextModelId) {
 		saveSelectedTextModel(id);
 		setModel(id);
+	}
+
+	function openLesson() {
+		setActiveLesson(firstLesson);
+		setView("lesson");
+	}
+
+	function beginLessonPractice(lesson: Lesson) {
+		startLessonStory({
+			title: lesson.title,
+			storyText: lesson.story.join(" "),
+		});
 	}
 
 	async function removeSavedStory(id: string) {
@@ -127,8 +144,17 @@ export default function App() {
 					model={model}
 					onModelChange={handleModelChange}
 					onSelect={selectGenre}
+					onStartLesson={openLesson}
 					onResume={resumeStory}
 					onDelete={removeSavedStory}
+				/>
+			)}
+
+			{view === "lesson" && (
+				<LessonIntro
+					lesson={activeLesson}
+					onBeginPractice={beginLessonPractice}
+					onBack={() => setView("menu")}
 				/>
 			)}
 
