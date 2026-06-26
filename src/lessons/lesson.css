@@ -426,6 +426,134 @@
 }
 
 /* ---- Keyboard intro exercise ---- */
+.mini-keyboard {
+	min-inline-size: 0;
+	margin: 1.4rem 0 1.7rem;
+	padding: 1rem;
+	border: 1px solid var(--lesson-rule);
+	border-radius: 8px;
+	background: #f6efe5;
+	font-family: system-ui, sans-serif;
+}
+
+.mini-keyboard__label {
+	display: block;
+	margin-bottom: 0.45rem;
+	font-size: 0.82rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--lesson-soft);
+}
+
+.mini-keyboard__demo {
+	width: 100%;
+	height: 2.75rem;
+	margin-bottom: 0.75rem;
+	padding: 0.55rem 0.7rem;
+	border: 1px solid rgba(34, 28, 20, 0.22);
+	border-radius: 6px;
+	background: #fffdf9;
+	color: var(--lesson-ink);
+	font:
+		600 1.1rem / 1.2 "SFMono-Regular",
+		"Cascadia Code",
+		Menlo,
+		Consolas,
+		monospace;
+	outline: none;
+}
+
+.mini-keyboard__demo:focus {
+	border-color: var(--lesson-accent);
+	box-shadow: 0 0 0 3px rgba(176, 74, 50, 0.12);
+}
+
+.mini-keyboard__rows {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	overflow-x: auto;
+	padding-bottom: 0.1rem;
+}
+
+.mini-keyboard__row {
+	display: grid;
+	grid-auto-columns: minmax(2.3rem, 1fr);
+	grid-auto-flow: column;
+	gap: 0.35rem;
+	min-width: max-content;
+}
+
+.mini-keyboard__row:nth-child(2) {
+	padding-left: 1.2rem;
+}
+
+.mini-keyboard__row:nth-child(3) {
+	padding-left: 2.4rem;
+}
+
+.mini-keyboard__key {
+	position: relative;
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	width: 2.75rem;
+	height: 2.6rem;
+	padding: 0.25rem;
+	border: 1px solid rgba(34, 28, 20, 0.22);
+	border-bottom-width: 3px;
+	border-radius: 6px;
+	background: #fffdf9;
+	color: var(--lesson-ink);
+	font: inherit;
+	cursor: pointer;
+	transition:
+		border-color 0.15s ease,
+		background 0.15s ease,
+		transform 0.08s ease;
+}
+
+.mini-keyboard__key:hover,
+.mini-keyboard__key:focus-visible {
+	border-color: rgba(176, 74, 50, 0.58);
+	background: #fff7ed;
+	outline: none;
+}
+
+.mini-keyboard__key:active {
+	transform: translateY(1px);
+	border-bottom-width: 2px;
+}
+
+.mini-keyboard__key--special {
+	border-color: rgba(176, 74, 50, 0.62);
+	background: rgba(176, 74, 50, 0.1);
+	color: var(--lesson-accent);
+}
+
+.mini-keyboard__key-main {
+	font-size: 1.05rem;
+	font-weight: 800;
+	line-height: 1;
+}
+
+.mini-keyboard__key-sub {
+	margin-top: 0.15rem;
+	font-size: 0.64rem;
+	font-weight: 700;
+	line-height: 1;
+	color: var(--lesson-soft);
+}
+
+.mini-keyboard__status {
+	min-height: 1.15rem;
+	margin-top: 0.55rem;
+	color: var(--lesson-soft);
+	font-size: 0.78rem;
+}
+
 .key-intro__grid {
 	display: grid;
 	grid-template-columns: repeat(3, 1fr);

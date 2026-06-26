@@ -20,6 +20,12 @@ const KEYBOARD_CHARS = [
 	{ char: "ĉ", key: "x", word: "ĉambro" },
 ] as const;
 
+const MINI_KEYBOARD_ROWS = [
+	["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]"],
+	["a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'"],
+	["z", "x", "c", "v", "b", "n", "m", ",", "."],
+] as const;
+
 function HighlightedWord({ word, char }: { word: string; char: string }) {
 	const idx = word.indexOf(char);
 	if (idx === -1) return <span className="key-intro__word">{word}</span>;
@@ -91,11 +97,22 @@ export default function KeyboardIntroExercise({
 		KEYBOARD_CHARS.map(() => ""),
 	);
 	const { ready, playing, play } = useCharAudio();
+	const [demoText, setDemoText] = useState("");
+	const [keyboardStatus, setKeyboardStatus] = useState<string | null>(null);
 	const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 	const continueButtonRef = useRef<HTMLButtonElement | null>(null);
+	const keyboardStatusTimer = useRef<number | null>(null);
 
 	useEffect(() => {
 		inputRefs.current[0]?.focus();
+	}, []);
+
+	useEffect(() => {
+		return () => {
+			if (keyboardStatusTimer.current !== null) {
+				window.clearTimeout(keyboardStatusTimer.current);
+			}
+		};
 	}, []);
 
 	const allCorrect = KEYBOARD_CHARS.every((c, i) => values[i] === c.char);
@@ -150,6 +167,27 @@ export default function KeyboardIntroExercise({
 		[],
 	);
 
+	const handleMiniKeyboardPress = useCallback((key: string) => {
+		const mapped = ESPERANTO_KEY_MAP[key];
+		const output = mapped ? mapped.toLowerCase() : key;
+		setDemoText((prev) => `${prev}${output}`);
+
+		if (keyboardStatusTimer.current !== null) {
+			window.clearTimeout(keyboardStatusTimer.current);
+		}
+
+		if (mapped) {
+			void navigator.clipboard?.writeText(output).catch(() => undefined);
+			setKeyboardStatus(`Copied and inserted ${output}`);
+		} else {
+			setKeyboardStatus(`Inserted ${output}`);
+		}
+
+		keyboardStatusTimer.current = window.setTimeout(() => {
+			setKeyboardStatus(null);
+		}, 1800);
+	}, []);
+
 	return (
 		<div className="lesson-page">
 			<article className="lesson-doc" aria-labelledby="keyboard-intro-title">
@@ -166,6 +204,54 @@ export default function KeyboardIntroExercise({
 					remaps them to nearby keys so you can type them without any special
 					software.
 				</p>
+
+				<fieldset className="mini-keyboard">
+					<label className="mini-keyboard__label" htmlFor="keyboard-demo">
+						Try the keyboard
+					</label>
+					<input
+						id="keyboard-demo"
+						type="text"
+						className="mini-keyboard__demo"
+						value={demoText}
+						onChange={(event) => setDemoText(event.target.value)}
+						placeholder="Click highlighted keys..."
+						spellCheck={false}
+						autoComplete="off"
+					/>
+					<div className="mini-keyboard__rows">
+						{MINI_KEYBOARD_ROWS.map((row) => (
+							<div className="mini-keyboard__row" key={row.join("")}>
+								{row.map((key) => {
+									const mapped = ESPERANTO_KEY_MAP[key]?.toLowerCase();
+									return (
+										<button
+											type="button"
+											key={key}
+											className={`mini-keyboard__key${mapped ? " mini-keyboard__key--special" : ""}`}
+											onClick={() => handleMiniKeyboardPress(key)}
+											aria-label={
+												mapped
+													? `Insert and copy ${mapped}, typed with ${key}`
+													: `Insert ${key}`
+											}
+										>
+											<span className="mini-keyboard__key-main">
+												{mapped ?? key}
+											</span>
+											{mapped && (
+												<span className="mini-keyboard__key-sub">{key}</span>
+											)}
+										</button>
+									);
+								})}
+							</div>
+						))}
+					</div>
+					<div className="mini-keyboard__status" aria-live="polite">
+						{keyboardStatus}
+					</div>
+				</fieldset>
 
 				<hr className="lesson-doc__rule" />
 
