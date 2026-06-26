@@ -34,5 +34,5 @@ story-audio/
 .playwright-mcp/
 .rostistate
 
-# Local visual/debug screenshots
-word-match-*.png
+# Local AI/tool artifacts and scratch outputs
+.artifacts/
