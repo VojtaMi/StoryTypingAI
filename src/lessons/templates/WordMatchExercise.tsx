@@ -6,6 +6,8 @@ import type { IntroducedWord } from "../types";
 interface WordMatchExerciseProps {
 	lessonId: string;
 	words: IntroducedWord[];
+	title?: string;
+	hint?: string;
 	completeLabel?: string;
 	onComplete: () => void;
 	onBack: () => void;
@@ -23,6 +25,8 @@ function shuffle<T>(arr: T[]): T[] {
 export default function WordMatchExercise({
 	lessonId,
 	words,
+	title = "Connect the words",
+	hint = "Select a word on the left, then its meaning on the right.",
 	completeLabel = "Continue to Practice →",
 	onComplete,
 	onBack,
@@ -140,10 +144,8 @@ export default function WordMatchExercise({
 				</button>
 
 				<p className="lesson-doc__eyebrow">Exercise</p>
-				<h1 className="word-match__title">Connect the words</h1>
-				<p className="word-match__hint">
-					Select a word on the left, then its meaning on the right.
-				</p>
+				<h1 className="word-match__title">{title}</h1>
+				<p className="word-match__hint">{hint}</p>
 
 				<div className="word-match__columns">
 					<div className="word-match__col">

@@ -18,6 +18,10 @@ export function useBackgroundLayers(
 		| "keyboard-intro"
 		| "keyboard-words"
 		| "keyboard-word-match"
+		| "garden-lesson"
+		| "garden-word-match"
+		| "garden-phrase-builder"
+		| "garden-typing"
 		| "story",
 	backgroundImage: StoryBackgroundImage | null,
 ) {

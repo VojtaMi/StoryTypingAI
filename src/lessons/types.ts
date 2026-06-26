@@ -14,8 +14,49 @@ export interface GrammarConcept {
 	examples: string[];
 }
 
-/** Reserved for the future adaptive exercise system; V1 lessons have none. */
-export type LessonExercise = never;
+export interface LessonPattern {
+	id: string;
+	title: string;
+	slots: string[];
+	examples: string[];
+}
+
+export interface WordMatchLessonExercise {
+	id: string;
+	type: "word-match";
+	title?: string;
+	hint?: string;
+	wordTerms?: string[];
+	completeLabel?: string;
+}
+
+export interface PhraseBuilderPrompt {
+	id: string;
+	meaning: string;
+	answer: string[];
+	distractors?: string[];
+}
+
+export interface PhraseBuilderLessonExercise {
+	id: string;
+	type: "phrase-builder";
+	title: string;
+	hint: string;
+	prompts: PhraseBuilderPrompt[];
+	completeLabel?: string;
+}
+
+export interface TypingStoryLessonExercise {
+	id: string;
+	type: "typing-story";
+	title?: string;
+	imageUrl?: string;
+}
+
+export type LessonExercise =
+	| WordMatchLessonExercise
+	| PhraseBuilderLessonExercise
+	| TypingStoryLessonExercise;
 
 export interface LessonResource {
 	type: "link" | "note";
@@ -30,9 +71,12 @@ export interface Lesson {
 	id: string;
 	title: string;
 	level: LessonLevel;
+	lede?: string;
 	introducedWords: IntroducedWord[];
 	grammarConcepts: GrammarConcept[];
+	patterns?: LessonPattern[];
 	story: string[];
+	storyImagePrompt?: string;
 	exercises: LessonExercise[];
 	resources: LessonResource[];
 }

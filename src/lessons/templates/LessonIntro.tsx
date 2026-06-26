@@ -108,6 +108,7 @@ export default function LessonIntro({
 	const storyText = lesson.story.join(" ");
 	const wordCount = lesson.introducedWords.length;
 	const hasGrammar = lesson.grammarConcepts.length > 0;
+	const hasPatterns = (lesson.patterns?.length ?? 0) > 0;
 	const { ready, playing, play } = useLessonAudio(lesson);
 
 	// Number the sections that are actually shown.
@@ -131,9 +132,10 @@ export default function LessonIntro({
 					{lesson.title}
 				</h1>
 				<p className="lesson-doc__lede">
-					A first taste of Esperanto: {wordCount} new{" "}
-					{wordCount === 1 ? "word" : "words"} and one tiny sentence you'll be
-					able to read, understand, and type by the end.
+					{lesson.lede ??
+						`A first taste of Esperanto: ${wordCount} new ${
+							wordCount === 1 ? "word" : "words"
+						} and one tiny sentence you'll be able to read, understand, and type by the end.`}
 				</p>
 
 				<hr className="lesson-doc__rule" />
@@ -183,6 +185,31 @@ export default function LessonIntro({
 										{renderWithCode(concept.explanation)}
 									</p>
 									{concept.examples.map((example) => (
+										<p key={example} className="lesson-doc__example">
+											{example}
+										</p>
+									))}
+								</div>
+							))}
+						</section>
+					</>
+				)}
+
+				{hasPatterns && (
+					<>
+						<hr className="lesson-doc__rule" />
+						<section className="lesson-doc__section">
+							<h2 className="lesson-doc__heading">
+								<span className="lesson-doc__num">{nextSection()}.</span>{" "}
+								Patterns
+							</h2>
+							{lesson.patterns?.map((pattern) => (
+								<div key={pattern.id} className="lesson-doc__grammar">
+									<h3 className="lesson-doc__subheading">{pattern.title}</h3>
+									<p className="lesson-doc__paragraph">
+										{pattern.slots.join(" + ")}
+									</p>
+									{pattern.examples.map((example) => (
 										<p key={example} className="lesson-doc__example">
 											{example}
 										</p>

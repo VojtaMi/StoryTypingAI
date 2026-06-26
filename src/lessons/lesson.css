@@ -450,6 +450,116 @@
 	color: var(--lesson-ink);
 }
 
+/* ---- Phrase-builder exercise ---- */
+.phrase-builder__title {
+	margin: 0;
+	font-size: clamp(2rem, 1rem + 4vw, 3rem);
+	font-weight: 700;
+	line-height: 1.1;
+}
+
+.phrase-builder__hint {
+	margin: 0.75rem 0 2rem;
+	color: var(--lesson-soft);
+	font-style: italic;
+}
+
+.phrase-builder__prompt {
+	display: grid;
+	gap: 0.4rem;
+	margin-bottom: 1rem;
+}
+
+.phrase-builder__prompt-label {
+	color: var(--lesson-faint);
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.phrase-builder__meaning {
+	font-size: clamp(1.6rem, 1rem + 2vw, 2.25rem);
+	font-weight: 700;
+	line-height: 1.15;
+}
+
+.phrase-builder__answer {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.65rem;
+	min-height: 4.25rem;
+	padding: 0.75rem;
+	border: 2px dashed var(--lesson-rule);
+	border-radius: 10px;
+	background: rgba(34, 28, 20, 0.035);
+	transition:
+		border-color 0.14s ease,
+		background 0.14s ease;
+}
+
+.phrase-builder__answer--wrong {
+	border-color: #c0392b;
+	background: rgba(192, 57, 43, 0.08);
+}
+
+.phrase-builder__answer--correct {
+	border-color: #27ae60;
+	background: rgba(39, 174, 96, 0.08);
+}
+
+.phrase-builder__placeholder {
+	color: var(--lesson-faint);
+	font-style: italic;
+}
+
+.phrase-builder__selected,
+.phrase-builder__tile {
+	min-height: 2.75rem;
+	padding: 0.65rem 1rem;
+	border: 2px solid var(--lesson-rule);
+	border-radius: 10px;
+	background: #fdf9f3;
+	color: var(--lesson-ink);
+	font: inherit;
+	font-size: 1.05rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition:
+		border-color 0.12s ease,
+		background 0.12s ease,
+		transform 0.12s ease;
+}
+
+.phrase-builder__selected {
+	border-color: #3b6fa0;
+	background: rgba(59, 111, 160, 0.08);
+	color: #3b6fa0;
+}
+
+.phrase-builder__tile:hover:not(:disabled),
+.phrase-builder__selected:hover {
+	border-color: var(--lesson-ink);
+	transform: translateY(-1px);
+}
+
+.phrase-builder__tile:disabled {
+	cursor: default;
+	opacity: 0.35;
+}
+
+.phrase-builder__tiles {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	margin-top: 1.25rem;
+}
+
+.phrase-builder__actions {
+	margin-top: 2rem;
+}
+
 /* ---- Lesson typing exercise ---- */
 .lesson-typing-page {
 	--lesson-ink: #221c14;

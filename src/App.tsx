@@ -11,11 +11,17 @@ import EsperantoIntro from "./lessons/predefined/EsperantoIntro";
 import KeyboardIntroExercise from "./lessons/predefined/KeyboardIntroExercise";
 import KeyboardWordsExercise from "./lessons/predefined/KeyboardWordsExercise";
 import { KEYBOARD_PRACTICE_WORDS } from "./lessons/predefined/keyboardPracticeWords";
-import { firstLesson } from "./lessons/predefined/lessons";
+import { firstLesson, gardenLesson } from "./lessons/predefined/lessons";
 import LessonIntro from "./lessons/templates/LessonIntro";
 import LessonTypingExercise from "./lessons/templates/LessonTypingExercise";
+import PhraseBuilderExercise from "./lessons/templates/PhraseBuilderExercise";
 import WordMatchExercise from "./lessons/templates/WordMatchExercise";
-import type { Lesson } from "./lessons/types";
+import type {
+	Lesson,
+	LessonExercise,
+	PhraseBuilderLessonExercise,
+	WordMatchLessonExercise,
+} from "./lessons/types";
 import {
 	readSelectedTextModel,
 	saveSelectedTextModel,
@@ -42,6 +48,10 @@ type View =
 	| "keyboard-intro"
 	| "keyboard-words"
 	| "keyboard-word-match"
+	| "garden-lesson"
+	| "garden-word-match"
+	| "garden-phrase-builder"
+	| "garden-typing"
 	| "story";
 
 const ROUTES = {
@@ -54,6 +64,10 @@ const ROUTES = {
 	keyboard: "/lessons/esperanto-keyboard",
 	keyboardWords: "/lessons/esperanto-keyboard/words",
 	keyboardWordMatch: "/lessons/esperanto-keyboard/word-match",
+	garden: "/lessons/nia-gardeno",
+	gardenWordMatch: "/lessons/nia-gardeno/word-match",
+	gardenPhraseBuilder: "/lessons/nia-gardeno/phrase-builder",
+	gardenTyping: "/lessons/nia-gardeno/typing",
 } as const;
 
 const LESSON_PATHS = new Set<string>([
@@ -64,6 +78,10 @@ const LESSON_PATHS = new Set<string>([
 	ROUTES.keyboard,
 	ROUTES.keyboardWords,
 	ROUTES.keyboardWordMatch,
+	ROUTES.garden,
+	ROUTES.gardenWordMatch,
+	ROUTES.gardenPhraseBuilder,
+	ROUTES.gardenTyping,
 ]);
 
 const NUMBERED_LESSON_PATHS: Record<string, string> = {
@@ -74,6 +92,10 @@ const NUMBERED_LESSON_PATHS: Record<string, string> = {
 	"/lessons/4": ROUTES.keyboard,
 	"/lessons/5": ROUTES.keyboardWords,
 	"/lessons/6": ROUTES.keyboardWordMatch,
+	"/lessons/7": ROUTES.garden,
+	"/lessons/8": ROUTES.gardenWordMatch,
+	"/lessons/9": ROUTES.gardenPhraseBuilder,
+	"/lessons/10": ROUTES.gardenTyping,
 };
 
 function canonicalLessonPath(pathname: string) {
@@ -98,6 +120,14 @@ function viewFromPath(pathname: string): View {
 			return "keyboard-words";
 		case ROUTES.keyboardWordMatch:
 			return "keyboard-word-match";
+		case ROUTES.garden:
+			return "garden-lesson";
+		case ROUTES.gardenWordMatch:
+			return "garden-word-match";
+		case ROUTES.gardenPhraseBuilder:
+			return "garden-phrase-builder";
+		case ROUTES.gardenTyping:
+			return "garden-typing";
 		default:
 			return "menu";
 	}
@@ -121,9 +151,40 @@ function pathForView(view: View) {
 			return ROUTES.keyboardWords;
 		case "keyboard-word-match":
 			return ROUTES.keyboardWordMatch;
+		case "garden-lesson":
+			return ROUTES.garden;
+		case "garden-word-match":
+			return ROUTES.gardenWordMatch;
+		case "garden-phrase-builder":
+			return ROUTES.gardenPhraseBuilder;
+		case "garden-typing":
+			return ROUTES.gardenTyping;
 		default:
 			return ROUTES.menu;
 	}
+}
+
+function lessonForPath(path: string) {
+	return path.startsWith(ROUTES.garden) ? gardenLesson : firstLesson;
+}
+
+function findExercise<T extends LessonExercise["type"]>(
+	lesson: Lesson,
+	type: T,
+): Extract<LessonExercise, { type: T }> {
+	const exercise = lesson.exercises.find(
+		(candidate) => candidate.type === type,
+	);
+	if (!exercise) {
+		throw new Error(`Lesson ${lesson.id} is missing a ${type} exercise.`);
+	}
+	return exercise as Extract<LessonExercise, { type: T }>;
+}
+
+function wordsForWordMatch(lesson: Lesson, exercise: WordMatchLessonExercise) {
+	if (!exercise.wordTerms) return lesson.introducedWords;
+	const requested = new Set(exercise.wordTerms);
+	return lesson.introducedWords.filter((word) => requested.has(word.term));
 }
 
 const LESSON_MENU_ITEMS = [
@@ -151,13 +212,23 @@ const LESSON_MENU_ITEMS = [
 		path: ROUTES.keyboard,
 		completedStageIds: ["esperanto-keyboard"],
 	},
+	{
+		id: "nia-gardeno",
+		title: gardenLesson.title,
+		description:
+			"Combine colors, ownership, and known nouns into a tiny scene.",
+		path: ROUTES.garden,
+		completedStageIds: ["nia-gardeno.typing"],
+	},
 ];
 
 export default function App() {
 	const [view, setView] = useState<View>(() =>
 		viewFromPath(window.location.pathname),
 	);
-	const [activeLesson, setActiveLesson] = useState<Lesson>(firstLesson);
+	const [activeLesson, setActiveLesson] = useState<Lesson>(() =>
+		lessonForPath(canonicalLessonPath(window.location.pathname)),
+	);
 	const [savedStories, setSavedStories] = useState<SavedStorySummary[]>([]);
 	const [savesError, setSavesError] = useState<string | null>(null);
 	const [model, setModel] = useState<TextModelId>(readSelectedTextModel);
@@ -216,11 +287,20 @@ export default function App() {
 		onSavedStoriesChanged: refreshSavedStories,
 		onSavesError: setSavesError,
 	});
+	const gardenWordMatchExercise = findExercise(
+		gardenLesson,
+		"word-match",
+	) as WordMatchLessonExercise;
+	const gardenPhraseBuilderExercise = findExercise(
+		gardenLesson,
+		"phrase-builder",
+	) as PhraseBuilderLessonExercise;
 
 	useEffect(() => {
 		function handlePopState() {
 			const path = canonicalLessonPath(window.location.pathname);
 			setView(viewFromPath(path));
+			setActiveLesson(lessonForPath(path));
 			if (path !== window.location.pathname) {
 				window.history.replaceState(null, "", path);
 			}
@@ -259,8 +339,9 @@ export default function App() {
 	}
 
 	function openLessonPath(path: string) {
-		setActiveLesson(firstLesson);
-		const nextView = viewFromPath(canonicalLessonPath(path));
+		const canonicalPath = canonicalLessonPath(path);
+		setActiveLesson(lessonForPath(canonicalPath));
+		const nextView = viewFromPath(canonicalPath);
 		navigateToView(nextView === "menu" ? "esperanto-intro" : nextView);
 	}
 
@@ -284,7 +365,9 @@ export default function App() {
 
 	function beginLessonPractice(lesson: Lesson) {
 		setActiveLesson(lesson);
-		navigateToView("word-match");
+		navigateToView(
+			lesson.id === gardenLesson.id ? "garden-word-match" : "word-match",
+		);
 	}
 
 	function handleWordMatchComplete() {
@@ -308,10 +391,26 @@ export default function App() {
 	}
 
 	function handleKeyboardWordMatchComplete() {
-		completeLessonStage("esperanto-keyboard", ROUTES.keyboard);
+		completeLessonStage("esperanto-keyboard", ROUTES.garden);
+		setActiveLesson(gardenLesson);
+		navigateToView("garden-lesson");
+	}
+
+	function handleGardenWordMatchComplete() {
+		completeLessonStage("nia-gardeno.word-match", ROUTES.gardenPhraseBuilder);
+		navigateToView("garden-phrase-builder");
+	}
+
+	function handleGardenPhraseBuilderComplete() {
+		completeLessonStage("nia-gardeno.phrase-builder", ROUTES.gardenTyping);
+		navigateToView("garden-typing");
+	}
+
+	function handleGardenTypingComplete() {
+		completeLessonStage("nia-gardeno.typing", ROUTES.garden);
 		startLessonStory({
-			title: activeLesson.title,
-			storyText: activeLesson.story.join(" "),
+			title: gardenLesson.title,
+			storyText: gardenLesson.story.join(" "),
 		});
 	}
 
@@ -429,6 +528,50 @@ export default function App() {
 					words={KEYBOARD_PRACTICE_WORDS}
 					completeLabel="Continue →"
 					onComplete={handleKeyboardWordMatchComplete}
+					onBack={openLessonsMenu}
+				/>
+			)}
+
+			{view === "garden-lesson" && (
+				<LessonIntro
+					lesson={gardenLesson}
+					onBeginPractice={beginLessonPractice}
+					onBack={openLessonsMenu}
+				/>
+			)}
+
+			{view === "garden-word-match" && (
+				<WordMatchExercise
+					lessonId={gardenLesson.id}
+					words={wordsForWordMatch(gardenLesson, gardenWordMatchExercise)}
+					title={gardenWordMatchExercise.title}
+					hint={gardenWordMatchExercise.hint}
+					completeLabel={gardenWordMatchExercise.completeLabel}
+					onComplete={handleGardenWordMatchComplete}
+					onBack={openLessonsMenu}
+				/>
+			)}
+
+			{view === "garden-phrase-builder" && (
+				<PhraseBuilderExercise
+					title={gardenPhraseBuilderExercise.title}
+					hint={gardenPhraseBuilderExercise.hint}
+					prompts={gardenPhraseBuilderExercise.prompts}
+					completeLabel={gardenPhraseBuilderExercise.completeLabel}
+					onComplete={handleGardenPhraseBuilderComplete}
+					onBack={openLessonsMenu}
+				/>
+			)}
+
+			{view === "garden-typing" && (
+				<LessonTypingExercise
+					lessonId={gardenLesson.id}
+					text={gardenLesson.story.join(" ")}
+					imageUrl={
+						findExercise(gardenLesson, "typing-story").imageUrl ??
+						"/images/lesson-typing-bg.webp"
+					}
+					onComplete={handleGardenTypingComplete}
 					onBack={openLessonsMenu}
 				/>
 			)}

@@ -48,6 +48,10 @@ type View =
 	| "keyboard-intro"
 	| "keyboard-words"
 	| "keyboard-word-match"
+	| "garden-lesson"
+	| "garden-word-match"
+	| "garden-phrase-builder"
+	| "garden-typing"
 	| "story";
 
 interface UseStorySessionOptions {
@@ -386,8 +390,9 @@ export function useStorySession({
 					narrationVoice: nextNarrationVoice,
 				}),
 			);
+			void generateAndApplyStoryBackground(selected, saveId, seeded);
 		},
-		[onViewChange, persistStory],
+		[generateAndApplyStoryBackground, onViewChange, persistStory],
 	);
 
 	const handleTypingComplete = useCallback(
