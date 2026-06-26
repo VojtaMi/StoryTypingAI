@@ -164,6 +164,28 @@ export default function KeyboardIntroExercise({
 		setDemoText((prev) => `${prev}${output}`);
 	}, []);
 
+	const handleDemoKeyDown = useCallback(
+		(e: KeyboardEvent<HTMLInputElement>) => {
+			if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+			const mapped = ESPERANTO_KEY_MAP[e.key];
+			if (!mapped) return;
+
+			e.preventDefault();
+			const input = e.currentTarget;
+			const start = input.selectionStart ?? demoText.length;
+			const end = input.selectionEnd ?? start;
+			const nextValue = `${demoText.slice(0, start)}${mapped}${demoText.slice(end)}`;
+			const nextCursor = start + mapped.length;
+
+			setDemoText(nextValue);
+			window.requestAnimationFrame(() => {
+				input.setSelectionRange(nextCursor, nextCursor);
+			});
+		},
+		[demoText],
+	);
+
 	return (
 		<div className="lesson-page">
 			<article className="lesson-doc" aria-labelledby="keyboard-intro-title">
@@ -191,6 +213,7 @@ export default function KeyboardIntroExercise({
 						className="mini-keyboard__demo"
 						value={demoText}
 						onChange={(event) => setDemoText(event.target.value)}
+						onKeyDown={handleDemoKeyDown}
 						placeholder="Click highlighted keys..."
 						spellCheck={false}
 						autoComplete="off"
