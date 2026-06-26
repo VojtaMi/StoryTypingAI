@@ -1,0 +1,12 @@
+commit_msg_file="$1"
+codex_trailer="Co-authored-by: codex <codex@openai.com>"
+
+if [ "${CODEX_COAUTHOR:-}" != "1" ]; then
+	exit 0
+fi
+
+if grep -Fq "$codex_trailer" "$commit_msg_file"; then
+	exit 0
+fi
+
+printf "\n%s\n" "$codex_trailer" >> "$commit_msg_file"
