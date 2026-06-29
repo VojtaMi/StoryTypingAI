@@ -4,7 +4,7 @@ export interface StorySegment {
 	text: string;
 }
 
-export type StoryPhase = "typing" | "authoring" | "loading";
+export type StoryPhase = "typing" | "authoring" | "loading" | "reading";
 
 export interface TypingStats {
 	wpm: number;

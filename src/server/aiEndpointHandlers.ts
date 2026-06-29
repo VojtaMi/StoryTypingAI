@@ -3,7 +3,12 @@ import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
 import { DEFAULT_TEXT_MODEL, STORY_SEGMENT_MAX_TOKENS } from "../models";
 import { isNarrationVoiceId } from "../narrationVoice";
-import { completeAi, streamAi, synthesizeSpeech } from "./aiService";
+import {
+	completeAi,
+	streamAi,
+	synthesizeSpeech,
+	translateWords,
+} from "./aiService";
 import { readBody, sendJson } from "./http";
 import { startNdjsonResponse, writeJsonLine } from "./ndjson";
 import { createBackgroundImage, findGenre } from "./openingsStore";
@@ -104,6 +109,19 @@ export async function handleOpeningAudioRequest(
 		return;
 	}
 	sendJson(res, 200, audio);
+}
+
+export async function handleTranslateWordsRequest(
+	req: IncomingMessage,
+	res: ServerResponse,
+	openai: OpenAI,
+) {
+	const { words } = JSON.parse(await readBody(req));
+	if (!Array.isArray(words) || words.some((w) => typeof w !== "string")) {
+		sendJson(res, 400, { error: "words must be a string array." });
+		return;
+	}
+	sendJson(res, 200, { translations: await translateWords(openai, words) });
 }
 
 export async function handleCompleteRequest(

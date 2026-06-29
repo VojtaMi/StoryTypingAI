@@ -233,6 +233,20 @@ export async function generateStoryIntro(
 	return generateIntro(httpCompleter(model), genreLabel, openingText);
 }
 
+export async function translateWords(
+	words: string[],
+): Promise<Record<string, string>> {
+	if (words.length === 0) return {};
+	const res = await fetch("/api/ai/translate-words", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ words }),
+	});
+	if (!res.ok) throw new Error(`Translation request failed: ${res.status}`);
+	const body = (await res.json()) as { translations: Record<string, string> };
+	return body.translations;
+}
+
 export async function askEsperantoTutor({
 	segments,
 	currentTarget,

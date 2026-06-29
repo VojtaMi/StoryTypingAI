@@ -278,8 +278,10 @@ export default function App() {
 		segments,
 		selectGenre,
 		startLessonStory,
+		startReadingStory,
 		streamingTarget,
 		submitContinuation,
+		wordTranslations,
 	} = useStorySession({
 		model,
 		view,
@@ -446,7 +448,9 @@ export default function App() {
 
 			{view === "story" && (
 				<header className="header">
-					<h1>Story Typing Practice</h1>
+					<h1>
+						{phase === "reading" ? "Story Reading" : "Story Typing Practice"}
+					</h1>
 					<p className="subtitle">
 						{genre ? `${genre.emoji} ${genre.label}` : ""}
 					</p>
@@ -462,6 +466,7 @@ export default function App() {
 					onModelChange={handleModelChange}
 					onSelect={selectGenre}
 					onStartLesson={openLessonsMenu}
+					onStartReadingStory={startReadingStory}
 					onResume={resumeStory}
 					onDelete={removeSavedStory}
 				/>
@@ -593,6 +598,7 @@ export default function App() {
 					storyId={activeSaveId}
 					currentImageUrl={backgroundImage?.backgroundImageUrl ?? null}
 					openingAudioUrl={openingAudio?.openingAudioUrl ?? null}
+					wordTranslations={wordTranslations}
 					onTypingComplete={handleTypingComplete}
 					onSubmitContinuation={submitContinuation}
 					onAutoContinue={autoContinueStory}

@@ -4,6 +4,7 @@ import type { ChatMessage } from "../ai";
 import {
 	DEFAULT_TEXT_MODEL,
 	STORY_SEGMENT_MAX_TOKENS,
+	TRANSLATION_MODEL,
 	TTS_MAX_INPUT_CHARS,
 	TTS_MODEL,
 	TTS_VOICE,
@@ -49,6 +50,32 @@ export async function streamAi(
 		return streamAnthropic(messages, maxTokens, model, anthropicKey, onChunk);
 	}
 	return streamOpenAi(openai, messages, maxTokens, model, onChunk);
+}
+
+export async function translateWords(
+	openai: OpenAI,
+	words: string[],
+): Promise<Record<string, string>> {
+	if (words.length === 0) return {};
+	const response = await openai.chat.completions.create({
+		model: TRANSLATION_MODEL,
+		max_completion_tokens: 400,
+		messages: [
+			{
+				role: "system",
+				content:
+					"You are an Esperanto-English dictionary. Given a JSON array of Esperanto words, return a JSON object where each key is the word and the value is its most common English translation. Return only the JSON object, no other text.",
+			},
+			{ role: "user", content: JSON.stringify(words) },
+		],
+	});
+	const raw = response.choices[0]?.message?.content?.trim() ?? "";
+	try {
+		return JSON.parse(raw) as Record<string, string>;
+	} catch {
+		console.warn("translateWords: could not parse AI response", raw);
+		return {};
+	}
 }
 
 /**

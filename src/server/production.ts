@@ -7,7 +7,7 @@ import type { ChatMessage } from "../ai";
 import type { GenreId } from "../genres";
 import { DEFAULT_TEXT_MODEL } from "../models";
 import { isNarrationVoiceId } from "../narrationVoice";
-import { completeAi, synthesizeSpeech } from "./aiService";
+import { completeAi, synthesizeSpeech, translateWords } from "./aiService";
 import { readBody, sendJson } from "./http";
 import {
 	getOrCreateLessonAudio,
@@ -272,6 +272,16 @@ const server = createServer(async (req, res) => {
 					ANTHROPIC_API_KEY,
 				),
 			});
+			return;
+		}
+
+		if (pathname === "/api/ai/translate-words" && req.method === "POST") {
+			const { words } = JSON.parse(await readBody(req));
+			if (!Array.isArray(words) || words.some((w) => typeof w !== "string")) {
+				sendJson(res, 400, { error: "words must be a string array." });
+				return;
+			}
+			sendJson(res, 200, { translations: await translateWords(openai, words) });
 			return;
 		}
 

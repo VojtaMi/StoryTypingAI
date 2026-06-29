@@ -8,6 +8,7 @@ import {
 	generateStoryIntro,
 	type StoryMemory,
 	startStory,
+	translateWords,
 } from "../ai";
 import type {
 	StoryPhase,
@@ -90,6 +91,10 @@ export function useStorySession({
 	const [openingAudio, setOpeningAudio] = useState<StoryOpeningAudio | null>(
 		null,
 	);
+	const [wordTranslations, setWordTranslations] = useState<Record<
+		string,
+		string
+	> | null>(null);
 	const [narrationVoice, setNarrationVoice] = useState<NarrationVoiceId>(
 		DEFAULT_NARRATION_VOICE,
 	);
@@ -140,6 +145,31 @@ export function useStorySession({
 	useEffect(() => {
 		narrationVoiceRef.current = narrationVoice;
 	}, [narrationVoice]);
+
+	useEffect(() => {
+		if (phase !== "reading" || !currentTarget) {
+			setWordTranslations(null);
+			return;
+		}
+		const wordPattern = /[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+/g;
+		const words = [
+			...new Set(
+				(currentTarget.match(wordPattern) ?? []).map((w) => w.toLowerCase()),
+			),
+		];
+		if (words.length === 0) return;
+		let cancelled = false;
+		translateWords(words)
+			.then((translations) => {
+				if (!cancelled) setWordTranslations(translations);
+			})
+			.catch((err) => {
+				console.warn("Could not translate words.", err);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [phase, currentTarget]);
 
 	const persistStory = useStoryPersistence({
 		model,
@@ -342,6 +372,118 @@ export function useStorySession({
 			prepareOpeningsInBackground,
 		],
 	);
+
+	const startReadingStory = useCallback(async () => {
+		const selected = genres.find((g) => g.id === "esperanto") ?? genres[0];
+		const title = fallbackTitle(selected);
+
+		setGenre(selected);
+		setMessages([]);
+		setMemory(undefined);
+		setSegments([]);
+		setCurrentTarget(null);
+		setStreamingTarget("");
+		setError(null);
+		setOpeningAudio(null);
+		setPhase("loading");
+		onViewChange("story");
+		try {
+			let opening: {
+				id?: string;
+				text: string;
+				messages: ChatMessage[];
+				backgroundIntro?: string;
+				backgroundImageUrl?: string;
+				backgroundImagePrompt?: string;
+				backgroundImageSource?: string;
+				openingAudioUrl?: string;
+				openingAudioSource?: "generated";
+				openingAudioText?: string;
+				openingAudioVoice?: NarrationVoiceId;
+				narrationVoice?: NarrationVoiceId;
+			} | null = null;
+			let consumedPreparedOpening = false;
+			try {
+				opening = await consumePreparedOpening(selected.id);
+				consumedPreparedOpening = Boolean(opening);
+			} catch (err) {
+				console.warn("Could not consume a prepared opening.", err);
+			}
+			void prepareOpeningsInBackground();
+
+			if (!opening) {
+				opening = await startStory(selected, model);
+			}
+
+			const saveId = opening.id ?? createSaveId();
+			const nextNarrationVoice = isNarrationVoiceId(opening.narrationVoice)
+				? opening.narrationVoice
+				: pickRandomNarrationVoice();
+			narrationVoiceRef.current = nextNarrationVoice;
+			activeSaveIdRef.current = saveId;
+			setActiveSaveId(saveId);
+			setActiveTitle(title);
+			setNarrationVoice(nextNarrationVoice);
+
+			const { text, messages: seeded } = opening;
+			const intro =
+				opening.backgroundIntro ||
+				(await generateStoryIntro(selected.label, text, model).catch(() => ""));
+			const nextOpeningAudio =
+				opening.openingAudioUrl &&
+				opening.openingAudioSource === "generated" &&
+				opening.openingAudioVoice === nextNarrationVoice
+					? {
+							openingAudioUrl: opening.openingAudioUrl,
+							openingAudioSource: opening.openingAudioSource,
+							openingAudioText: opening.openingAudioText ?? text,
+							openingAudioVoice: opening.openingAudioVoice,
+						}
+					: await generateOpeningAudio(text, saveId, nextNarrationVoice).catch(
+							(err) => {
+								console.warn("Could not generate opening audio.", err);
+								return null;
+							},
+						);
+			const nextBackgroundImage = backgroundFromOpening(opening, selected);
+			setMessages(seeded);
+			setMemory(undefined);
+			setCurrentTarget(text);
+			setStreamingTarget("");
+			setBackgroundIntro(intro);
+			setBackgroundImage(nextBackgroundImage);
+			setOpeningAudio(nextOpeningAudio);
+			setPhase("reading");
+			void persistStory(
+				buildStorySaveSnapshot({
+					id: saveId,
+					genre: selected,
+					title,
+					messages: seeded,
+					memory: undefined,
+					segments: [],
+					currentTarget: text,
+					phase: "reading",
+					backgroundIntro: intro,
+					backgroundImage: nextBackgroundImage,
+					openingAudio: nextOpeningAudio,
+					narrationVoice: nextNarrationVoice,
+				}),
+				{ generateTitle: true },
+			);
+			if (!consumedPreparedOpening) {
+				void generateAndApplyStoryBackground(selected, saveId, seeded);
+			}
+		} catch (err) {
+			setError(describeError(err));
+		}
+	}, [
+		generateAndApplyStoryBackground,
+		model,
+		onViewChange,
+		persistStory,
+		prepareOpeningsInBackground,
+	]);
 
 	const startLessonStory = useCallback(
 		({ title, storyText }: { title: string; storyText: string }) => {
@@ -599,6 +741,7 @@ export function useStorySession({
 		activeSaveIdRef.current = null;
 		setActiveSaveId(null);
 		setActiveTitle(null);
+		setWordTranslations(null);
 	}, [
 		activeSaveId,
 		activeTitle,
@@ -684,6 +827,7 @@ export function useStorySession({
 		genre,
 		handleTypingComplete,
 		phase,
+		startReadingStory,
 		openingAudio:
 			currentTarget &&
 			openingAudio?.openingAudioText === currentTarget &&
@@ -698,5 +842,6 @@ export function useStorySession({
 		startLessonStory,
 		streamingTarget,
 		submitContinuation,
+		wordTranslations,
 	};
 }

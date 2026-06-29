@@ -24,6 +24,9 @@ export const DEFAULT_CHAT_MODEL: TextModelId = "gpt-5.4-mini";
  */
 export const STORY_SEGMENT_MAX_TOKENS = 400;
 
+/** Cheap model used for batch word translations — not user-selectable. */
+export const TRANSLATION_MODEL = "gpt-5.4-mini";
+
 /** Text-to-speech model and voice used to narrate AI story segments on demand. */
 export const TTS_MODEL = "gpt-4o-mini-tts";
 export const TTS_VOICE = "fable";

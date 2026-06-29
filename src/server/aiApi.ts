@@ -6,6 +6,7 @@ import {
 	handleCompleteStreamRequest,
 	handleOpeningAudioRequest,
 	handleSpeakRequest,
+	handleTranslateWordsRequest,
 } from "./aiEndpointHandlers";
 import { sendJson } from "./http";
 import { sendNdjsonError } from "./ndjson";
@@ -15,7 +16,8 @@ type AiApiRoute =
 	| "complete-stream"
 	| "background-image"
 	| "opening-audio"
-	| "speak";
+	| "speak"
+	| "translate-words";
 
 export function aiApi(openaiKey: string, anthropicKey: string): Plugin {
 	return {
@@ -50,6 +52,11 @@ export function aiApi(openaiKey: string, anthropicKey: string): Plugin {
 						return;
 					}
 
+					if (route === "translate-words") {
+						await handleTranslateWordsRequest(req, res, openai);
+						return;
+					}
+
 					await handleCompleteRequest(req, res, openai, anthropicKey);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
@@ -80,6 +87,8 @@ function aiApiRoute(
 			return "background-image";
 		case "/api/ai/opening-audio":
 			return "opening-audio";
+		case "/api/ai/translate-words":
+			return "translate-words";
 		default:
 			return null;
 	}

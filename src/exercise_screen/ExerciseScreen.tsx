@@ -10,6 +10,8 @@ import { StoryLog } from "./story/StoryLog";
 import type { StoryPhase, StorySegment, TypingStats } from "./types";
 import { TypingExercise } from "./typing/TypingExercise";
 
+const WORD_PATTERN = /([a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+|[^a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+)/g;
+
 interface ExerciseScreenProps {
 	segments: StorySegment[];
 	currentTarget: string | null;
@@ -20,6 +22,7 @@ interface ExerciseScreenProps {
 	storyId: string | null;
 	currentImageUrl: string | null;
 	openingAudioUrl: string | null;
+	wordTranslations: Record<string, string> | null;
 	onTypingComplete: (stats: TypingStats) => void;
 	onSubmitContinuation: (text: string) => void;
 	onAutoContinue: () => void;
@@ -36,6 +39,7 @@ export default function ExerciseScreen({
 	storyId,
 	currentImageUrl,
 	openingAudioUrl,
+	wordTranslations,
 	onTypingComplete,
 	onSubmitContinuation,
 	onAutoContinue,
@@ -52,6 +56,31 @@ export default function ExerciseScreen({
 			{backgroundIntro && <p className="story__intro">{backgroundIntro}</p>}
 
 			<StoryLog segments={segments} />
+
+			{phase === "reading" && currentTarget && (
+				<div className="story__reading">
+					<div className="story__reading-header">
+						<OpeningAudioControl audioUrl={openingAudioUrl} />
+					</div>
+					<p className="story__reading-text">
+						{[...currentTarget.matchAll(WORD_PATTERN)].map((match) => {
+							const token = match[1];
+							const isWord = /[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]/.test(token);
+							if (!isWord) return token;
+							const translation = wordTranslations?.[token.toLowerCase()];
+							return (
+								<span
+									key={match.index}
+									className={translation ? "story__word" : undefined}
+									data-translation={translation}
+								>
+									{token}
+								</span>
+							);
+						})}
+					</p>
+				</div>
+			)}
 
 			{phase === "typing" && currentTarget && (
 				<div className="story__current">
