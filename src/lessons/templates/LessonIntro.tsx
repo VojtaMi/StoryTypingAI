@@ -1,6 +1,8 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
 import "../lesson.css";
 import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
+import { buildLessonBotContext } from "../lessonBotContext";
 import type { Lesson, LessonTeachingSection } from "../types";
 import { LESSON_LEVEL_LABELS } from "../types";
 
@@ -200,6 +202,7 @@ export default function LessonIntro({
 	const hasPatterns =
 		!hasTeachingSections && (lesson.patterns?.length ?? 0) > 0;
 	const { ready, playing, play } = useLessonAudio(lesson);
+	const [chatOpen, setChatOpen] = useState(false);
 
 	// Number the sections that are actually shown.
 	let sectionNumber = 0;
@@ -359,6 +362,15 @@ export default function LessonIntro({
 					</button>
 				</div>
 			</article>
+
+			<EsperantoChatModal
+				isOpen={chatOpen}
+				onOpen={() => setChatOpen(true)}
+				segments={[]}
+				currentTarget={null}
+				backgroundIntro={buildLessonBotContext(lesson)}
+				onClose={() => setChatOpen(false)}
+			/>
 		</div>
 	);
 }

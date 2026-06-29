@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
 import "../lesson.css";
 import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
-import type { PhraseBuilderPrompt } from "../types";
+import { buildLessonBotContext } from "../lessonBotContext";
+import type { Lesson, PhraseBuilderPrompt } from "../types";
 
 interface PhraseBuilderExerciseProps {
 	lessonId: string;
 	title: string;
 	hint: string;
 	prompts: PhraseBuilderPrompt[];
+	lesson?: Lesson;
 	completeLabel?: string;
 	onComplete: () => void;
 	onBack: () => void;
@@ -33,11 +36,13 @@ export default function PhraseBuilderExercise({
 	title,
 	hint,
 	prompts,
+	lesson,
 	completeLabel = "Continue →",
 	onComplete,
 	onBack,
 }: PhraseBuilderExerciseProps) {
 	const [promptIndex, setPromptIndex] = useState(0);
+	const [chatOpen, setChatOpen] = useState(false);
 	const [selected, setSelected] = useState<string[]>([]);
 	const [wrong, setWrong] = useState(false);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -201,6 +206,17 @@ export default function PhraseBuilderExercise({
 					)}
 				</div>
 			</div>
+
+			{lesson && (
+				<EsperantoChatModal
+					isOpen={chatOpen}
+					onOpen={() => setChatOpen(true)}
+					segments={[]}
+					currentTarget={null}
+					backgroundIntro={buildLessonBotContext(lesson)}
+					onClose={() => setChatOpen(false)}
+				/>
+			)}
 		</div>
 	);
 }

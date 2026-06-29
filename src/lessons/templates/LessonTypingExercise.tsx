@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
 import { TypingPassage } from "../../exercise_screen/typing/TypingPassage";
 import { useTypingSession } from "../../exercise_screen/typing/useTypingSession";
 import "../lesson.css";
 import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
+import { buildLessonBotContext } from "../lessonBotContext";
+import type { Lesson } from "../types";
 
 interface LessonTypingExerciseProps {
 	lessonId: string;
 	text: string;
 	imageUrl: string;
+	lesson?: Lesson;
 	onComplete: () => void;
 	onBack: () => void;
 }
@@ -16,10 +20,12 @@ export default function LessonTypingExercise({
 	lessonId,
 	text,
 	imageUrl,
+	lesson,
 	onComplete,
 	onBack,
 }: LessonTypingExerciseProps) {
 	const [done, setDone] = useState(false);
+	const [chatOpen, setChatOpen] = useState(false);
 	const session = useTypingSession(text, () => setDone(true), {
 		requireAllCorrect: true,
 	});
@@ -113,6 +119,17 @@ export default function LessonTypingExercise({
 					</div>
 				)}
 			</div>
+
+			{lesson && (
+				<EsperantoChatModal
+					isOpen={chatOpen}
+					onOpen={() => setChatOpen(true)}
+					segments={[]}
+					currentTarget={text}
+					backgroundIntro={buildLessonBotContext(lesson)}
+					onClose={() => setChatOpen(false)}
+				/>
+			)}
 		</div>
 	);
 }

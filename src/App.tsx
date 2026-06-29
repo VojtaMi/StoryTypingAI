@@ -493,6 +493,7 @@ export default function App() {
 				<WordMatchExercise
 					lessonId={activeLesson.id}
 					words={activeLesson.introducedWords}
+					lesson={activeLesson}
 					onComplete={handleWordMatchComplete}
 					onBack={openLessonsMenu}
 				/>
@@ -503,6 +504,7 @@ export default function App() {
 					lessonId={activeLesson.id}
 					text={activeLesson.story.join(" ")}
 					imageUrl="/images/lesson-typing-bg.webp"
+					lesson={activeLesson}
 					onComplete={handleLessonTypingComplete}
 					onBack={openLessonsMenu}
 				/>
@@ -544,6 +546,7 @@ export default function App() {
 				<WordMatchExercise
 					lessonId={gardenLesson.id}
 					words={wordsForWordMatch(gardenLesson, gardenWordMatchExercise)}
+					lesson={gardenLesson}
 					title={gardenWordMatchExercise.title}
 					hint={gardenWordMatchExercise.hint}
 					completeLabel={gardenWordMatchExercise.completeLabel}
@@ -558,6 +561,7 @@ export default function App() {
 					title={gardenPhraseBuilderExercise.title}
 					hint={gardenPhraseBuilderExercise.hint}
 					prompts={gardenPhraseBuilderExercise.prompts}
+					lesson={gardenLesson}
 					completeLabel={gardenPhraseBuilderExercise.completeLabel}
 					onComplete={handleGardenPhraseBuilderComplete}
 					onBack={openLessonsMenu}
@@ -572,6 +576,7 @@ export default function App() {
 						findExercise(gardenLesson, "typing-story").imageUrl ??
 						"/images/lesson-typing-bg.webp"
 					}
+					lesson={gardenLesson}
 					onComplete={handleGardenTypingComplete}
 					onBack={openLessonsMenu}
 				/>
