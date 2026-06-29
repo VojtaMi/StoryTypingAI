@@ -3,11 +3,15 @@ import { createServer } from "node:http";
 import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import OpenAI from "openai";
-import type { ChatMessage } from "../ai";
 import type { GenreId } from "../genres";
-import { DEFAULT_TEXT_MODEL } from "../models";
-import { isNarrationVoiceId } from "../narrationVoice";
-import { completeAi, synthesizeSpeech, translateWords } from "./aiService";
+import {
+	handleBackgroundImageRequest,
+	handleCompleteRequest,
+	handleCompleteStreamRequest,
+	handleOpeningAudioRequest,
+	handleSpeakRequest,
+	handleTranslateWordsRequest,
+} from "./aiEndpointHandlers";
 import { readBody, sendJson } from "./http";
 import {
 	getOrCreateLessonAudio,
@@ -15,9 +19,9 @@ import {
 	lessonIdPattern,
 	readLessonAudio,
 } from "./lessonAudioStore";
+import { sendNdjsonError } from "./ndjson";
 import {
 	consumePreparedOpening,
-	createBackgroundImage,
 	findGenre,
 	imageFilePattern,
 	listPreparedOpenings,
@@ -32,11 +36,7 @@ import {
 	saveIdPattern,
 	writeSave,
 } from "./savesStore";
-import {
-	audioFilePattern,
-	createOpeningAudio,
-	readStoryAudio,
-} from "./storyAudioStore";
+import { audioFilePattern, readStoryAudio } from "./storyAudioStore";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PORT = Number(process.env.PORT) || 80;
@@ -258,47 +258,22 @@ const server = createServer(async (req, res) => {
 		}
 
 		if (pathname === "/api/ai/complete" && req.method === "POST") {
-			const {
-				messages,
-				maxTokens = 150,
-				model = DEFAULT_TEXT_MODEL,
-			} = JSON.parse(await readBody(req));
-			sendJson(res, 200, {
-				text: await completeAi(
-					openai,
-					messages,
-					maxTokens,
-					model,
-					ANTHROPIC_API_KEY,
-				),
-			});
+			await handleCompleteRequest(req, res, openai, ANTHROPIC_API_KEY);
+			return;
+		}
+
+		if (pathname === "/api/ai/complete-stream" && req.method === "POST") {
+			await handleCompleteStreamRequest(req, res, openai, ANTHROPIC_API_KEY);
 			return;
 		}
 
 		if (pathname === "/api/ai/translate-words" && req.method === "POST") {
-			const { words } = JSON.parse(await readBody(req));
-			if (!Array.isArray(words) || words.some((w) => typeof w !== "string")) {
-				sendJson(res, 400, { error: "words must be a string array." });
-				return;
-			}
-			sendJson(res, 200, { translations: await translateWords(openai, words) });
+			await handleTranslateWordsRequest(req, res, openai);
 			return;
 		}
 
 		if (pathname === "/api/ai/speak" && req.method === "POST") {
-			const { text, instructions } = JSON.parse(await readBody(req));
-			if (!text || typeof text !== "string") {
-				sendJson(res, 400, { error: "text is required." });
-				return;
-			}
-			const audio = await synthesizeSpeech(openai, text, {
-				instructions:
-					typeof instructions === "string" ? instructions : undefined,
-			});
-			res.statusCode = 200;
-			res.setHeader("Content-Type", "audio/mpeg");
-			res.setHeader("Cache-Control", "no-store");
-			res.end(audio);
+			await handleSpeakRequest(req, res, openai);
 			return;
 		}
 
@@ -354,62 +329,12 @@ const server = createServer(async (req, res) => {
 		}
 
 		if (pathname === "/api/ai/opening-audio" && req.method === "POST") {
-			const { text, storyId, narrationVoice } = JSON.parse(await readBody(req));
-			if (!text || typeof text !== "string") {
-				sendJson(res, 400, { error: "text is required." });
-				return;
-			}
-			if (
-				!storyId ||
-				typeof storyId !== "string" ||
-				!saveIdPattern.test(storyId)
-			) {
-				sendJson(res, 400, { error: "storyId is required." });
-				return;
-			}
-			if (!isNarrationVoiceId(narrationVoice)) {
-				sendJson(res, 400, { error: "narrationVoice is required." });
-				return;
-			}
-			const audio = await createOpeningAudio(
-				openai,
-				text,
-				storyId,
-				narrationVoice,
-			);
-			if (!audio) {
-				sendJson(res, 500, { error: "Could not generate opening audio." });
-				return;
-			}
-			sendJson(res, 200, audio);
+			await handleOpeningAudioRequest(req, res, openai);
 			return;
 		}
 
 		if (pathname === "/api/ai/background-image" && req.method === "POST") {
-			const { genreId, messages, storyId } = JSON.parse(await readBody(req));
-			const genre = findGenre(genreId);
-			if (!genre) {
-				sendJson(res, 404, { error: "Genre not found." });
-				return;
-			}
-			if (
-				!storyId ||
-				typeof storyId !== "string" ||
-				!saveIdPattern.test(storyId)
-			) {
-				sendJson(res, 400, { error: "storyId is required." });
-				return;
-			}
-			sendJson(
-				res,
-				200,
-				await createBackgroundImage(
-					openai,
-					genre,
-					storyTextFromMessages(messages),
-					storyId,
-				),
-			);
+			await handleBackgroundImageRequest(req, res, openai);
 			return;
 		}
 
@@ -417,6 +342,10 @@ const server = createServer(async (req, res) => {
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		console.error(err);
+		if (pathname === "/api/ai/complete-stream" && !res.writableEnded) {
+			sendNdjsonError(res, message);
+			return;
+		}
 		sendJson(res, 500, { error: message });
 	}
 });
@@ -424,11 +353,3 @@ const server = createServer(async (req, res) => {
 server.listen(PORT, () => {
 	console.log(`Listening on port ${PORT}`);
 });
-
-function storyTextFromMessages(messages: ChatMessage[]) {
-	return messages
-		.filter((message) => message.role !== "system")
-		.map((message) => message.content)
-		.join("\n\n")
-		.slice(-3000);
-}

@@ -28,16 +28,15 @@ story and a typing drill at once.
 - **Progress bar** — shows how far through the current segment you are.
 - **Free authoring** — your continuations are written freely (typing practice
   happens on the AI's text; the creative input is yours).
-- **Local file saves** — while running the Vite dev server, saved stories are
-  written to `saves/*.json` and shown on the menu for resume/delete.
+- **Local file saves** — while running the dev server, saved stories are written
+  to `saves/*.json` and shown on the menu for resume/delete.
 - Hidden input keeps focus on the passage; click the passage to refocus.
 
 ## Tech
 
 React 19 + TypeScript + Vite, with the [`openai`](https://www.npmjs.com/package/openai)
-SDK for story generation (model `gpt-5.4-mini`, configurable in `vite.config.ts`).
-The dev server exposes local `/api/saves` endpoints for JSON file saves and a
-`/api/ai/complete` endpoint that proxies OpenAI calls server-side.
+SDK for story generation. In development, Vite proxies `/api/*` requests to the
+same Node server used in production.
 
 ## Getting started
 
@@ -55,8 +54,7 @@ npm run preview  # preview the production build
 ```
 
 Saved stories are local development files under `saves/`, which is git-ignored.
-The file-save and AI proxy APIs are provided by Vite during `npm run dev`; a
-static production build does not include that local filesystem backend.
+The file-save and AI APIs are served by the Node server during `npm run dev`.
 
 `.env.local` is git-ignored (via `*.local`); never commit your key.
 
@@ -69,5 +67,5 @@ static production build does not include that local filesystem backend.
 - `src/ai.ts` — story generation, streaming continuation, and title calls via the dev server proxy.
 - `src/genres.ts` — genre definitions and their system prompts.
 - `src/index.css` — theme and layout.
-- `vite.config.ts` — Vite plugins: `savesApi` (local file saves) and `aiApi` (OpenAI proxy).
+- `vite.config.ts` — Vite React setup and `/api` proxy for local development.
 - `aichat_reference/` — the original Node CLI chat reference the AI loop is based on.
