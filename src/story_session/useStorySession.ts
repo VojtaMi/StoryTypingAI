@@ -12,6 +12,7 @@ import {
 	regenerateWordTranslation,
 	type StoryMemory,
 	startStory,
+	titleStory,
 	translateWords,
 } from "../ai";
 import type {
@@ -557,8 +558,6 @@ export function useStorySession({
 
 	const selectGenre = useCallback(
 		async (selected: Genre) => {
-			const title = fallbackTitle(selected);
-
 			++preloadGenerationRef.current;
 			setPreparedNextPart(null);
 			setGenre(selected);
@@ -601,7 +600,13 @@ export function useStorySession({
 					opening = await startStory(selected, model);
 				}
 
-				const saveId = opening.id ?? createSaveId();
+				const { text, messages: seeded } = opening;
+				const title = opening.id
+					? fallbackTitle(selected)
+					: await titleStory(seeded, model).catch(() =>
+							fallbackTitle(selected),
+						);
+				const saveId = opening.id ?? createSaveId(title);
 				const nextNarrationVoice = isNarrationVoiceId(opening.narrationVoice)
 					? opening.narrationVoice
 					: pickRandomNarrationVoice();
@@ -611,7 +616,6 @@ export function useStorySession({
 				setActiveTitle(title);
 				setNarrationVoice(nextNarrationVoice);
 
-				const { text, messages: seeded } = opening;
 				const intro =
 					opening.backgroundIntro ||
 					(await generateStoryIntro(selected.label, text, model).catch(
@@ -657,7 +661,6 @@ export function useStorySession({
 						openingAudio: nextOpeningAudio,
 						narrationVoice: nextNarrationVoice,
 					}),
-					{ generateTitle: true },
 				);
 				if (!consumedPreparedOpening) {
 					void generateAndApplyStoryBackground(selected, saveId, seeded, 1);
@@ -677,7 +680,6 @@ export function useStorySession({
 
 	const startReadingStory = useCallback(async () => {
 		const selected = genres.find((g) => g.id === "esperanto") ?? genres[0];
-		const title = fallbackTitle(selected);
 
 		++preloadGenerationRef.current;
 		setPreparedNextPart(null);
@@ -704,16 +706,12 @@ export function useStorySession({
 			}
 			void prepareReadingOpeningsInBackground();
 
-			const saveId = preparedOpening?.id ?? createSaveId();
 			const nextNarrationVoice = isNarrationVoiceId(
 				preparedOpening?.narrationVoice,
 			)
 				? preparedOpening.narrationVoice
 				: pickRandomNarrationVoice();
 			narrationVoiceRef.current = nextNarrationVoice;
-			activeSaveIdRef.current = saveId;
-			setActiveSaveId(saveId);
-			setActiveTitle(title);
 			setNarrationVoice(nextNarrationVoice);
 
 			const frame =
@@ -748,6 +746,15 @@ export function useStorySession({
 							] satisfies ChatMessage[],
 						};
 					})();
+
+			const title = preparedOpening?.id
+				? fallbackTitle(selected)
+				: await titleStory(seeded, model).catch(() => fallbackTitle(selected));
+			const saveId = preparedOpening?.id ?? createSaveId(title);
+			activeSaveIdRef.current = saveId;
+			setActiveSaveId(saveId);
+			setActiveTitle(title);
+
 			const nextOpeningAudio =
 				preparedOpening?.openingAudioUrl &&
 				preparedOpening.openingAudioSource === "generated" &&
@@ -800,7 +807,7 @@ export function useStorySession({
 					readingPartIndex: 1,
 					narrationVoice: nextNarrationVoice,
 				}),
-				{ generateTitle: true },
+				preparedOpening ? { generateTitle: true } : {},
 			);
 			if (!preparedOpening?.backgroundImageUrl) {
 				void generateAndApplyStoryBackground(
@@ -836,7 +843,7 @@ export function useStorySession({
 		({ title, storyText }: { title: string; storyText: string }) => {
 			const selected =
 				genres.find((candidate) => candidate.id === "esperanto") ?? genres[0];
-			const saveId = createSaveId();
+			const saveId = createSaveId(title);
 			const nextNarrationVoice = pickRandomNarrationVoice();
 			// Seed the history as if the AI had opened with the lesson sentence, so
 			// the existing continuation flow works once the learner types it.

@@ -28,11 +28,23 @@ export function fallbackTitle(selected: Genre) {
 	return `${selected.label} Story`;
 }
 
-export function createSaveId() {
+export function createSaveId(title?: string) {
 	const id = crypto.randomUUID
 		? crypto.randomUUID()
 		: `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-	return `esperanto-story--${id.slice(0, 8).toLowerCase()}`;
+	const suffix = id.slice(0, 8).toLowerCase();
+	const slug = title ? slugify(title) || "story" : "story";
+	return `${slug}--${suffix}`;
+}
+
+function slugify(value: string) {
+	return value
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "")
+		.replace(/-{2,}/g, "-");
 }
 
 export function buildStorySaveSnapshot({
