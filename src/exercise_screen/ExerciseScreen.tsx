@@ -174,7 +174,7 @@ export default function ExerciseScreen({
 				</div>
 			)}
 
-			{phase === "reading" && !currentTarget && (
+			{phase === "finished" && (
 				<div className="story__reading story__reading--finished">
 					<div className="story__reading-header">
 						{readingTotalParts !== null && (

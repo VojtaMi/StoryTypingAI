@@ -7,7 +7,12 @@ export interface StorySegment {
 	narrationAudio?: StoryOpeningAudio | null;
 }
 
-export type StoryPhase = "typing" | "authoring" | "loading" | "reading";
+export type StoryPhase =
+	| "typing"
+	| "authoring"
+	| "loading"
+	| "reading"
+	| "finished";
 
 export interface TypingStats {
 	wpm: number;

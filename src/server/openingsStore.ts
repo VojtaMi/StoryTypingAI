@@ -190,7 +190,10 @@ export async function prepareMissingReadingOpenings(
 						genre,
 						existing.text,
 						existing.id,
-						{ sectionIndex: 1 },
+						{
+							sectionIndex: 1,
+							visualContext: readingVisualContext(existing.readingFrame),
+						},
 					),
 				);
 				changed = true;
@@ -317,7 +320,10 @@ async function createPreparedReadingOpening(
 	];
 	const narrationVoice = pickRandomNarrationVoice();
 	const [backgroundImage, openingAudio] = await Promise.all([
-		createBackgroundImage(openai, genre, text, id, { sectionIndex: 1 }),
+		createBackgroundImage(openai, genre, text, id, {
+			sectionIndex: 1,
+			visualContext: readingVisualContext(readingFrame),
+		}),
 		createOpeningAudio(openai, text, id, narrationVoice, { sectionIndex: 1 }),
 	]);
 	return {
@@ -373,9 +379,9 @@ export async function createBackgroundImage(
 	genre: Genre,
 	storyText: string,
 	storyId: string,
-	options: { sectionIndex?: number } = {},
+	options: { sectionIndex?: number; visualContext?: string } = {},
 ): Promise<StoryBackgroundImage> {
-	const prompt = buildBackgroundPrompt(genre, storyText);
+	const prompt = buildBackgroundPrompt(genre, storyText, options.visualContext);
 	try {
 		const response = await openai.images.generate({
 			model: "gpt-image-2",
@@ -407,17 +413,41 @@ export async function createBackgroundImage(
 	}
 }
 
-function buildBackgroundPrompt(genre: Genre, openingText: string) {
+function buildBackgroundPrompt(
+	genre: Genre,
+	openingText: string,
+	visualContext?: string,
+) {
 	return [
 		"Create a cinematic full-page background image for a typing story app.",
 		`Genre: ${genre.label}.`,
+		visualContext
+			? `Visual continuity to preserve across images: ${visualContext}`
+			: "",
 		`Story opening: ${openingText}`,
 		"Use a 3:2 landscape composition suitable for a 1536x1024 desktop background.",
 		"Make the scene feel specific to the opening while preserving room for imagination.",
+		visualContext
+			? "Keep recurring characters the same age, appearance, clothing, and distinctive details unless the scene text explicitly changes them."
+			: "",
 		"Keep the center area moderately low contrast so a translucent text panel remains readable.",
 		"Put brighter highlights and intricate details toward the edges rather than behind the central text.",
 		"No text, letters, logos, signage, UI, watermark, signature, or captions.",
-	].join("\n");
+	]
+		.filter(Boolean)
+		.join("\n");
+}
+
+function readingVisualContext(frame: ReadingStoryFrame) {
+	return [
+		`Main character: ${frame.mainCharacter}.`,
+		frame.mainCharacterVisual
+			? `Stable visual identity: ${frame.mainCharacterVisual}`
+			: "",
+		`Setting: ${frame.setting}.`,
+	]
+		.filter(Boolean)
+		.join(" ");
 }
 
 async function readPreparedOpening(

@@ -17,6 +17,7 @@ export interface ReadingStoryFrame {
 	level: "beginner";
 	premise: string;
 	mainCharacter: string;
+	mainCharacterVisual: string;
 	setting: string;
 	beats: ReadingStoryBeat[];
 }
@@ -46,15 +47,17 @@ const READING_FRAME_MAX_TOKENS = 900;
 const READING_FRAME_PROMPT =
 	"Plan a six-part beginner Esperanto reading story. " +
 	"Return only valid JSON with this exact shape: " +
-	'{"totalParts":6,"level":"beginner","premise":"short English premise","mainCharacter":"short English description","setting":"short English setting","beats":[{"part":1,"role":"beginning","summary":"English beat summary","languageFocus":"English language focus"},{"part":2,"role":"inciting event","summary":"English beat summary","languageFocus":"English language focus"},{"part":3,"role":"first attempt","summary":"English beat summary","languageFocus":"English language focus"},{"part":4,"role":"complication","summary":"English beat summary","languageFocus":"English language focus"},{"part":5,"role":"resolution attempt","summary":"English beat summary","languageFocus":"English language focus"},{"part":6,"role":"ending","summary":"English beat summary","languageFocus":"English language focus"}]} ' +
+	'{"totalParts":6,"level":"beginner","premise":"short English premise","mainCharacter":"short English description","mainCharacterVisual":"concrete hidden visual continuity description","setting":"short English setting","beats":[{"part":1,"role":"beginning","summary":"English beat summary","languageFocus":"English language focus"},{"part":2,"role":"inciting event","summary":"English beat summary","languageFocus":"English language focus"},{"part":3,"role":"first attempt","summary":"English beat summary","languageFocus":"English language focus"},{"part":4,"role":"complication","summary":"English beat summary","languageFocus":"English language focus"},{"part":5,"role":"resolution attempt","summary":"English beat summary","languageFocus":"English language focus"},{"part":6,"role":"ending","summary":"English beat summary","languageFocus":"English language focus"}]} ' +
 	"Write the frame fields in English. Use exactly six beats numbered 1 through 6. " +
 	"Do not include comments, markdown, prose outside the JSON, trailing commas, or ellipses. " +
 	"Use character names that do not look like common Esperanto grammar words; do not use names like Mia. " +
+	"mainCharacterVisual is hidden image-generation context: state the main character's age bracket, visual presentation, hair, clothing, recurring object, and any stable distinctive detail. " +
 	"Keep the story concrete, warm, and suitable for an absolute beginner.";
 
 const READING_FRAME_REPAIR_PROMPT =
 	"Repair this into valid JSON for a six-part beginner Esperanto reading story frame. " +
-	"Return only JSON with totalParts 6, level beginner, premise, mainCharacter, setting, and exactly six beats. " +
+	"Return only JSON with totalParts 6, level beginner, premise, mainCharacter, mainCharacterVisual, setting, and exactly six beats. " +
+	"mainCharacterVisual must be concrete hidden image-generation context with age bracket, visual presentation, hair, clothing, recurring object, and stable distinctive detail. " +
 	"Each beat must have part, role, summary, and languageFocus. No markdown, comments, trailing commas, or ellipses.";
 
 export const READING_STORY_TOTAL_PARTS = 6;
@@ -145,6 +148,7 @@ export function parseReadingStoryFrame(raw: string): ReadingStoryFrame {
 		parsed.level !== "beginner" ||
 		typeof parsed.premise !== "string" ||
 		typeof parsed.mainCharacter !== "string" ||
+		typeof parsed.mainCharacterVisual !== "string" ||
 		typeof parsed.setting !== "string" ||
 		!Array.isArray(parsed.beats) ||
 		parsed.beats.length !== READING_STORY_TOTAL_PARTS
@@ -175,6 +179,7 @@ export function parseReadingStoryFrame(raw: string): ReadingStoryFrame {
 		level: "beginner",
 		premise: parsed.premise,
 		mainCharacter: parsed.mainCharacter,
+		mainCharacterVisual: parsed.mainCharacterVisual,
 		setting: parsed.setting,
 		beats,
 	};

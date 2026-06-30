@@ -198,7 +198,7 @@ export async function generateStoryBackgroundImage(
 	genreId: GenreId,
 	messages: ChatMessage[],
 	storyId: string,
-	options: { sectionIndex?: number } = {},
+	options: { sectionIndex?: number; visualContext?: string } = {},
 ): Promise<StoryBackgroundImage> {
 	const res = await fetch("/api/ai/background-image", {
 		method: "POST",

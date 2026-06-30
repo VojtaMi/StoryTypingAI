@@ -91,6 +91,18 @@ function readingBackgroundMessages(
 	];
 }
 
+function readingVisualContext(frame: ReadingStoryFrame): string {
+	return [
+		`Main character: ${frame.mainCharacter}.`,
+		frame.mainCharacterVisual
+			? `Stable visual identity: ${frame.mainCharacterVisual}`
+			: "",
+		`Setting: ${frame.setting}.`,
+	]
+		.filter(Boolean)
+		.join(" ");
+}
+
 function completedAiSegment(
 	id: number,
 	text: string,
@@ -245,13 +257,14 @@ export function useStorySession({
 			saveId: string,
 			storyMessages: ChatMessage[],
 			sectionIndex?: number,
+			visualContext?: string,
 		) => {
 			try {
 				const nextBackgroundImage = await generateStoryBackgroundImage(
 					selected.id,
 					storyMessages,
 					saveId,
-					{ sectionIndex },
+					{ sectionIndex, visualContext },
 				);
 				if (
 					activeSaveIdRef.current !== saveId ||
@@ -371,7 +384,10 @@ export function useStorySession({
 						preloadGenre.id,
 						readingBackgroundMessages(preloadGenre, updatedMessages),
 						saveId,
-						{ sectionIndex: nextPartIndex },
+						{
+							sectionIndex: nextPartIndex,
+							visualContext: readingVisualContext(frame),
+						},
 					).catch((err) => {
 						console.warn("Could not preload background image.", err);
 						return null;
@@ -714,6 +730,7 @@ export function useStorySession({
 					saveId,
 					readingBackgroundMessages(selected, seeded),
 					1,
+					readingVisualContext(frame),
 				);
 			}
 			void preloadNextReadingPart({
@@ -984,15 +1001,14 @@ export function useStorySession({
 		// Cancel any in-flight preload and clear stored prepared part.
 		++preloadGenerationRef.current;
 		setPreparedNextPart(null);
-
-		setSegments(nextSegments);
-		setCurrentTarget(null);
-		setStreamingTarget("");
-		setOpeningAudio(null);
 		setError(null);
 
 		if (readingPartIndex >= totalParts) {
-			setPhase("reading");
+			setSegments(nextSegments);
+			setCurrentTarget(null);
+			setStreamingTarget("");
+			setOpeningAudio(null);
+			setPhase("finished");
 			void persistStory(
 				buildStorySaveSnapshot({
 					id: activeSaveId,
@@ -1002,7 +1018,7 @@ export function useStorySession({
 					memory,
 					segments: nextSegments,
 					currentTarget: null,
-					phase: "reading",
+					phase: "finished",
 					backgroundIntro: backgroundIntro ?? undefined,
 					backgroundImage,
 					openingAudio: null,
@@ -1028,8 +1044,10 @@ export function useStorySession({
 
 			if (nextBackgroundImage) setBackgroundImage(nextBackgroundImage);
 
+			setSegments(nextSegments);
 			setMessages(updatedMessages);
 			setCurrentTarget(text);
+			setStreamingTarget("");
 			setOpeningAudio(nextOpeningAudio);
 			setReadingPartIndex(nextPartIndex);
 			setPhase("reading");
@@ -1066,6 +1084,7 @@ export function useStorySession({
 					activeSaveId,
 					readingBackgroundMessages(genre, updatedMessages),
 					nextPartIndex,
+					readingVisualContext(readingFrame),
 				);
 			}
 
@@ -1090,27 +1109,7 @@ export function useStorySession({
 				content: `Continue the six-part reading story with part ${nextPartIndex} of ${totalParts}.`,
 			},
 		];
-		setMessages(loadingMessages);
 		setPhase("loading");
-		void persistStory(
-			buildStorySaveSnapshot({
-				id: activeSaveId,
-				genre,
-				title: activeTitle ?? fallbackTitle(genre),
-				messages: loadingMessages,
-				memory,
-				segments: nextSegments,
-				currentTarget: null,
-				phase: "loading",
-				backgroundIntro: backgroundIntro ?? undefined,
-				backgroundImage,
-				openingAudio: null,
-				readingFrame,
-				readingPartIndex: nextPartIndex,
-				narrationVoice,
-				preparedNextPart: null,
-			}),
-		);
 
 		try {
 			const { text } = await generateReadingStoryPartStream(
@@ -1136,6 +1135,7 @@ export function useStorySession({
 				return null;
 			});
 
+			setSegments(nextSegments);
 			setMessages(updatedMessages);
 			setCurrentTarget(text);
 			setStreamingTarget("");
@@ -1168,6 +1168,7 @@ export function useStorySession({
 					activeSaveId,
 					readingBackgroundMessages(genre, updatedMessages),
 					nextPartIndex,
+					readingVisualContext(readingFrame),
 				);
 			}
 			void preloadNextReadingPart({
@@ -1279,6 +1280,14 @@ export function useStorySession({
 				);
 				if (!selected) throw new Error(`Unknown genre: ${save.genreId}`);
 				activeSaveIdRef.current = save.id;
+				const restoredPhase: StoryPhase =
+					save.phase === "reading" &&
+					save.currentTarget === null &&
+					save.readingFrame !== undefined &&
+					save.segments.filter((segment) => segment.author === "ai").length >=
+						save.readingFrame.totalParts
+						? "finished"
+						: save.phase;
 				setActiveSaveId(save.id);
 				setActiveTitle(save.title);
 				setGenre(selected);
@@ -1287,7 +1296,7 @@ export function useStorySession({
 				setSegments(save.segments);
 				setCurrentTarget(save.currentTarget);
 				setStreamingTarget("");
-				setPhase(save.phase);
+				setPhase(restoredPhase);
 				setReadingFrame(save.readingFrame ?? null);
 				setReadingPartIndex(save.readingPartIndex ?? null);
 				const savedNarrationVoice = isNarrationVoiceId(save.narrationVoice)
