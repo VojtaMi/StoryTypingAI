@@ -9,14 +9,17 @@ import {
 	type ChatMessage,
 	type Complete,
 	generateIntro,
+	generateReadingFrame,
 	generateTitle,
 	openingMessages,
+	type ReadingStoryFrame,
+	readingPartMessages,
 } from "./story";
 import { prepareStoryContext, type StoryMemory } from "./story_memory";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
 
-export type { ChatMessage, StoryMemory };
+export type { ChatMessage, ReadingStoryFrame, StoryMemory };
 
 export type EsperantoTutorChatMessage = {
 	role: "user" | "assistant";
@@ -120,6 +123,31 @@ export async function startStory(
 	const text = await complete(messages, model);
 	messages.push({ role: "assistant", content: text });
 	return { text, messages };
+}
+
+export async function generateReadingStoryFrame(
+	genre: Genre,
+	model: TextModelId = DEFAULT_TEXT_MODEL,
+): Promise<ReadingStoryFrame> {
+	return generateReadingFrame(httpCompleter(model), genre);
+}
+
+export async function generateReadingStoryPartStream(
+	frame: ReadingStoryFrame,
+	partIndex: number,
+	previousParts: string[],
+	onChunk: (chunk: string) => void,
+	model: TextModelId = DEFAULT_TEXT_MODEL,
+): Promise<{
+	text: string;
+	messages: ChatMessage[];
+}> {
+	const messages = readingPartMessages(frame, partIndex, previousParts);
+	const text = await completeStream(messages, model, onChunk, 260);
+	return {
+		text,
+		messages: [...messages, { role: "assistant", content: text }],
+	};
 }
 
 export async function continueStoryStream(

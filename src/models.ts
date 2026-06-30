@@ -5,7 +5,7 @@ export const TEXT_MODELS = [
 ] as const;
 
 export type TextModelId = (typeof TEXT_MODELS)[number]["id"];
-export const DEFAULT_TEXT_MODEL: TextModelId = "claude-sonnet-4-6";
+export const DEFAULT_TEXT_MODEL: TextModelId = "gpt-5.5";
 
 /**
  * Default model for the Esperanto Bot chat. The bot answers short, interactive

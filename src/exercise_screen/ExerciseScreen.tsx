@@ -30,8 +30,11 @@ interface ExerciseScreenProps {
 	storyId: string | null;
 	currentImageUrl: string | null;
 	openingAudioUrl: string | null;
+	readingPartIndex: number | null;
+	readingTotalParts: number | null;
 	wordTranslations: Record<string, string> | null;
 	onRegenerateWord: (word: string) => Promise<string | null>;
+	onContinueReading: () => void;
 	onTypingComplete: (stats: TypingStats) => void;
 	onSubmitContinuation: (text: string) => void;
 	onAutoContinue: () => void;
@@ -48,8 +51,11 @@ export default function ExerciseScreen({
 	storyId,
 	currentImageUrl,
 	openingAudioUrl,
+	readingPartIndex,
+	readingTotalParts,
 	wordTranslations,
 	onRegenerateWord,
+	onContinueReading,
 	onTypingComplete,
 	onSubmitContinuation,
 	onAutoContinue,
@@ -64,6 +70,15 @@ export default function ExerciseScreen({
 	const canShowGallery =
 		Boolean(storyId) &&
 		Boolean(currentImageUrl?.startsWith("/api/story-images/"));
+	const readingProgress =
+		readingPartIndex !== null && readingTotalParts !== null
+			? `Part ${readingPartIndex} of ${readingTotalParts}`
+			: null;
+	const canContinueReading =
+		phase === "reading" &&
+		currentTarget !== null &&
+		readingPartIndex !== null &&
+		readingTotalParts !== null;
 
 	useEffect(() => {
 		if (!popover) return;
@@ -119,6 +134,9 @@ export default function ExerciseScreen({
 			{phase === "reading" && currentTarget && (
 				<div className="story__reading">
 					<div className="story__reading-header">
+						{readingProgress && (
+							<p className="story__reading-progress">{readingProgress}</p>
+						)}
 						<OpeningAudioControl audioUrl={openingAudioUrl} />
 					</div>
 					<p className="story__reading-text">
@@ -141,6 +159,31 @@ export default function ExerciseScreen({
 							);
 						})}
 					</p>
+					<div className="story__reading-actions">
+						<button
+							type="button"
+							className="story__reading-next"
+							disabled={!canContinueReading}
+							onClick={onContinueReading}
+						>
+							{canContinueReading && readingPartIndex === readingTotalParts
+								? "Finish story"
+								: "Next part"}
+						</button>
+					</div>
+				</div>
+			)}
+
+			{phase === "reading" && !currentTarget && (
+				<div className="story__reading story__reading--finished">
+					<div className="story__reading-header">
+						{readingTotalParts !== null && (
+							<p className="story__reading-progress">
+								Part {readingTotalParts} of {readingTotalParts}
+							</p>
+						)}
+					</div>
+					<p className="story__reading-finished">Story finished</p>
 				</div>
 			)}
 

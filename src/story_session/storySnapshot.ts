@@ -1,4 +1,4 @@
-import type { ChatMessage, StoryMemory } from "../ai";
+import type { ChatMessage, ReadingStoryFrame, StoryMemory } from "../ai";
 import type { StoryPhase, StorySegment } from "../exercise_screen/types";
 import type { Genre } from "../genres";
 import type { NarrationVoiceId } from "../narrationVoice";
@@ -17,6 +17,8 @@ interface StorySaveSnapshotInput {
 	phase: StoryPhase;
 	backgroundIntro?: string;
 	narrationVoice?: NarrationVoiceId;
+	readingFrame?: ReadingStoryFrame;
+	readingPartIndex?: number;
 	backgroundImage?: StoryBackgroundImage | null;
 	openingAudio?: StoryOpeningAudio | null;
 }
@@ -41,6 +43,8 @@ export function buildStorySaveSnapshot({
 	phase,
 	backgroundIntro,
 	narrationVoice,
+	readingFrame,
+	readingPartIndex,
 	backgroundImage,
 	openingAudio,
 }: StorySaveSnapshotInput): Omit<SavedStory, "updatedAt"> {
@@ -55,6 +59,8 @@ export function buildStorySaveSnapshot({
 		phase,
 		backgroundIntro,
 		narrationVoice,
+		readingFrame,
+		readingPartIndex,
 		...(backgroundImage ?? undefined),
 		...(openingAudio ?? undefined),
 	};

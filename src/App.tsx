@@ -268,12 +268,15 @@ export default function App() {
 		backToMenu,
 		backgroundImage,
 		backgroundIntro,
+		continueReadingStory,
 		currentTarget,
 		error,
 		genre,
 		handleTypingComplete,
 		openingAudio,
 		phase,
+		readingPartIndex,
+		readingTotalParts,
 		resumeStory,
 		segments,
 		selectGenre,
@@ -450,7 +453,9 @@ export default function App() {
 			{view === "story" && (
 				<header className="header">
 					<h1>
-						{phase === "reading" ? "Story Reading" : "Story Typing Practice"}
+						{phase === "reading" || readingPartIndex !== null
+							? "Story Reading"
+							: "Story Typing Practice"}
 					</h1>
 					<p className="subtitle">
 						{genre ? `${genre.emoji} ${genre.label}` : ""}
@@ -599,8 +604,11 @@ export default function App() {
 					storyId={activeSaveId}
 					currentImageUrl={backgroundImage?.backgroundImageUrl ?? null}
 					openingAudioUrl={openingAudio?.openingAudioUrl ?? null}
+					readingPartIndex={readingPartIndex}
+					readingTotalParts={readingTotalParts}
 					wordTranslations={wordTranslations}
 					onRegenerateWord={regenerateWordTranslation}
+					onContinueReading={continueReadingStory}
 					onTypingComplete={handleTypingComplete}
 					onSubmitContinuation={submitContinuation}
 					onAutoContinue={autoContinueStory}
