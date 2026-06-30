@@ -169,6 +169,7 @@ export function useStorySession({
 	const prepareOpeningsAgainRef = useRef(false);
 	const preparingReadingOpeningsRef = useRef(false);
 	const prepareReadingOpeningsAgainRef = useRef(false);
+	const openingAudioRecoveryKeyRef = useRef<string | null>(null);
 
 	useEffect(() => {
 		activeSaveIdRef.current = activeSaveId;
@@ -250,6 +251,83 @@ export function useStorySession({
 		onSavesError,
 		onTitleGenerated: setActiveTitle,
 	});
+
+	useEffect(() => {
+		if (
+			phase !== "reading" ||
+			!genre ||
+			!activeSaveId ||
+			!currentTarget ||
+			readingPartIndex === null ||
+			(openingAudio?.openingAudioText === currentTarget &&
+				openingAudio.openingAudioVoice === narrationVoice)
+		) {
+			return;
+		}
+
+		const recoveryKey = [
+			activeSaveId,
+			readingPartIndex,
+			narrationVoice,
+			currentTarget,
+		].join("\n");
+		if (openingAudioRecoveryKeyRef.current === recoveryKey) return;
+		openingAudioRecoveryKeyRef.current = recoveryKey;
+
+		let cancelled = false;
+		generateOpeningAudio(currentTarget, activeSaveId, narrationVoice, {
+			sectionIndex: readingPartIndex,
+		})
+			.then((nextOpeningAudio) => {
+				if (
+					cancelled ||
+					activeSaveIdRef.current !== activeSaveId ||
+					currentTargetRef.current !== currentTarget ||
+					readingPartIndexRef.current !== readingPartIndex
+				) {
+					return;
+				}
+
+				setOpeningAudio(nextOpeningAudio);
+				void persistStory(
+					buildStorySaveSnapshot({
+						id: activeSaveId,
+						genre,
+						title: activeTitleRef.current ?? fallbackTitle(genre),
+						messages: messagesRef.current,
+						memory: memoryRef.current,
+						segments: segmentsRef.current,
+						currentTarget,
+						phase: phaseRef.current,
+						backgroundIntro: backgroundIntro ?? undefined,
+						backgroundImage: backgroundImage,
+						openingAudio: nextOpeningAudio,
+						readingFrame: readingFrameRef.current ?? undefined,
+						readingPartIndex,
+						narrationVoice,
+						preparedNextPart: preparedNextPartRef.current ?? undefined,
+					}),
+				);
+			})
+			.catch((err) => {
+				console.warn("Could not recover opening audio.", err);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		activeSaveId,
+		backgroundImage,
+		backgroundIntro,
+		currentTarget,
+		genre,
+		narrationVoice,
+		openingAudio,
+		persistStory,
+		phase,
+		readingPartIndex,
+	]);
 
 	const generateAndApplyStoryBackground = useCallback(
 		async (
@@ -1039,7 +1117,14 @@ export function useStorySession({
 			// Fast path: text was preloaded — skip the loading phase entirely.
 			const text = prepared.text as string;
 			const updatedMessages = prepared.messages as ChatMessage[];
-			const nextOpeningAudio = prepared.openingAudio ?? null;
+			const nextOpeningAudio =
+				prepared.openingAudio ??
+				(await generateOpeningAudio(text, activeSaveId, narrationVoice, {
+					sectionIndex: nextPartIndex,
+				}).catch((err) => {
+					console.warn("Could not generate opening audio.", err);
+					return null;
+				}));
 			const nextBackgroundImage = prepared.backgroundImage; // undefined = cadence skipped it
 
 			if (nextBackgroundImage) setBackgroundImage(nextBackgroundImage);

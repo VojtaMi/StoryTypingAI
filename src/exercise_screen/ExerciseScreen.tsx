@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getWordAudioUrl } from "../ai";
+import { getWordAudioUrl, regenerateWordAudioUrl } from "../ai";
 import "../gallery/gallery.css";
 import { GalleryModal } from "../gallery/GalleryModal";
 import { AuthoringInput } from "./authoring/AuthoringInput";
@@ -65,6 +65,9 @@ export default function ExerciseScreen({
 	const [chatOpen, setChatOpen] = useState(false);
 	const [popover, setPopover] = useState<WordPopover | null>(null);
 	const [regenerating, setRegenerating] = useState(false);
+	const [wordAudioUrls, setWordAudioUrls] = useState<Record<string, string>>(
+		{},
+	);
 	const popoverRef = useRef<HTMLDivElement>(null);
 
 	const canShowGallery =
@@ -91,19 +94,33 @@ export default function ExerciseScreen({
 		return () => document.removeEventListener("mousedown", handler);
 	}, [popover]);
 
+	const playWordAudio = (word: string, audioUrl?: string) => {
+		const normalizedWord = word.toLowerCase();
+		const existingUrl = audioUrl ?? wordAudioUrls[normalizedWord];
+		(existingUrl
+			? Promise.resolve(existingUrl)
+			: getWordAudioUrl(normalizedWord)
+		)
+			.then((url) => {
+				if (!existingUrl) {
+					setWordAudioUrls((prev) => ({ ...prev, [normalizedWord]: url }));
+				}
+				return new Audio(url).play();
+			})
+			.catch(() => {
+				const utt = new SpeechSynthesisUtterance(word);
+				utt.lang = "eo";
+				speechSynthesis.cancel();
+				speechSynthesis.speak(utt);
+			});
+	};
+
 	const handleWordClick = (
 		token: string,
 		translation: string,
 		e: React.MouseEvent<HTMLButtonElement>,
 	) => {
-		getWordAudioUrl(token.toLowerCase())
-			.then((url) => new Audio(url).play())
-			.catch(() => {
-				const utt = new SpeechSynthesisUtterance(token);
-				utt.lang = "eo";
-				speechSynthesis.cancel();
-				speechSynthesis.speak(utt);
-			});
+		playWordAudio(token);
 
 		const rect = e.currentTarget.getBoundingClientRect();
 		setPopover({
@@ -118,8 +135,13 @@ export default function ExerciseScreen({
 		if (!popover || regenerating) return;
 		setRegenerating(true);
 		try {
-			const updated = await onRegenerateWord(popover.word);
+			const [updated, audioUrl] = await Promise.all([
+				onRegenerateWord(popover.word),
+				regenerateWordAudioUrl(popover.word),
+			]);
 			if (updated) setPopover((p) => p && { ...p, translation: updated });
+			setWordAudioUrls((prev) => ({ ...prev, [popover.word]: audioUrl }));
+			playWordAudio(popover.word, audioUrl);
 		} finally {
 			setRegenerating(false);
 		}

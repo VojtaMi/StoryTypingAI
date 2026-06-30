@@ -288,6 +288,17 @@ export async function getWordAudioUrl(word: string): Promise<string> {
 	return body.url;
 }
 
+export async function regenerateWordAudioUrl(word: string): Promise<string> {
+	const res = await fetch("/api/word-audio/regenerate", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ word }),
+	});
+	if (!res.ok) throw new Error(`Word audio regenerate failed: ${res.status}`);
+	const body = (await res.json()) as { url: string };
+	return body.url;
+}
+
 export async function regenerateWordTranslation(
 	word: string,
 ): Promise<string | null> {

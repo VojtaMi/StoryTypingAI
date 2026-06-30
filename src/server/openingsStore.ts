@@ -96,54 +96,64 @@ export async function prepareMissingOpenings(
 	await mkdir(openingsDir, { recursive: true });
 
 	for (const genre of genres) {
-		const existing = await readPreparedOpening(genre.id);
-		if (existing) {
-			const id =
-				existing.id ?? createBundleId(`${genre.label} story`, randomUUID());
-			const next: PreparedOpening = {
-				...existing,
-				id,
-			};
-			let changed = existing.id !== id;
-			const narrationVoice = isNarrationVoiceId(existing.narrationVoice)
-				? existing.narrationVoice
-				: pickRandomNarrationVoice();
-			if (next.narrationVoice !== narrationVoice) {
-				next.narrationVoice = narrationVoice;
-				changed = true;
+		try {
+			const existing = await readPreparedOpening(genre.id);
+			if (existing) {
+				const id =
+					existing.id ?? createBundleId(`${genre.label} story`, randomUUID());
+				const next: PreparedOpening = {
+					...existing,
+					id,
+				};
+				let changed = existing.id !== id;
+				const narrationVoice = isNarrationVoiceId(existing.narrationVoice)
+					? existing.narrationVoice
+					: pickRandomNarrationVoice();
+				if (next.narrationVoice !== narrationVoice) {
+					next.narrationVoice = narrationVoice;
+					changed = true;
+				}
+				if (!existing.backgroundImageUrl) {
+					Object.assign(
+						next,
+						await createBackgroundImage(openai, genre, existing.text, id, {
+							sectionIndex: 1,
+						}),
+					);
+					changed = true;
+				}
+				if (
+					!existing.openingAudioUrl ||
+					existing.openingAudioVoice !== narrationVoice
+				) {
+					Object.assign(
+						next,
+						(await createOpeningAudio(
+							openai,
+							existing.text,
+							id,
+							narrationVoice,
+							{
+								sectionIndex: 1,
+							},
+						)) ?? {},
+					);
+					changed = true;
+				}
+				if (changed) await writePreparedOpening(next);
+				continue;
 			}
-			if (!existing.backgroundImageUrl) {
-				Object.assign(
-					next,
-					await createBackgroundImage(openai, genre, existing.text, id, {
-						sectionIndex: 1,
-					}),
-				);
-				changed = true;
-			}
-			if (
-				!existing.openingAudioUrl ||
-				existing.openingAudioVoice !== narrationVoice
-			) {
-				Object.assign(
-					next,
-					(await createOpeningAudio(openai, existing.text, id, narrationVoice, {
-						sectionIndex: 1,
-					})) ?? {},
-				);
-				changed = true;
-			}
-			if (changed) await writePreparedOpening(next);
-			continue;
-		}
 
-		const opening = await createPreparedOpening(
-			openai,
-			genre,
-			model,
-			anthropicKey,
-		);
-		await writePreparedOpening(opening);
+			const opening = await createPreparedOpening(
+				openai,
+				genre,
+				model,
+				anthropicKey,
+			);
+			await writePreparedOpening(opening);
+		} catch (err) {
+			console.warn(`Could not prepare ${genre.label} story opening.`, err);
+		}
 	}
 }
 
@@ -155,60 +165,64 @@ export async function prepareMissingReadingOpenings(
 	await mkdir(readingOpeningsDir, { recursive: true });
 
 	for (const genre of genres) {
-		const existing = await readPreparedReadingOpening(genre.id);
-		if (existing) {
-			let changed = false;
-			const next: PreparedReadingOpening = { ...existing };
-			const narrationVoice = isNarrationVoiceId(existing.narrationVoice)
-				? existing.narrationVoice
-				: pickRandomNarrationVoice();
-			if (next.narrationVoice !== narrationVoice) {
-				next.narrationVoice = narrationVoice;
-				changed = true;
+		try {
+			const existing = await readPreparedReadingOpening(genre.id);
+			if (existing) {
+				let changed = false;
+				const next: PreparedReadingOpening = { ...existing };
+				const narrationVoice = isNarrationVoiceId(existing.narrationVoice)
+					? existing.narrationVoice
+					: pickRandomNarrationVoice();
+				if (next.narrationVoice !== narrationVoice) {
+					next.narrationVoice = narrationVoice;
+					changed = true;
+				}
+				if (
+					!existing.openingAudioUrl ||
+					existing.openingAudioVoice !== narrationVoice
+				) {
+					Object.assign(
+						next,
+						(await createOpeningAudio(
+							openai,
+							existing.text,
+							existing.id,
+							narrationVoice,
+							{ sectionIndex: 1 },
+						)) ?? {},
+					);
+					changed = true;
+				}
+				if (!existing.backgroundImageUrl) {
+					Object.assign(
+						next,
+						await createBackgroundImage(
+							openai,
+							genre,
+							existing.text,
+							existing.id,
+							{
+								sectionIndex: 1,
+								visualContext: readingVisualContext(existing.readingFrame),
+							},
+						),
+					);
+					changed = true;
+				}
+				if (changed) await writePreparedReadingOpening(next);
+				continue;
 			}
-			if (
-				!existing.openingAudioUrl ||
-				existing.openingAudioVoice !== narrationVoice
-			) {
-				Object.assign(
-					next,
-					(await createOpeningAudio(
-						openai,
-						existing.text,
-						existing.id,
-						narrationVoice,
-						{ sectionIndex: 1 },
-					)) ?? {},
-				);
-				changed = true;
-			}
-			if (!existing.backgroundImageUrl) {
-				Object.assign(
-					next,
-					await createBackgroundImage(
-						openai,
-						genre,
-						existing.text,
-						existing.id,
-						{
-							sectionIndex: 1,
-							visualContext: readingVisualContext(existing.readingFrame),
-						},
-					),
-				);
-				changed = true;
-			}
-			if (changed) await writePreparedReadingOpening(next);
-			continue;
-		}
 
-		const opening = await createPreparedReadingOpening(
-			openai,
-			genre,
-			model,
-			anthropicKey,
-		);
-		await writePreparedReadingOpening(opening);
+			const opening = await createPreparedReadingOpening(
+				openai,
+				genre,
+				model,
+				anthropicKey,
+			);
+			await writePreparedReadingOpening(opening);
+		} catch (err) {
+			console.warn(`Could not prepare ${genre.label} reading opening.`, err);
+		}
 	}
 }
 

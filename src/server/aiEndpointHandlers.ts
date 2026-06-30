@@ -19,7 +19,11 @@ import {
 	lookupWords,
 	storeTranslations,
 } from "./translationCacheStore";
-import { getOrCreateWordAudio } from "./wordAudioStore";
+import {
+	getOrCreateWordAudio,
+	regenerateWordAudio,
+	wordFilePattern,
+} from "./wordAudioStore";
 
 export async function handleBackgroundImageRequest(
 	req: IncomingMessage,
@@ -185,7 +189,31 @@ export async function handleWordAudioRequest(
 		sendJson(res, 400, { error: "word is required." });
 		return;
 	}
-	const url = await getOrCreateWordAudio(openai, word.toLowerCase());
+	const normalizedWord = word.toLowerCase();
+	if (!wordFilePattern.test(`${normalizedWord}.mp3`)) {
+		sendJson(res, 400, { error: "word contains unsupported characters." });
+		return;
+	}
+	const url = await getOrCreateWordAudio(openai, normalizedWord);
+	sendJson(res, 200, { url });
+}
+
+export async function handleRegenerateWordAudioRequest(
+	req: IncomingMessage,
+	res: ServerResponse,
+	openai: OpenAI,
+) {
+	const { word } = JSON.parse(await readBody(req));
+	if (!word || typeof word !== "string") {
+		sendJson(res, 400, { error: "word is required." });
+		return;
+	}
+	const normalizedWord = word.toLowerCase();
+	if (!wordFilePattern.test(`${normalizedWord}.mp3`)) {
+		sendJson(res, 400, { error: "word contains unsupported characters." });
+		return;
+	}
+	const url = await regenerateWordAudio(openai, normalizedWord);
 	sendJson(res, 200, { url });
 }
 

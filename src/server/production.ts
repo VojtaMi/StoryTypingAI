@@ -9,6 +9,7 @@ import {
 	handleCompleteRequest,
 	handleCompleteStreamRequest,
 	handleOpeningAudioRequest,
+	handleRegenerateWordAudioRequest,
 	handleRegenerateWordRequest,
 	handleSpeakRequest,
 	handleTranslateWordsRequest,
@@ -326,6 +327,11 @@ const server = createServer(async (req, res) => {
 			req.method === "POST"
 		) {
 			await handleRegenerateWordRequest(req, res, openai);
+			return;
+		}
+
+		if (pathname === "/api/word-audio/regenerate" && req.method === "POST") {
+			await handleRegenerateWordAudioRequest(req, res, openai);
 			return;
 		}
 
