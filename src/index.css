@@ -723,23 +723,47 @@ body[data-view="lesson-typing"] {
 	text-decoration-line: underline;
 	text-decoration-style: dotted;
 	text-decoration-color: var(--muted);
+	background: none;
+	border: none;
+	padding: 0;
+	font: inherit;
+	color: inherit;
 }
 
-.story__word:hover::after {
-	content: attr(data-translation);
-	position: absolute;
-	bottom: calc(100% + 5px);
-	left: 50%;
-	transform: translateX(-50%);
-	padding: 3px 8px;
+.story__word-popover {
+	position: fixed;
+	transform: translateX(-50%) translateY(calc(-100% - 8px));
 	background: var(--surface);
 	border: 1px solid var(--story-border);
 	border-radius: 6px;
+	padding: 4px 8px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
 	font-size: 0.85rem;
 	color: var(--text);
 	white-space: nowrap;
-	pointer-events: none;
-	z-index: 10;
+	z-index: 20;
+	pointer-events: auto;
+}
+
+.story__word-popover__regenerate {
+	background: none;
+	border: none;
+	padding: 0 2px;
+	font-size: 1rem;
+	cursor: pointer;
+	color: var(--muted);
+	line-height: 1;
+}
+
+.story__word-popover__regenerate:hover {
+	color: var(--text);
+}
+
+.story__word-popover__regenerate:disabled {
+	opacity: 0.4;
+	cursor: default;
 }
 
 .story__current-header {

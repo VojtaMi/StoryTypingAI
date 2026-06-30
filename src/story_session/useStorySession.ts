@@ -6,6 +6,7 @@ import {
 	generateOpeningAudio,
 	generateStoryBackgroundImage,
 	generateStoryIntro,
+	regenerateWordTranslation,
 	type StoryMemory,
 	startStory,
 	translateWords,
@@ -816,6 +817,24 @@ export function useStorySession({
 		[onSavesError, onViewChange],
 	);
 
+	const handleRegenerateWord = useCallback(
+		async (word: string): Promise<string | null> => {
+			try {
+				const translation = await regenerateWordTranslation(word);
+				if (translation !== null) {
+					setWordTranslations((prev) =>
+						prev ? { ...prev, [word]: translation } : { [word]: translation },
+					);
+				}
+				return translation;
+			} catch (err) {
+				console.warn("Could not regenerate word translation.", err);
+				return null;
+			}
+		},
+		[],
+	);
+
 	return {
 		activeSaveId,
 		autoContinueStory,
@@ -836,6 +855,7 @@ export function useStorySession({
 				? openingAudio
 				: null,
 		narrationVoice,
+		regenerateWordTranslation: handleRegenerateWord,
 		resumeStory,
 		segments,
 		selectGenre,

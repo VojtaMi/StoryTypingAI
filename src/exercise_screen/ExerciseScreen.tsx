@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { getWordAudioUrl } from "../ai";
 import "../gallery/gallery.css";
 import { GalleryModal } from "../gallery/GalleryModal";
 import { AuthoringInput } from "./authoring/AuthoringInput";
@@ -12,6 +13,13 @@ import { TypingExercise } from "./typing/TypingExercise";
 
 const WORD_PATTERN = /([a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+|[^a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+)/g;
 
+interface WordPopover {
+	word: string;
+	translation: string;
+	x: number;
+	y: number;
+}
+
 interface ExerciseScreenProps {
 	segments: StorySegment[];
 	currentTarget: string | null;
@@ -23,6 +31,7 @@ interface ExerciseScreenProps {
 	currentImageUrl: string | null;
 	openingAudioUrl: string | null;
 	wordTranslations: Record<string, string> | null;
+	onRegenerateWord: (word: string) => Promise<string | null>;
 	onTypingComplete: (stats: TypingStats) => void;
 	onSubmitContinuation: (text: string) => void;
 	onAutoContinue: () => void;
@@ -40,6 +49,7 @@ export default function ExerciseScreen({
 	currentImageUrl,
 	openingAudioUrl,
 	wordTranslations,
+	onRegenerateWord,
 	onTypingComplete,
 	onSubmitContinuation,
 	onAutoContinue,
@@ -47,9 +57,58 @@ export default function ExerciseScreen({
 }: ExerciseScreenProps) {
 	const [galleryOpen, setGalleryOpen] = useState(false);
 	const [chatOpen, setChatOpen] = useState(false);
+	const [popover, setPopover] = useState<WordPopover | null>(null);
+	const [regenerating, setRegenerating] = useState(false);
+	const popoverRef = useRef<HTMLDivElement>(null);
+
 	const canShowGallery =
 		Boolean(storyId) &&
 		Boolean(currentImageUrl?.startsWith("/api/story-images/"));
+
+	useEffect(() => {
+		if (!popover) return;
+		const handler = (e: MouseEvent) => {
+			if (!popoverRef.current?.contains(e.target as Node)) {
+				setPopover(null);
+			}
+		};
+		document.addEventListener("mousedown", handler);
+		return () => document.removeEventListener("mousedown", handler);
+	}, [popover]);
+
+	const handleWordClick = (
+		token: string,
+		translation: string,
+		e: React.MouseEvent<HTMLButtonElement>,
+	) => {
+		getWordAudioUrl(token.toLowerCase())
+			.then((url) => new Audio(url).play())
+			.catch(() => {
+				const utt = new SpeechSynthesisUtterance(token);
+				utt.lang = "eo";
+				speechSynthesis.cancel();
+				speechSynthesis.speak(utt);
+			});
+
+		const rect = e.currentTarget.getBoundingClientRect();
+		setPopover({
+			word: token.toLowerCase(),
+			translation,
+			x: rect.left + rect.width / 2,
+			y: rect.top,
+		});
+	};
+
+	const handleRegenerate = async () => {
+		if (!popover || regenerating) return;
+		setRegenerating(true);
+		try {
+			const updated = await onRegenerateWord(popover.word);
+			if (updated) setPopover((p) => p && { ...p, translation: updated });
+		} finally {
+			setRegenerating(false);
+		}
+	};
 
 	return (
 		<div className="story">
@@ -68,14 +127,17 @@ export default function ExerciseScreen({
 							const isWord = /[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]/.test(token);
 							if (!isWord) return token;
 							const translation = wordTranslations?.[token.toLowerCase()];
-							return (
-								<span
+							return translation ? (
+								<button
 									key={match.index}
-									className={translation ? "story__word" : undefined}
-									data-translation={translation}
+									type="button"
+									className="story__word"
+									onClick={(e) => handleWordClick(token, translation, e)}
 								>
 									{token}
-								</span>
+								</button>
+							) : (
+								<span key={match.index}>{token}</span>
 							);
 						})}
 					</p>
@@ -105,6 +167,25 @@ export default function ExerciseScreen({
 
 			{phase === "loading" && (
 				<StoryLoading streamingTarget={streamingTarget} />
+			)}
+
+			{popover && (
+				<div
+					ref={popoverRef}
+					className="story__word-popover"
+					style={{ left: popover.x, top: popover.y }}
+				>
+					<span>{popover.translation}</span>
+					<button
+						type="button"
+						className="story__word-popover__regenerate"
+						title="Regenerate translation"
+						disabled={regenerating}
+						onClick={handleRegenerate}
+					>
+						↺
+					</button>
+				</div>
 			)}
 
 			{error && <p className="story__error">{error}</p>}

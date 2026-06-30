@@ -14,6 +14,12 @@ import { startNdjsonResponse, writeJsonLine } from "./ndjson";
 import { createBackgroundImage, findGenre } from "./openingsStore";
 import { saveIdPattern } from "./savesStore";
 import { createOpeningAudio } from "./storyAudioStore";
+import {
+	evictWord,
+	lookupWords,
+	storeTranslations,
+} from "./translationCacheStore";
+import { getOrCreateWordAudio } from "./wordAudioStore";
 
 export async function handleBackgroundImageRequest(
 	req: IncomingMessage,
@@ -121,7 +127,44 @@ export async function handleTranslateWordsRequest(
 		sendJson(res, 400, { error: "words must be a string array." });
 		return;
 	}
-	sendJson(res, 200, { translations: await translateWords(openai, words) });
+	const { hits, misses } = await lookupWords(words);
+	if (misses.length === 0) {
+		sendJson(res, 200, { translations: hits });
+		return;
+	}
+	const fresh = await translateWords(openai, misses);
+	await storeTranslations(fresh);
+	sendJson(res, 200, { translations: { ...hits, ...fresh } });
+}
+
+export async function handleRegenerateWordRequest(
+	req: IncomingMessage,
+	res: ServerResponse,
+	openai: OpenAI,
+) {
+	const { word } = JSON.parse(await readBody(req));
+	if (!word || typeof word !== "string") {
+		sendJson(res, 400, { error: "word is required." });
+		return;
+	}
+	await evictWord(word);
+	const fresh = await translateWords(openai, [word]);
+	await storeTranslations(fresh);
+	sendJson(res, 200, { translation: fresh[word] ?? null });
+}
+
+export async function handleWordAudioRequest(
+	req: IncomingMessage,
+	res: ServerResponse,
+	openai: OpenAI,
+) {
+	const { word } = JSON.parse(await readBody(req));
+	if (!word || typeof word !== "string") {
+		sendJson(res, 400, { error: "word is required." });
+		return;
+	}
+	const url = await getOrCreateWordAudio(openai, word.toLowerCase());
+	sendJson(res, 200, { url });
 }
 
 export async function handleCompleteRequest(

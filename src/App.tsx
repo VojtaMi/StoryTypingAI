@@ -277,6 +277,7 @@ export default function App() {
 		resumeStory,
 		segments,
 		selectGenre,
+		regenerateWordTranslation,
 		startLessonStory,
 		startReadingStory,
 		streamingTarget,
@@ -599,6 +600,7 @@ export default function App() {
 					currentImageUrl={backgroundImage?.backgroundImageUrl ?? null}
 					openingAudioUrl={openingAudio?.openingAudioUrl ?? null}
 					wordTranslations={wordTranslations}
+					onRegenerateWord={regenerateWordTranslation}
 					onTypingComplete={handleTypingComplete}
 					onSubmitContinuation={submitContinuation}
 					onAutoContinue={autoContinueStory}

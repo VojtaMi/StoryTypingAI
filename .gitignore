@@ -13,6 +13,8 @@ saves/
 openings/
 story-images/
 story-audio/
+word-audio/
+translation-cache.json
 
 # Editor directories and files
 .codex

@@ -59,7 +59,7 @@ export async function translateWords(
 	if (words.length === 0) return {};
 	const response = await openai.chat.completions.create({
 		model: TRANSLATION_MODEL,
-		max_completion_tokens: 400,
+		max_completion_tokens: 4000,
 		messages: [
 			{
 				role: "system",

@@ -9,8 +9,10 @@ import {
 	handleCompleteRequest,
 	handleCompleteStreamRequest,
 	handleOpeningAudioRequest,
+	handleRegenerateWordRequest,
 	handleSpeakRequest,
 	handleTranslateWordsRequest,
+	handleWordAudioRequest,
 } from "./aiEndpointHandlers";
 import { readBody, sendJson } from "./http";
 import {
@@ -37,6 +39,7 @@ import {
 	writeSave,
 } from "./savesStore";
 import { audioFilePattern, readStoryAudio } from "./storyAudioStore";
+import { readWordAudio, wordFilePattern } from "./wordAudioStore";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PORT = Number(process.env.PORT) || 80;
@@ -269,6 +272,42 @@ const server = createServer(async (req, res) => {
 
 		if (pathname === "/api/ai/translate-words" && req.method === "POST") {
 			await handleTranslateWordsRequest(req, res, openai);
+			return;
+		}
+
+		if (
+			pathname === "/api/ai/translate-words/regenerate" &&
+			req.method === "POST"
+		) {
+			await handleRegenerateWordRequest(req, res, openai);
+			return;
+		}
+
+		if (pathname === "/api/word-audio" && req.method === "POST") {
+			await handleWordAudioRequest(req, res, openai);
+			return;
+		}
+
+		if (
+			parts.length === 3 &&
+			parts[0] === "api" &&
+			parts[1] === "word-audio" &&
+			req.method === "GET"
+		) {
+			const word = decodeURIComponent(parts[2] ?? "");
+			if (!word || !wordFilePattern.test(`${word}.mp3`)) {
+				sendJson(res, 404, { error: "Audio not found." });
+				return;
+			}
+			try {
+				const file = await readWordAudio(word);
+				res.statusCode = 200;
+				res.setHeader("Content-Type", "audio/mpeg");
+				res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+				res.end(file);
+			} catch {
+				sendJson(res, 404, { error: "Audio not found." });
+			}
 			return;
 		}
 

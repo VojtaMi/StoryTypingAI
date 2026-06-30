@@ -27,3 +27,7 @@ The commit hook runs Biome on staged files, so keep changes passing:
 ```bash
 npm run lint:staged
 ```
+
+## Playwright Screenshots
+
+When using the Playwright MCP tool, always pass absolute scratchpad paths for screenshots — never bare filenames. The scratchpad path is provided in the system prompt at session start (under "Scratchpad Directory"). Bare filenames land in the project root and pollute the working tree.
