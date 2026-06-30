@@ -4,10 +4,9 @@ import { speakStorySegment } from "../../ai";
 export type NarrationStatus = "idle" | "loading" | "playing" | "error";
 
 /**
- * Lazily narrates story segments. Audio is fetched on first play and cached as an
- * object URL for the rest of the session, keyed by the segment text so identical
- * passages reuse a single blob. A single shared <audio> element guarantees only
- * one segment plays at a time.
+ * Plays story segment narration. Segments with prepared audio replay that stable
+ * MP3 URL; older segments without saved audio fall back to lazy TTS generation.
+ * A single shared <audio> element guarantees only one segment plays at a time.
  */
 export function useSegmentNarration() {
 	const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -33,12 +32,20 @@ export function useSegmentNarration() {
 	}, []);
 
 	const toggle = useCallback(
-		async (text: string) => {
+		async ({
+			key,
+			text,
+			audioUrl,
+		}: {
+			key: string;
+			text: string;
+			audioUrl?: string | null;
+		}) => {
 			const audio = audioRef.current;
 			if (!audio) return;
 
 			// Clicking the segment that is currently playing pauses it.
-			if (activeKey === text && status === "playing") {
+			if (activeKey === key && status === "playing") {
 				audio.pause();
 				setActiveKey(null);
 				setStatus("idle");
@@ -46,10 +53,10 @@ export function useSegmentNarration() {
 			}
 
 			audio.pause();
-			setActiveKey(text);
+			setActiveKey(key);
 			setStatus("loading");
 			try {
-				let url = urlCacheRef.current.get(text);
+				let url = audioUrl ?? urlCacheRef.current.get(text);
 				if (!url) {
 					const blob = await speakStorySegment(text);
 					url = URL.createObjectURL(blob);
@@ -62,14 +69,14 @@ export function useSegmentNarration() {
 			} catch (err) {
 				console.warn("Could not narrate the story segment.", err);
 				setStatus("error");
-				setActiveKey(text);
+				setActiveKey(key);
 			}
 		},
 		[activeKey, status],
 	);
 
 	const statusFor = useCallback(
-		(text: string): NarrationStatus => (activeKey === text ? status : "idle"),
+		(key: string): NarrationStatus => (activeKey === key ? status : "idle"),
 		[activeKey, status],
 	);
 

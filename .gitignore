@@ -10,7 +10,9 @@ dist-server
 dist-ssr
 *.local
 saves/
+stories/
 openings/
+reading-openings/
 story-images/
 story-audio/
 word-audio/

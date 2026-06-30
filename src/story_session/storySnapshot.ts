@@ -2,7 +2,7 @@ import type { ChatMessage, ReadingStoryFrame, StoryMemory } from "../ai";
 import type { StoryPhase, StorySegment } from "../exercise_screen/types";
 import type { Genre } from "../genres";
 import type { NarrationVoiceId } from "../narrationVoice";
-import type { SavedStory } from "../saves";
+import type { PreparedReadingPart, SavedStory } from "../saves";
 import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
 
@@ -21,6 +21,7 @@ interface StorySaveSnapshotInput {
 	readingPartIndex?: number;
 	backgroundImage?: StoryBackgroundImage | null;
 	openingAudio?: StoryOpeningAudio | null;
+	preparedNextPart?: PreparedReadingPart | null;
 }
 
 export function fallbackTitle(selected: Genre) {
@@ -28,8 +29,10 @@ export function fallbackTitle(selected: Genre) {
 }
 
 export function createSaveId() {
-	if (crypto.randomUUID) return crypto.randomUUID();
-	return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+	const id = crypto.randomUUID
+		? crypto.randomUUID()
+		: `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+	return `esperanto-story--${id.slice(0, 8).toLowerCase()}`;
 }
 
 export function buildStorySaveSnapshot({
@@ -47,6 +50,7 @@ export function buildStorySaveSnapshot({
 	readingPartIndex,
 	backgroundImage,
 	openingAudio,
+	preparedNextPart,
 }: StorySaveSnapshotInput): Omit<SavedStory, "updatedAt"> {
 	return {
 		id,
@@ -61,6 +65,7 @@ export function buildStorySaveSnapshot({
 		narrationVoice,
 		readingFrame,
 		readingPartIndex,
+		preparedNextPart: preparedNextPart ?? undefined,
 		...(backgroundImage ?? undefined),
 		...(openingAudio ?? undefined),
 	};

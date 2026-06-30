@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type OpenAI from "openai";
 import { type Genre, type GenreId, genres } from "../genres";
 import { DEFAULT_TEXT_MODEL } from "../models";
@@ -9,12 +9,25 @@ import {
 	type NarrationVoiceId,
 	pickRandomNarrationVoice,
 } from "../narrationVoice";
+import {
+	type ChatMessage,
+	generateReadingFrame,
+	type ReadingStoryFrame,
+	readingPartMessages,
+} from "../story";
 import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
 import { completeAi } from "./aiService";
 import { createOpeningAudio } from "./storyAudioStore";
+import {
+	bundledImagesPath,
+	bundleIdPattern,
+	createBundleId,
+	pathExists,
+} from "./storyBundleStore";
 
 const openingsDir = join(process.cwd(), "openings");
+const readingOpeningsDir = join(process.cwd(), "reading-openings");
 const storyImagesDir = join(process.cwd(), "story-images");
 
 export const imageFilePattern = /^[a-zA-Z0-9_-]+\.webp$/;
@@ -34,10 +47,37 @@ interface PreparedOpening
 	createdAt: string;
 }
 
+interface PreparedReadingOpening
+	extends Partial<StoryBackgroundImage>,
+		Partial<StoryOpeningAudio> {
+	id: string;
+	genreId: GenreId;
+	text: string;
+	messages: ChatMessage[];
+	readingFrame: ReadingStoryFrame;
+	readingPartIndex: number;
+	narrationVoice: NarrationVoiceId;
+	createdAt: string;
+}
+
 export async function listPreparedOpenings() {
 	await mkdir(openingsDir, { recursive: true });
 	const openings = await Promise.all(
 		genres.map(async (genre) => readPreparedOpening(genre.id)),
+	);
+
+	return openings
+		.filter((opening) => opening !== null)
+		.map((opening) => ({
+			genreId: opening.genreId,
+			createdAt: opening.createdAt,
+		}));
+}
+
+export async function listPreparedReadingOpenings() {
+	await mkdir(readingOpeningsDir, { recursive: true });
+	const openings = await Promise.all(
+		genres.map(async (genre) => readPreparedReadingOpening(genre.id)),
 	);
 
 	return openings
@@ -58,7 +98,8 @@ export async function prepareMissingOpenings(
 	for (const genre of genres) {
 		const existing = await readPreparedOpening(genre.id);
 		if (existing) {
-			const id = existing.id ?? randomUUID();
+			const id =
+				existing.id ?? createBundleId(`${genre.label} story`, randomUUID());
 			const next: PreparedOpening = {
 				...existing,
 				id,
@@ -74,7 +115,9 @@ export async function prepareMissingOpenings(
 			if (!existing.backgroundImageUrl) {
 				Object.assign(
 					next,
-					await createBackgroundImage(openai, genre, existing.text, id),
+					await createBackgroundImage(openai, genre, existing.text, id, {
+						sectionIndex: 1,
+					}),
 				);
 				changed = true;
 			}
@@ -84,12 +127,9 @@ export async function prepareMissingOpenings(
 			) {
 				Object.assign(
 					next,
-					(await createOpeningAudio(
-						openai,
-						existing.text,
-						id,
-						narrationVoice,
-					)) ?? {},
+					(await createOpeningAudio(openai, existing.text, id, narrationVoice, {
+						sectionIndex: 1,
+					})) ?? {},
 				);
 				changed = true;
 			}
@@ -107,6 +147,68 @@ export async function prepareMissingOpenings(
 	}
 }
 
+export async function prepareMissingReadingOpenings(
+	openai: OpenAI,
+	model = DEFAULT_TEXT_MODEL,
+	anthropicKey = "",
+) {
+	await mkdir(readingOpeningsDir, { recursive: true });
+
+	for (const genre of genres) {
+		const existing = await readPreparedReadingOpening(genre.id);
+		if (existing) {
+			let changed = false;
+			const next: PreparedReadingOpening = { ...existing };
+			const narrationVoice = isNarrationVoiceId(existing.narrationVoice)
+				? existing.narrationVoice
+				: pickRandomNarrationVoice();
+			if (next.narrationVoice !== narrationVoice) {
+				next.narrationVoice = narrationVoice;
+				changed = true;
+			}
+			if (
+				!existing.openingAudioUrl ||
+				existing.openingAudioVoice !== narrationVoice
+			) {
+				Object.assign(
+					next,
+					(await createOpeningAudio(
+						openai,
+						existing.text,
+						existing.id,
+						narrationVoice,
+						{ sectionIndex: 1 },
+					)) ?? {},
+				);
+				changed = true;
+			}
+			if (!existing.backgroundImageUrl) {
+				Object.assign(
+					next,
+					await createBackgroundImage(
+						openai,
+						genre,
+						existing.text,
+						existing.id,
+						{ sectionIndex: 1 },
+					),
+				);
+				changed = true;
+			}
+			if (changed) await writePreparedReadingOpening(next);
+			continue;
+		}
+
+		const opening = await createPreparedReadingOpening(
+			openai,
+			genre,
+			model,
+			anthropicKey,
+		);
+		await writePreparedReadingOpening(opening);
+	}
+}
+
 export async function consumePreparedOpening(
 	genreId: GenreId,
 ): Promise<PreparedOpening | null> {
@@ -116,15 +218,33 @@ export async function consumePreparedOpening(
 	return opening;
 }
 
+export async function consumePreparedReadingOpening(
+	genreId: GenreId,
+): Promise<PreparedReadingOpening | null> {
+	const opening = await readPreparedReadingOpening(genreId);
+	if (!opening) return null;
+	await rm(readingOpeningPath(genreId), { force: true });
+	return opening;
+}
+
 export async function readStoryImage(relativePath: string) {
+	const [storyId, filename] = relativePath.split("/");
+	if (storyId && filename) {
+		const bundled = bundledImagesPath(storyId, filename);
+		if (await pathExists(bundled)) return readFile(bundled);
+	}
 	return readFile(join(storyImagesDir, relativePath));
 }
 
 export async function listStoryImages(storyId: string): Promise<string[]> {
-	const folder = join(storyImagesDir, storyId);
+	const bundledFolder = join(process.cwd(), "stories", storyId, "images");
+	const legacyFolder = join(storyImagesDir, storyId);
 	try {
-		const files = await readdir(folder);
-		return files
+		const files = [
+			...(await readdir(bundledFolder).catch(() => [])),
+			...(await readdir(legacyFolder).catch(() => [])),
+		];
+		return [...new Set(files)]
 			.filter((f) => imageFilePattern.test(f))
 			.sort()
 			.map((f) => `/api/story-images/${storyId}/${f}`);
@@ -143,7 +263,7 @@ async function createPreparedOpening(
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 ): Promise<PreparedOpening> {
-	const id = randomUUID();
+	const id = createBundleId(`${genre.label} story`, randomUUID());
 	const seed = genre.seeds[Math.floor(Math.random() * genre.seeds.length)];
 	const userContent = seed
 		? `Begin the story. Seed element: ${seed}.`
@@ -156,8 +276,8 @@ async function createPreparedOpening(
 	const narrationVoice = pickRandomNarrationVoice();
 	const [backgroundIntro, backgroundImage, openingAudio] = await Promise.all([
 		createBackgroundIntro(openai, genre, text, model, anthropicKey),
-		createBackgroundImage(openai, genre, text, id),
-		createOpeningAudio(openai, text, id, narrationVoice),
+		createBackgroundImage(openai, genre, text, id, { sectionIndex: 1 }),
+		createOpeningAudio(openai, text, id, narrationVoice, { sectionIndex: 1 }),
 	]);
 	return {
 		id,
@@ -166,6 +286,48 @@ async function createPreparedOpening(
 		backgroundIntro,
 		narrationVoice,
 		messages: [...messages, { role: "assistant", content: text }],
+		...backgroundImage,
+		...(openingAudio ?? {}),
+		createdAt: new Date().toISOString(),
+	};
+}
+
+async function createPreparedReadingOpening(
+	openai: OpenAI,
+	genre: Genre,
+	model = DEFAULT_TEXT_MODEL,
+	anthropicKey = "",
+): Promise<PreparedReadingOpening> {
+	const id = createBundleId(`${genre.label} story`, randomUUID());
+	const complete = (messages: ChatMessage[], maxTokens: number) =>
+		completeAi(openai, messages, maxTokens, model, anthropicKey);
+	const readingFrame = await generateReadingFrame(complete, genre);
+	const text = await complete(readingPartMessages(readingFrame, 1, []), 260);
+	const messages: ChatMessage[] = [
+		{ role: "system", content: genre.systemPrompt },
+		{
+			role: "user",
+			content: `Six-part beginner reading story frame:\n${JSON.stringify(
+				readingFrame,
+				null,
+				2,
+			)}`,
+		},
+		{ role: "assistant", content: text },
+	];
+	const narrationVoice = pickRandomNarrationVoice();
+	const [backgroundImage, openingAudio] = await Promise.all([
+		createBackgroundImage(openai, genre, text, id, { sectionIndex: 1 }),
+		createOpeningAudio(openai, text, id, narrationVoice, { sectionIndex: 1 }),
+	]);
+	return {
+		id,
+		genreId: genre.id,
+		text,
+		messages,
+		readingFrame,
+		readingPartIndex: 1,
+		narrationVoice,
 		...backgroundImage,
 		...(openingAudio ?? {}),
 		createdAt: new Date().toISOString(),
@@ -211,6 +373,7 @@ export async function createBackgroundImage(
 	genre: Genre,
 	storyText: string,
 	storyId: string,
+	options: { sectionIndex?: number } = {},
 ): Promise<StoryBackgroundImage> {
 	const prompt = buildBackgroundPrompt(genre, storyText);
 	try {
@@ -225,12 +388,10 @@ export async function createBackgroundImage(
 		const encoded = response.data?.[0]?.b64_json;
 		if (!encoded) throw new Error("The image API returned no image data.");
 
-		const folder = join(storyImagesDir, storyId);
-		await mkdir(folder, { recursive: true });
-		const filename = `${genre.id}-${Date.now()}-${Math.random()
-			.toString(36)
-			.slice(2)}.webp`;
-		await writeFile(join(folder, filename), Buffer.from(encoded, "base64"));
+		const filename = imageFilename(genre, options.sectionIndex);
+		const filePath = imagePath(storyId, filename);
+		await mkdir(dirname(filePath), { recursive: true });
+		await writeFile(filePath, Buffer.from(encoded, "base64"));
 		return {
 			backgroundImageUrl: `/api/story-images/${storyId}/${filename}`,
 			backgroundImagePrompt: prompt,
@@ -270,6 +431,17 @@ async function readPreparedOpening(
 	}
 }
 
+async function readPreparedReadingOpening(
+	genreId: GenreId,
+): Promise<PreparedReadingOpening | null> {
+	try {
+		const text = await readFile(readingOpeningPath(genreId), "utf8");
+		return JSON.parse(text);
+	} catch {
+		return null;
+	}
+}
+
 async function writePreparedOpening(opening: PreparedOpening) {
 	await mkdir(openingsDir, { recursive: true });
 	await writeFile(
@@ -279,10 +451,34 @@ async function writePreparedOpening(opening: PreparedOpening) {
 	);
 }
 
+async function writePreparedReadingOpening(opening: PreparedReadingOpening) {
+	await mkdir(readingOpeningsDir, { recursive: true });
+	await writeFile(
+		readingOpeningPath(opening.genreId),
+		`${JSON.stringify(opening, null, 2)}\n`,
+		"utf8",
+	);
+}
+
 function openingPath(genreId: GenreId) {
 	return join(openingsDir, `${genreId}.json`);
 }
 
+function readingOpeningPath(genreId: GenreId) {
+	return join(readingOpeningsDir, `${genreId}.json`);
+}
+
 function fallbackBackgroundUrl(genreId: GenreId) {
 	return `/images/fallback-${genreId}.webp`;
+}
+
+function imageFilename(genre: Genre, sectionIndex?: number) {
+	if (sectionIndex !== undefined) return `section_${sectionIndex}.webp`;
+	return `${genre.id}-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
+}
+
+function imagePath(storyId: string, filename: string) {
+	if (bundleIdPattern.test(storyId))
+		return bundledImagesPath(storyId, filename);
+	return join(storyImagesDir, storyId, filename);
 }

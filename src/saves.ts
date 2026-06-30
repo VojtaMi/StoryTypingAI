@@ -5,6 +5,15 @@ import type { NarrationVoiceId } from "./narrationVoice";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
 
+export interface PreparedReadingPart {
+	partIndex: number;
+	text?: string;
+	messages?: ChatMessage[];
+	openingAudio?: StoryOpeningAudio | null;
+	backgroundImage?: StoryBackgroundImage | null;
+	status: "generating" | "ready" | "error";
+}
+
 export interface SavedStory
 	extends Partial<StoryBackgroundImage>,
 		Partial<StoryOpeningAudio> {
@@ -21,6 +30,7 @@ export interface SavedStory
 	narrationVoice?: NarrationVoiceId;
 	readingFrame?: ReadingStoryFrame;
 	readingPartIndex?: number;
+	preparedNextPart?: PreparedReadingPart;
 }
 
 export interface SavedStorySummary {

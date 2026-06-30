@@ -30,8 +30,8 @@ export function StoryLog({ segments }: StoryLogProps) {
 	return (
 		<div className="story__log">
 			{segments.map((segment) => {
-				const status =
-					segment.author === "ai" ? statusFor(segment.text) : "idle";
+				const segmentKey = String(segment.id);
+				const status = segment.author === "ai" ? statusFor(segmentKey) : "idle";
 				return (
 					<p key={segment.id} className={`segment segment--${segment.author}`}>
 						{segment.text}
@@ -43,7 +43,13 @@ export function StoryLog({ segments }: StoryLogProps) {
 								aria-label={NARRATION_LABEL[status]}
 								title={NARRATION_LABEL[status]}
 								disabled={status === "loading"}
-								onClick={() => void toggle(segment.text)}
+								onClick={() =>
+									void toggle({
+										key: segmentKey,
+										text: segment.text,
+										audioUrl: segment.narrationAudio?.openingAudioUrl,
+									})
+								}
 							>
 								{NARRATION_GLYPH[status]}
 							</button>

@@ -24,11 +24,14 @@ import {
 import { sendNdjsonError } from "./ndjson";
 import {
 	consumePreparedOpening,
+	consumePreparedReadingOpening,
 	findGenre,
 	imageFilePattern,
 	listPreparedOpenings,
+	listPreparedReadingOpenings,
 	listStoryImages,
 	prepareMissingOpenings,
+	prepareMissingReadingOpenings,
 	readStoryImage,
 } from "./openingsStore";
 import {
@@ -49,6 +52,7 @@ const distDir = join(__dirname, "dist");
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 let preparePromise: Promise<void> | null = null;
+let prepareReadingPromise: Promise<void> | null = null;
 
 const mimeTypes: Record<string, string> = {
 	".html": "text/html; charset=utf-8",
@@ -102,6 +106,11 @@ const server = createServer(async (req, res) => {
 			return;
 		}
 
+		if (pathname === "/api/reading-openings" && req.method === "GET") {
+			sendJson(res, 200, await listPreparedReadingOpenings());
+			return;
+		}
+
 		if (pathname === "/api/openings/prepare" && req.method === "POST") {
 			const body = req.headers["content-length"]
 				? JSON.parse(await readBody(req))
@@ -118,6 +127,22 @@ const server = createServer(async (req, res) => {
 			return;
 		}
 
+		if (pathname === "/api/reading-openings/prepare" && req.method === "POST") {
+			const body = req.headers["content-length"]
+				? JSON.parse(await readBody(req))
+				: {};
+			prepareReadingPromise ??= prepareMissingReadingOpenings(
+				openai,
+				body.model,
+				ANTHROPIC_API_KEY,
+			).finally(() => {
+				prepareReadingPromise = null;
+			});
+			await prepareReadingPromise;
+			sendJson(res, 200, await listPreparedReadingOpenings());
+			return;
+		}
+
 		if (
 			parts.length === 4 &&
 			parts[0] === "api" &&
@@ -131,6 +156,27 @@ const server = createServer(async (req, res) => {
 				return;
 			}
 			sendJson(res, 200, await consumePreparedOpening(genreId as GenreId));
+			return;
+		}
+
+		if (
+			parts.length === 4 &&
+			parts[0] === "api" &&
+			parts[1] === "reading-openings" &&
+			parts[3] === "consume" &&
+			req.method === "POST"
+		) {
+			const genreId = parts[2];
+			if (!genreId || !findGenre(genreId)) {
+				sendJson(res, 404, { error: "Genre not found." });
+				return;
+			}
+			if (prepareReadingPromise) await prepareReadingPromise;
+			sendJson(
+				res,
+				200,
+				await consumePreparedReadingOpening(genreId as GenreId),
+			);
 			return;
 		}
 

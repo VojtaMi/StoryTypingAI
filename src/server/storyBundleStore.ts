@@ -1,0 +1,46 @@
+import { access } from "node:fs/promises";
+import { join } from "node:path";
+
+export const storiesDir = join(process.cwd(), "stories");
+
+export const bundleIdPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*--[a-z0-9]+$/;
+
+export function createBundleId(label: string, id: string) {
+	const slug = slugify(label) || "story";
+	return `${slug}--${id.slice(0, 8).toLowerCase()}`;
+}
+
+export function slugify(value: string) {
+	return value
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "")
+		.replace(/-{2,}/g, "-");
+}
+
+export function storyBundlePath(storyId: string) {
+	return join(storiesDir, storyId);
+}
+
+export function bundledSavePath(storyId: string) {
+	return join(storyBundlePath(storyId), "story.json");
+}
+
+export function bundledAudioPath(storyId: string, filename: string) {
+	return join(storyBundlePath(storyId), "audio", filename);
+}
+
+export function bundledImagesPath(storyId: string, filename: string) {
+	return join(storyBundlePath(storyId), "images", filename);
+}
+
+export async function pathExists(path: string) {
+	try {
+		await access(path);
+		return true;
+	} catch {
+		return false;
+	}
+}

@@ -198,11 +198,12 @@ export async function generateStoryBackgroundImage(
 	genreId: GenreId,
 	messages: ChatMessage[],
 	storyId: string,
+	options: { sectionIndex?: number } = {},
 ): Promise<StoryBackgroundImage> {
 	const res = await fetch("/api/ai/background-image", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ genreId, messages, storyId }),
+		body: JSON.stringify({ genreId, messages, storyId, ...options }),
 	});
 	if (!res.ok) throw new Error(`Image request failed: ${res.status}`);
 	return res.json() as Promise<StoryBackgroundImage>;
@@ -212,11 +213,12 @@ export async function generateOpeningAudio(
 	text: string,
 	storyId: string,
 	narrationVoice: NarrationVoiceId,
+	options: { sectionIndex?: number } = {},
 ): Promise<StoryOpeningAudio> {
 	const res = await fetch("/api/ai/opening-audio", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ text, storyId, narrationVoice }),
+		body: JSON.stringify({ text, storyId, narrationVoice, ...options }),
 	});
 	if (!res.ok) throw new Error(`Opening audio request failed: ${res.status}`);
 	return res.json() as Promise<StoryOpeningAudio>;

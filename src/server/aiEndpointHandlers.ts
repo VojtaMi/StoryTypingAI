@@ -26,7 +26,9 @@ export async function handleBackgroundImageRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { genreId, messages, storyId } = JSON.parse(await readBody(req));
+	const { genreId, messages, storyId, sectionIndex } = JSON.parse(
+		await readBody(req),
+	);
 	const genre = findGenre(genreId);
 	if (!genre) {
 		sendJson(res, 404, { error: "Genre not found." });
@@ -44,6 +46,7 @@ export async function handleBackgroundImageRequest(
 			genre,
 			storyTextFromMessages(messages),
 			storyId,
+			{ sectionIndex: validSectionIndex(sectionIndex) },
 		),
 	);
 }
@@ -96,7 +99,9 @@ export async function handleOpeningAudioRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { text, storyId, narrationVoice } = JSON.parse(await readBody(req));
+	const { text, storyId, narrationVoice, sectionIndex } = JSON.parse(
+		await readBody(req),
+	);
 	if (!text || typeof text !== "string") {
 		sendJson(res, 400, { error: "text is required." });
 		return;
@@ -109,12 +114,26 @@ export async function handleOpeningAudioRequest(
 		sendJson(res, 400, { error: "narrationVoice is required." });
 		return;
 	}
-	const audio = await createOpeningAudio(openai, text, storyId, narrationVoice);
+	const audio = await createOpeningAudio(
+		openai,
+		text,
+		storyId,
+		narrationVoice,
+		{
+			sectionIndex: validSectionIndex(sectionIndex),
+		},
+	);
 	if (!audio) {
 		sendJson(res, 500, { error: "Could not generate opening audio." });
 		return;
 	}
 	sendJson(res, 200, audio);
+}
+
+function validSectionIndex(value: unknown) {
+	return typeof value === "number" && Number.isInteger(value) && value > 0
+		? value
+		: undefined;
 }
 
 export async function handleTranslateWordsRequest(
