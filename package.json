@@ -19,6 +19,7 @@
 		"audio:variants": "tsx scripts/generate-audio-variants.ts",
 		"gemini:images": "tsx --env-file-if-exists=.env.local scripts/compare-gemini-images.ts",
 		"gemini:tts": "tsx --env-file-if-exists=.env.local scripts/test-gemini-tts.ts",
+		"model:compare": "tsx --env-file-if-exists=.env.local scripts/compare-text-models.ts",
 		"test:opening": "tsx scripts/test-opening.ts"
 	},
 	"dependencies": {

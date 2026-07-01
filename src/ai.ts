@@ -21,6 +21,8 @@ import type { StoryBackgroundImage } from "./storyBackground";
 
 export type { ChatMessage, ReadingStoryFrame, StoryMemory };
 
+const READING_STORY_PART_MAX_TOKENS = 700;
+
 export type EsperantoTutorChatMessage = {
 	role: "user" | "assistant";
 	content: string;
@@ -201,7 +203,12 @@ export async function generateReadingStoryPartStream(
 		previousParts,
 		learnerProfile,
 	);
-	const text = await completeStream(messages, model, onChunk, 260);
+	const text = await completeStream(
+		messages,
+		model,
+		onChunk,
+		READING_STORY_PART_MAX_TOKENS,
+	);
 	return {
 		text,
 		messages: [...messages, { role: "assistant", content: text }],
