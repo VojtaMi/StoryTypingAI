@@ -1,127 +1,94 @@
 # Story-Based Language Learning Vision
 
-This project is evolving from an AI typing-practice story app into a story-based
-language learning app. The current app already has useful foundations: story
-segments, typing exercises, audio narration, image generation, local saves, and
-AI-backed story continuation. The next step is to give those pieces a curriculum
-center.
+This project is evolving from an AI typing-practice story app into a
+story-based language learning app. The core loop is already in place: short
+Esperanto reading stories, typing practice, narration, images, local saves,
+word translation/audio popovers, and the Esperanto Bot tutor.
 
-The first prototype language should be Esperanto. Its regular grammar and
-predictable word forms make it a good place to prove the learning loop before
-adding languages with heavier early grammar, such as German.
+The product direction is guided story practice, not a generic flashcard deck. A
+learner should see and hear language in context, ask questions when confused,
+practice what they saw, and then get future stories that reuse what is becoming
+familiar while gently stretching one step further.
 
-## Product Direction
+Esperanto is the first prototype language because its regular grammar and
+predictable word forms make the learning loop easier to prove before adding
+languages with heavier early grammar.
 
-The app should teach through short, simple stories. A learner starts with a tiny
-set of words, sees and hears them in context, practices them through varied
-exercises, and gradually unlocks new vocabulary and grammar concepts.
+## Current Learning Model
 
-The experience should feel like guided story practice, not a generic flashcard
-deck. Each lesson introduces just enough language to support a small meaningful
-sentence or story. The learner's vocabulary state should be tracked over time so
-the app can reuse known words, reinforce weak words, and introduce new words at
-a controlled pace.
+The app now has a lightweight learner model for adaptive reading:
 
-AI should eventually make the stories more adaptive, but the first version
-should use premade lesson content. Hand-authored content lets the project prove
-the core learning loop before relying on generated language for beginners.
+- `learner/profile.md` stores a bounded, human-readable learner handout.
+- The seed profile treats the learner as a complete beginner, preserving the
+  original day-one behavior.
+- When the Esperanto Bot chat closes, the transcript is folded into the profile
+  as evidence about confident, current-edge, and shaky vocabulary/grammar.
+- Reading story generation receives the profile as a ceiling and target: reuse
+  known material, stretch into currently-learning material, and avoid exceeding
+  the learner's edge.
+- Clicking a word in the reader logs `{ "word", "timestamp" }` to
+  `learner/word-log.json` as raw evidence that the word needed inspection.
 
-## First Esperanto Lesson Shape
+This is deliberately smaller than a full curriculum engine. The profile is the
+LLM-facing summary; the word log is raw evidence. Both are local single-user
+files.
 
-A complete beginner lesson can begin with a very small vocabulary set:
+## Near-Term Shape
 
-- `estas` - is / are
-- `hundo` - dog
-- `besto` - animal
+The prose profile should stay concise and derived. It should not become an
+unbounded diary or a substitute for structured state. It answers one immediate
+question: "What should the next reading story assume this learner knows?"
 
-After introducing those words, the app can form the first sentence:
+The word log should remain append-only for now. Repeated clicks can later be
+aggregated into the profile, for example "recently looked up several times:
+`havas`, `iras`, `mia`." A single click is weak evidence; repeated clicks across
+stories are stronger.
 
-```text
-Hundo estas besto.
-```
+The next useful refinement is a small scoring layer on top of the log:
 
-Then it can introduce:
+- clicked word: possible recognition gap
+- correctly typed or answered later: increase familiarity
+- repeated correct use: mark familiar enough to stop surfacing as shaky
+- repeated lookup or mistake: keep in review
 
-- `mi` - I
-- `homo` - person / human
+That scoring layer can be added without changing the current profile format.
 
-And form:
+## Future Curriculum Model
 
-```text
-Mi estas homo.
-```
+If the app needs more precise control, add structured state beneath the prose
+profile rather than replacing the profile immediately:
 
-Next, it can introduce a first grammar concept: possession with `mia`.
+- Word/concept registry: lemma, translation, examples, status, score.
+- Evidence log: clicked words, chat questions, typing mistakes, correct answers.
+- Review scheduling: weak, known, review due, retired/familiar.
+- Lesson content: introduced words, target sentences, story text, exercises.
 
-```text
-mia hundo
-```
+The prose profile can then be regenerated from the structured evidence and used
+only as compact context for story generation.
 
-The lesson can then connect the known words into a tiny story:
+## Exercise Direction
 
-```text
-Mi estas Adamo. Mi estas homo. Mia hundo estas bruna.
-```
+Early lessons and reading stories should rotate through a few exercise types:
 
-This is intentionally small. The goal is not to impress with story complexity at
-the start; the goal is to make the learner understand every word in a simple
-story and feel progress quickly.
+- Type-over practice using the existing typing exercise.
+- Multiple-choice comprehension questions.
+- Fill-the-missing-word exercises.
+- Reading popovers for translation and word audio.
+- Later, AI-generated variants constrained to known vocabulary and unlocked
+  grammar.
 
-## Exercise Mix
-
-Early lessons should rotate through a few exercise types:
-
-- Type-over practice, using the existing typing exercise for target sentences.
-- Multiple-choice comprehension questions about the story.
-- Fill-the-missing-word exercises with answer options.
-- Later, AI-generated variants constrained to the learner's known vocabulary and
-  unlocked grammar concepts.
-
-Exercise selection can be random within lesson constraints, but it should still
-respect what the learner has already seen. New words should be introduced
-deliberately, weak words should reappear more often, and known words should make
-up most of each story.
-
-## Curriculum Model
-
-Future implementation should add curriculum-owned data before reshaping the
-whole interface. The main concepts are:
-
-- Learner vocabulary state: `new`, `weak`, `known`, and `review due`.
-- Grammar concept state: `locked`, `introduced`, `practicing`, and `mastered`.
-- Lesson content: introduced words, target sentences, story text, and exercises.
-- Exercise model: typing, multiple choice, and cloze/fill-word exercises.
-
-The current story session model can remain useful, but learning progress should
-become its own domain rather than being hidden inside story text alone.
-
-## Idea: Chat Questions as a Weak-Signal Source
-
-The Esperanto Bot chat is currently a one-off Q&A that is discarded when the
-panel closes. A learner's questions are a strong signal of what they find
-confusing: asking "what does `mia` mean?" or "why is this word `-n`?" is a
-direct, high-confidence flag that the word or grammar concept is weak for them.
-
-When a chat session closes, the app could run one cheap pass over the transcript
-to extract a small structured list of the words and grammar concepts the learner
-asked about, then feed those into the curriculum state as `weak` or `review due`
-so they resurface in upcoming exercises. The free-text summary is secondary; the
-actionable output is structured items tied to the existing vocabulary and
-grammar-concept model, not prose a human has to read.
-
-This belongs in the AI-adaptive stage (V2/V3), not the hand-authored V1. One
-implementation note: the chat panel currently clears its messages on close, so
-the extraction has to run before that state is wiped.
+Exercise selection can be flexible, but it should respect the learner model:
+known words should dominate, weak words should reappear, and new material should
+arrive slowly.
 
 ## AI Boundary
 
-AI should be introduced in stages:
+AI should remain a constrained content generator, not the curriculum itself.
 
-1. V1 uses hand-authored Esperanto lessons and exercises.
-2. V2 asks AI to generate short story variants only from allowed vocabulary and
-   unlocked grammar concepts.
-3. Later versions adapt story content and review timing from learner history.
+The current adaptive-reading loop is acceptable because it is bounded: a small
+profile, local files, explicit prompt guardrails, and beginner-oriented story
+constraints. Future structured scoring should make the system more reliable,
+not more magical.
 
-Generated content should be validated before it reaches a beginner learner. The
-AI should be treated as a constrained content generator inside the curriculum,
-not as the curriculum itself.
+Generated beginner content should keep being validated by shape and constrained
+by vocabulary/grammar guidance before it reaches the learner.
