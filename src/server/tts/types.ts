@@ -1,0 +1,30 @@
+import type OpenAI from "openai";
+
+export type TtsProvider = "openai" | "gemini";
+export type TtsProviderPreference = TtsProvider | "auto";
+
+export interface SpeechOptions {
+	instructions?: string;
+	provider?: TtsProviderPreference;
+	speed?: number;
+	voice?: string;
+}
+
+export interface TtsRequest extends SpeechOptions {
+	openai: OpenAI;
+	text: string;
+}
+
+export interface ProviderTtsRequest extends SpeechOptions {
+	input: string;
+	openai: OpenAI;
+}
+
+export interface SynthesizedSpeech {
+	audio: Buffer;
+	extension: "mp3" | "wav";
+	mimeType: "audio/mpeg" | "audio/wav";
+	model: string;
+	provider: TtsProvider;
+	voice: string;
+}

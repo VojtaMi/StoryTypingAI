@@ -17,6 +17,7 @@
 		"prepare": "husky",
 		"backfill:opening-audio": "tsx scripts/backfill-opening-audio.ts",
 		"audio:variants": "tsx scripts/generate-audio-variants.ts",
+		"gemini:tts": "tsx --env-file-if-exists=.env.local scripts/test-gemini-tts.ts",
 		"test:opening": "tsx scripts/test-opening.ts"
 	},
 	"dependencies": {

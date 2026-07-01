@@ -240,7 +240,10 @@ const server = createServer(async (req, res) => {
 			try {
 				const file = await readStoryAudio(`${storyId}/${filename}`);
 				res.statusCode = 200;
-				res.setHeader("Content-Type", "audio/mpeg");
+				res.setHeader(
+					"Content-Type",
+					filename.endsWith(".wav") ? "audio/wav" : "audio/mpeg",
+				);
 				res.setHeader("Cache-Control", "no-store");
 				res.end(file);
 			} catch {

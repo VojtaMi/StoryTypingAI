@@ -3,12 +3,7 @@ import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
 import { DEFAULT_TEXT_MODEL, STORY_SEGMENT_MAX_TOKENS } from "../models";
 import { isNarrationVoiceId } from "../narrationVoice";
-import {
-	completeAi,
-	streamAi,
-	synthesizeSpeech,
-	translateWords,
-} from "./aiService";
+import { completeAi, streamAi, translateWords } from "./aiService";
 import { readBody, sendJson } from "./http";
 import { startNdjsonResponse, writeJsonLine } from "./ndjson";
 import { createBackgroundImage, findGenre } from "./openingsStore";
@@ -19,6 +14,7 @@ import {
 	lookupWords,
 	storeTranslations,
 } from "./translationCacheStore";
+import { synthesizeSpeech } from "./tts";
 import {
 	getOrCreateWordAudio,
 	regenerateWordAudio,

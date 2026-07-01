@@ -1,7 +1,7 @@
 import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type OpenAI from "openai";
-import { synthesizeSpeech } from "./aiService";
+import { synthesizeSpeech } from "./tts";
 
 const wordAudioDir = join(process.cwd(), "word-audio");
 

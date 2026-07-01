@@ -1,0 +1,49 @@
+import type OpenAI from "openai";
+import { TTS_MAX_INPUT_CHARS } from "./constants";
+import { synthesizeGeminiSpeech } from "./geminiTts";
+import { synthesizeOpenAiSpeech } from "./openaiTts";
+import type {
+	SpeechOptions,
+	SynthesizedSpeech,
+	TtsProvider,
+	TtsRequest,
+} from "./types";
+
+export { OPENAI_TTS_MODEL } from "./constants";
+export type { SpeechOptions, SynthesizedSpeech, TtsProvider, TtsRequest };
+
+export async function synthesizeSpeech(
+	openai: OpenAI,
+	text: string,
+	options: SpeechOptions = {},
+): Promise<Buffer> {
+	return (await tts({ openai, text, ...options, provider: "openai" })).audio;
+}
+
+export async function tts({
+	openai,
+	text,
+	...options
+}: TtsRequest): Promise<SynthesizedSpeech> {
+	const input = text.trim();
+	if (!input) throw new Error("No text to narrate.");
+	if (input.length > TTS_MAX_INPUT_CHARS) {
+		throw new Error("The passage is too long to narrate.");
+	}
+
+	const requestedProvider =
+		options.provider === "auto" || !options.provider
+			? process.env.GEMINI_API_KEY
+				? "gemini"
+				: "openai"
+			: options.provider;
+	if (requestedProvider === "gemini") {
+		try {
+			return await synthesizeGeminiSpeech({ openai, input, ...options });
+		} catch (err) {
+			console.warn("Gemini TTS failed; falling back to OpenAI.", err);
+		}
+	}
+
+	return synthesizeOpenAiSpeech({ openai, input, ...options });
+}

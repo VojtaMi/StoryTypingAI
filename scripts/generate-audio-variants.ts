@@ -1,11 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import OpenAI from "openai";
-import { TTS_MODEL } from "../src/models.ts";
 import {
+	OPENAI_TTS_MODEL,
 	type SpeechOptions,
 	synthesizeSpeech,
-} from "../src/server/aiService.ts";
+} from "../src/server/tts/index.ts";
 
 type OpeningRecord = {
 	genreId?: string;
@@ -96,7 +96,7 @@ await mkdir(outputDir, { recursive: true });
 const openai = new OpenAI({ apiKey: openaiKey });
 const manifest = {
 	source: openingPath,
-	model: TTS_MODEL,
+	model: OPENAI_TTS_MODEL,
 	generatedAt: new Date().toISOString(),
 	text,
 	variants: [] as Array<Variant & { file: string }>,

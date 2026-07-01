@@ -7,4 +7,7 @@ export interface StoryOpeningAudio {
 	openingAudioSource: OpeningAudioSource;
 	openingAudioText?: string;
 	openingAudioVoice?: NarrationVoiceId;
+	openingAudioProvider?: string;
+	openingAudioModel?: string;
+	openingAudioMimeType?: string;
 }

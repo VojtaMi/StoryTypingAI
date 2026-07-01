@@ -6,16 +6,16 @@ import {
 	narrationVoiceOptions,
 } from "../narrationVoice";
 import type { StoryOpeningAudio } from "../storyAudio";
-import { synthesizeSpeech } from "./aiService";
 import {
 	bundledAudioPath,
 	bundleIdPattern,
 	pathExists,
 } from "./storyBundleStore";
+import { tts } from "./tts";
 
 const storyAudioDir = join(process.cwd(), "story-audio");
 
-export const audioFilePattern = /^[a-zA-Z0-9_-]+\.mp3$/;
+export const audioFilePattern = /^[a-zA-Z0-9_-]+\.(mp3|wav)$/;
 
 export async function createOpeningAudio(
 	openai: OpenAI,
@@ -25,20 +25,28 @@ export async function createOpeningAudio(
 	options: { sectionIndex?: number } = {},
 ): Promise<StoryOpeningAudio | null> {
 	try {
-		const audio = await synthesizeSpeech(
+		const speech = await tts({
 			openai,
 			text,
-			narrationVoiceOptions(narrationVoice),
+			...narrationVoiceOptions(narrationVoice),
+		});
+		const filename = audioFilename(
+			narrationVoice,
+			speech.provider,
+			speech.extension,
+			options.sectionIndex,
 		);
-		const filename = audioFilename(narrationVoice, options.sectionIndex);
 		const filePath = audioPath(storyId, filename);
 		await mkdir(dirname(filePath), { recursive: true });
-		await writeFile(filePath, audio);
+		await writeFile(filePath, speech.audio);
 		return {
 			openingAudioUrl: `/api/story-audio/${storyId}/${filename}`,
 			openingAudioSource: "generated",
 			openingAudioText: text,
 			openingAudioVoice: narrationVoice,
+			openingAudioProvider: speech.provider,
+			openingAudioModel: speech.model,
+			openingAudioMimeType: speech.mimeType,
 		};
 	} catch (err) {
 		console.warn("Could not generate opening audio.", err);
@@ -55,9 +63,16 @@ export async function readStoryAudio(relativePath: string) {
 	return readFile(join(storyAudioDir, relativePath));
 }
 
-function audioFilename(voice: NarrationVoiceId, sectionIndex?: number) {
-	if (sectionIndex !== undefined) return `section_${sectionIndex}_${voice}.mp3`;
-	return `opening-${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`;
+function audioFilename(
+	voice: NarrationVoiceId,
+	provider: string,
+	extension: "mp3" | "wav",
+	sectionIndex?: number,
+) {
+	if (sectionIndex !== undefined) {
+		return `section_${sectionIndex}_${voice}_${provider}.${extension}`;
+	}
+	return `opening-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 }
 
 function audioPath(storyId: string, filename: string) {

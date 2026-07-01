@@ -5,9 +5,6 @@ import {
 	DEFAULT_TEXT_MODEL,
 	STORY_SEGMENT_MAX_TOKENS,
 	TRANSLATION_MODEL,
-	TTS_MAX_INPUT_CHARS,
-	TTS_MODEL,
-	TTS_VOICE,
 } from "../models";
 import { normalizeStoryText } from "./http";
 
@@ -18,12 +15,6 @@ type AnthropicMessages = {
 		content: string;
 	}>;
 };
-
-export interface SpeechOptions {
-	instructions?: string;
-	speed?: number;
-	voice?: string;
-}
 
 export async function completeAi(
 	openai: OpenAI,
@@ -76,32 +67,6 @@ export async function translateWords(
 		console.warn("translateWords: could not parse AI response", raw);
 		return {};
 	}
-}
-
-/**
- * Synthesizes narration for a single story segment. Returns raw MP3 bytes so the
- * caller can stream them straight back to the browser without touching disk.
- */
-export async function synthesizeSpeech(
-	openai: OpenAI,
-	text: string,
-	options: SpeechOptions = {},
-): Promise<Buffer> {
-	const input = text.trim();
-	if (!input) throw new Error("No text to narrate.");
-	if (input.length > TTS_MAX_INPUT_CHARS) {
-		throw new Error("The passage is too long to narrate.");
-	}
-
-	const response = await openai.audio.speech.create({
-		model: TTS_MODEL,
-		voice: options.voice ?? TTS_VOICE,
-		input,
-		...(options.instructions ? { instructions: options.instructions } : {}),
-		response_format: "mp3",
-		...(options.speed ? { speed: options.speed } : {}),
-	});
-	return Buffer.from(await response.arrayBuffer());
 }
 
 async function completeOpenAi(
