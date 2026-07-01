@@ -12,6 +12,7 @@ import {
 import {
 	type ChatMessage,
 	generateReadingFrame,
+	generateTitle,
 	type ReadingStoryFrame,
 	readingPartMessages,
 } from "../story";
@@ -39,6 +40,7 @@ interface PreparedOpening
 		Partial<StoryOpeningAudio> {
 	id: string;
 	genreId: GenreId;
+	title?: string;
 	text: string;
 	backgroundIntro?: string;
 	narrationVoice?: NarrationVoiceId;
@@ -54,6 +56,7 @@ interface PreparedReadingOpening
 		Partial<StoryOpeningAudio> {
 	id: string;
 	genreId: GenreId;
+	title?: string;
 	text: string;
 	messages: ChatMessage[];
 	readingFrame: ReadingStoryFrame;
@@ -276,13 +279,32 @@ export function findGenre(genreId: string): Genre | undefined {
 	return genres.find((genre) => genre.id === genreId);
 }
 
+async function titleFromText(
+	openai: OpenAI,
+	text: string,
+	fallback: string,
+	model = DEFAULT_TEXT_MODEL,
+	anthropicKey = "",
+) {
+	try {
+		const title = await generateTitle(
+			(messages, maxTokens) =>
+				completeAi(openai, messages, maxTokens, model, anthropicKey),
+			text,
+		);
+		return title || fallback;
+	} catch (err) {
+		console.warn("Could not generate prepared story title.", err);
+		return fallback;
+	}
+}
+
 async function createPreparedOpening(
 	openai: OpenAI,
 	genre: Genre,
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 ): Promise<PreparedOpening> {
-	const id = createBundleId(`${genre.label} story`, randomUUID());
 	const seed = genre.seeds[Math.floor(Math.random() * genre.seeds.length)];
 	const userContent = seed
 		? `Begin the story. Seed element: ${seed}.`
@@ -292,6 +314,14 @@ async function createPreparedOpening(
 		{ role: "user", content: userContent },
 	];
 	const text = await completeAi(openai, messages, 200, model, anthropicKey);
+	const title = await titleFromText(
+		openai,
+		text,
+		`${genre.label} Story`,
+		model,
+		anthropicKey,
+	);
+	const id = createBundleId(title, randomUUID());
 	const narrationVoice = pickRandomNarrationVoice();
 	const [backgroundIntro, backgroundImage, openingAudio] = await Promise.all([
 		createBackgroundIntro(openai, genre, text, model, anthropicKey),
@@ -301,6 +331,7 @@ async function createPreparedOpening(
 	return {
 		id,
 		genreId: genre.id,
+		title,
 		text,
 		backgroundIntro,
 		narrationVoice,
@@ -317,7 +348,6 @@ async function createPreparedReadingOpening(
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 ): Promise<PreparedReadingOpening> {
-	const id = createBundleId(`${genre.label} story`, randomUUID());
 	const complete = (messages: ChatMessage[], maxTokens: number) =>
 		completeAi(openai, messages, maxTokens, model, anthropicKey);
 	const learnerProfile = await readLearnerProfile();
@@ -339,6 +369,14 @@ async function createPreparedReadingOpening(
 		},
 		{ role: "assistant", content: text },
 	];
+	const title = await titleFromText(
+		openai,
+		text,
+		`${genre.label} Story`,
+		model,
+		anthropicKey,
+	);
+	const id = createBundleId(title, randomUUID());
 	const narrationVoice = pickRandomNarrationVoice();
 	const [backgroundImage, openingAudio] = await Promise.all([
 		createBackgroundImage(openai, genre, text, id, {
@@ -350,6 +388,7 @@ async function createPreparedReadingOpening(
 	return {
 		id,
 		genreId: genre.id,
+		title,
 		text,
 		messages,
 		readingFrame,

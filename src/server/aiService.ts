@@ -16,6 +16,20 @@ type AnthropicMessages = {
 	}>;
 };
 
+type GeminiContent = {
+	role: "user" | "model";
+	parts: Array<{ text: string }>;
+};
+
+type GeminiGenerateContentResponse = {
+	candidates?: Array<{
+		content?: {
+			parts?: Array<{ text?: string }>;
+		};
+		finishReason?: string;
+	}>;
+};
+
 export async function completeAi(
 	openai: OpenAI,
 	messages: ChatMessage[],
@@ -25,6 +39,9 @@ export async function completeAi(
 ): Promise<string> {
 	if (model.startsWith("claude-")) {
 		return completeAnthropic(messages, maxTokens, model, anthropicKey);
+	}
+	if (model.startsWith("gemini-")) {
+		return completeGemini(messages, maxTokens, model);
 	}
 	return completeOpenAi(openai, messages, maxTokens, model);
 }
@@ -39,6 +56,9 @@ export async function streamAi(
 ): Promise<string> {
 	if (model.startsWith("claude-")) {
 		return streamAnthropic(messages, maxTokens, model, anthropicKey, onChunk);
+	}
+	if (model.startsWith("gemini-")) {
+		return streamGemini(messages, maxTokens, model, onChunk);
 	}
 	return streamOpenAi(openai, messages, maxTokens, model, onChunk);
 }
@@ -186,6 +206,77 @@ async function streamAnthropic(
 	return stopReason === "max_tokens" ? trimToSentenceBoundary(text) : text;
 }
 
+async function completeGemini(
+	messages: ChatMessage[],
+	maxTokens: number,
+	model: string,
+): Promise<string> {
+	const response = await requestGemini(messages, maxTokens, model);
+	const choice = response.candidates?.[0];
+	const raw = choice?.content?.parts
+		?.map((part) => part.text ?? "")
+		.join("")
+		.trim();
+	if (!raw) throw new Error("The AI returned an empty response.");
+	const text = normalizeStoryText(raw);
+	return choice?.finishReason === "MAX_TOKENS"
+		? trimToSentenceBoundary(text)
+		: text;
+}
+
+async function streamGemini(
+	messages: ChatMessage[],
+	maxTokens: number,
+	model: string,
+	onChunk: (chunk: string) => void,
+): Promise<string> {
+	const text = await completeGemini(messages, maxTokens, model);
+	onChunk(text);
+	return text;
+}
+
+async function requestGemini(
+	messages: ChatMessage[],
+	maxTokens: number,
+	model: string,
+): Promise<GeminiGenerateContentResponse> {
+	const apiKey = process.env.GEMINI_API_KEY ?? "";
+	if (!apiKey) throw new Error("Gemini API key is not configured.");
+	const { systemContent, conversationMessages } = toGeminiMessages(messages);
+
+	const response = await fetch(
+		`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+		{
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"x-goog-api-key": apiKey,
+			},
+			body: JSON.stringify({
+				contents: conversationMessages,
+				generationConfig: {
+					maxOutputTokens: maxTokens,
+				},
+				...(systemContent
+					? {
+							systemInstruction: {
+								parts: [{ text: systemContent }],
+							},
+						}
+					: {}),
+			}),
+		},
+	);
+
+	if (!response.ok) {
+		throw new Error(
+			`Gemini request failed: ${response.status} ${response.statusText}`,
+		);
+	}
+
+	return (await response.json()) as GeminiGenerateContentResponse;
+}
+
 /**
  * When a completion is cut off by the token ceiling, the tail is usually a
  * partial sentence or word. Roll the text back to the last sentence-ending
@@ -210,5 +301,29 @@ function toAnthropicMessages(messages: ChatMessage[]): AnthropicMessages {
 				role: m.role as "user" | "assistant",
 				content: m.content,
 			})),
+	};
+}
+
+function toGeminiMessages(messages: ChatMessage[]): {
+	systemContent: string;
+	conversationMessages: GeminiContent[];
+} {
+	const systemContent = messages
+		.filter((m) => m.role === "system")
+		.map((m) => m.content)
+		.join("\n\n");
+	const conversationMessages = messages
+		.filter((m) => m.role !== "system")
+		.map<GeminiContent>((m) => ({
+			role: m.role === "assistant" ? "model" : "user",
+			parts: [{ text: m.content }],
+		}));
+
+	return {
+		systemContent,
+		conversationMessages:
+			conversationMessages.length > 0
+				? conversationMessages
+				: [{ role: "user", parts: [{ text: systemContent }] }],
 	};
 }

@@ -575,6 +575,7 @@ export function useStorySession({
 			try {
 				let opening: {
 					id?: string;
+					title?: string;
 					text: string;
 					messages: ChatMessage[];
 					backgroundIntro?: string;
@@ -601,12 +602,14 @@ export function useStorySession({
 				}
 
 				const { text, messages: seeded } = opening;
-				const title = opening.id
-					? fallbackTitle(selected)
+				const title = opening.title?.trim()
+					? opening.title
 					: await titleStory(seeded, model).catch(() =>
 							fallbackTitle(selected),
 						);
-				const saveId = opening.id ?? createSaveId(title);
+				const usePreparedBundle = Boolean(opening.id && opening.title);
+				const saveId =
+					usePreparedBundle && opening.id ? opening.id : createSaveId(title);
 				const nextNarrationVoice = isNarrationVoiceId(opening.narrationVoice)
 					? opening.narrationVoice
 					: pickRandomNarrationVoice();
@@ -622,6 +625,7 @@ export function useStorySession({
 						() => "",
 					));
 				const nextOpeningAudio =
+					usePreparedBundle &&
 					opening.openingAudioUrl &&
 					opening.openingAudioSource === "generated" &&
 					opening.openingAudioVoice === nextNarrationVoice
@@ -637,7 +641,9 @@ export function useStorySession({
 								console.warn("Could not generate opening audio.", err);
 								return null;
 							});
-				const nextBackgroundImage = backgroundFromOpening(opening, selected);
+				const nextBackgroundImage = usePreparedBundle
+					? backgroundFromOpening(opening, selected)
+					: fallbackBackgroundImage(selected);
 				setMessages(seeded);
 				setMemory(undefined);
 				setCurrentTarget(text);
@@ -662,7 +668,7 @@ export function useStorySession({
 						narrationVoice: nextNarrationVoice,
 					}),
 				);
-				if (!consumedPreparedOpening) {
+				if (!consumedPreparedOpening || !usePreparedBundle) {
 					void generateAndApplyStoryBackground(selected, saveId, seeded, 1);
 				}
 			} catch (err) {
@@ -747,15 +753,22 @@ export function useStorySession({
 						};
 					})();
 
-			const title = preparedOpening?.id
-				? fallbackTitle(selected)
+			const title = preparedOpening?.title?.trim()
+				? preparedOpening.title
 				: await titleStory(seeded, model).catch(() => fallbackTitle(selected));
-			const saveId = preparedOpening?.id ?? createSaveId(title);
+			const usePreparedBundle = Boolean(
+				preparedOpening?.id && preparedOpening.title,
+			);
+			const saveId =
+				usePreparedBundle && preparedOpening?.id
+					? preparedOpening.id
+					: createSaveId(title);
 			activeSaveIdRef.current = saveId;
 			setActiveSaveId(saveId);
 			setActiveTitle(title);
 
 			const nextOpeningAudio =
+				usePreparedBundle &&
 				preparedOpening?.openingAudioUrl &&
 				preparedOpening.openingAudioSource === "generated" &&
 				preparedOpening.openingAudioVoice === nextNarrationVoice
@@ -772,6 +785,7 @@ export function useStorySession({
 							return null;
 						});
 			const nextBackgroundImage =
+				usePreparedBundle &&
 				preparedOpening?.backgroundImageUrl &&
 				(preparedOpening.backgroundImageSource === "generated" ||
 					preparedOpening.backgroundImageSource === "fallback")
@@ -807,9 +821,8 @@ export function useStorySession({
 					readingPartIndex: 1,
 					narrationVoice: nextNarrationVoice,
 				}),
-				preparedOpening ? { generateTitle: true } : {},
 			);
-			if (!preparedOpening?.backgroundImageUrl) {
+			if (!usePreparedBundle || !preparedOpening?.backgroundImageUrl) {
 				void generateAndApplyStoryBackground(
 					selected,
 					saveId,

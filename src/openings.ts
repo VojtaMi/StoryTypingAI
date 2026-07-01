@@ -10,6 +10,7 @@ export interface PreparedOpening
 		Partial<StoryOpeningAudio> {
 	id?: string;
 	genreId: GenreId;
+	title?: string;
 	text: string;
 	backgroundIntro?: string;
 	messages: ChatMessage[];
@@ -26,6 +27,7 @@ export interface PreparedReadingOpening
 		Partial<StoryOpeningAudio> {
 	id: string;
 	genreId: GenreId;
+	title?: string;
 	text: string;
 	messages: ChatMessage[];
 	readingFrame: ReadingStoryFrame;

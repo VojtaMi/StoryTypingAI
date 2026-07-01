@@ -1,7 +1,12 @@
 export const TEXT_MODELS = [
 	{ id: "gpt-5.4-mini", label: "GPT 5.4 mini" },
 	{ id: "gpt-5.5", label: "GPT 5.5" },
-	{ id: "claude-sonnet-4-6", label: "Claude Sonnet" },
+	{ id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+	{ id: "claude-sonnet-5", label: "Claude Sonnet 5" },
+	{ id: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
+	{ id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro Preview" },
+	{ id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+	{ id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
 ] as const;
 
 export type TextModelId = (typeof TEXT_MODELS)[number]["id"];
