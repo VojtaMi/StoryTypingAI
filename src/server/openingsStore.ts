@@ -18,6 +18,7 @@ import {
 import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
 import { completeAi } from "./aiService";
+import { buildStoryBackgroundPrompt, generateStoryImage } from "./images";
 import { createOpeningAudio } from "./storyAudioStore";
 import {
 	bundledImagesPath,
@@ -30,7 +31,7 @@ const openingsDir = join(process.cwd(), "openings");
 const readingOpeningsDir = join(process.cwd(), "reading-openings");
 const storyImagesDir = join(process.cwd(), "story-images");
 
-export const imageFilePattern = /^[a-zA-Z0-9_-]+\.webp$/;
+export const imageFilePattern = /^[a-zA-Z0-9_-]+\.(jpe?g|png|webp)$/;
 
 interface PreparedOpening
 	extends Partial<StoryBackgroundImage>,
@@ -395,23 +396,26 @@ export async function createBackgroundImage(
 	storyId: string,
 	options: { sectionIndex?: number; visualContext?: string } = {},
 ): Promise<StoryBackgroundImage> {
-	const prompt = buildBackgroundPrompt(genre, storyText, options.visualContext);
+	const prompt = buildStoryBackgroundPrompt(
+		genre,
+		storyText,
+		options.visualContext,
+	);
 	try {
-		const response = await openai.images.generate({
-			model: "gpt-image-2",
-			prompt,
-			size: "1536x1024",
-			quality: "low",
-			output_format: "webp",
-			n: 1,
+		const image = await generateStoryImage({
+			genre,
+			openai,
+			storyText,
+			visualContext: options.visualContext,
 		});
-		const encoded = response.data?.[0]?.b64_json;
-		if (!encoded) throw new Error("The image API returned no image data.");
-
-		const filename = imageFilename(genre, options.sectionIndex);
+		const filename = imageFilename(
+			genre,
+			image.extension,
+			options.sectionIndex,
+		);
 		const filePath = imagePath(storyId, filename);
 		await mkdir(dirname(filePath), { recursive: true });
-		await writeFile(filePath, Buffer.from(encoded, "base64"));
+		await writeFile(filePath, image.image);
 		return {
 			backgroundImageUrl: `/api/story-images/${storyId}/${filename}`,
 			backgroundImagePrompt: prompt,
@@ -425,31 +429,6 @@ export async function createBackgroundImage(
 			backgroundImageSource: "fallback",
 		};
 	}
-}
-
-function buildBackgroundPrompt(
-	genre: Genre,
-	openingText: string,
-	visualContext?: string,
-) {
-	return [
-		"Create a cinematic full-page background image for a typing story app.",
-		`Genre: ${genre.label}.`,
-		visualContext
-			? `Visual continuity to preserve across images: ${visualContext}`
-			: "",
-		`Story opening: ${openingText}`,
-		"Use a 3:2 landscape composition suitable for a 1536x1024 desktop background.",
-		"Make the scene feel specific to the opening while preserving room for imagination.",
-		visualContext
-			? "Keep recurring characters the same age, appearance, clothing, and distinctive details unless the scene text explicitly changes them."
-			: "",
-		"Keep the center area moderately low contrast so a translucent text panel remains readable.",
-		"Put brighter highlights and intricate details toward the edges rather than behind the central text.",
-		"No text, letters, logos, signage, UI, watermark, signature, or captions.",
-	]
-		.filter(Boolean)
-		.join("\n");
 }
 
 function readingVisualContext(frame: ReadingStoryFrame) {
@@ -516,9 +495,16 @@ function fallbackBackgroundUrl(genreId: GenreId) {
 	return `/images/fallback-${genreId}.webp`;
 }
 
-function imageFilename(genre: Genre, sectionIndex?: number) {
-	if (sectionIndex !== undefined) return `section_${sectionIndex}.webp`;
-	return `${genre.id}-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
+function imageFilename(
+	genre: Genre,
+	extension: "jpg" | "png" | "webp",
+	sectionIndex?: number,
+) {
+	if (sectionIndex !== undefined && extension === "webp") {
+		return `section_${sectionIndex}.webp`;
+	}
+	if (sectionIndex !== undefined) return `section_${sectionIndex}.${extension}`;
+	return `${genre.id}-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 }
 
 function imagePath(storyId: string, filename: string) {

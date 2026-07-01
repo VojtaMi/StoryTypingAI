@@ -96,6 +96,12 @@ async function serveStatic(
 	}
 }
 
+function imageMimeType(path: string) {
+	if (path.endsWith(".png")) return "image/png";
+	if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
+	return "image/webp";
+}
+
 const server = createServer(async (req, res) => {
 	const url = new URL(req.url ?? "/", "http://localhost");
 	const pathname = url.pathname;
@@ -211,7 +217,7 @@ const server = createServer(async (req, res) => {
 			try {
 				const file = await readStoryImage(relativePath);
 				res.statusCode = 200;
-				res.setHeader("Content-Type", "image/webp");
+				res.setHeader("Content-Type", imageMimeType(relativePath));
 				res.setHeader("Cache-Control", "no-store");
 				res.end(file);
 			} catch {
