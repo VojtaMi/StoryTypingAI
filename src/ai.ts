@@ -138,17 +138,21 @@ export function invalidateLearnerProfile() {
  * it. Returns "" on any failure so story generation still works.
  */
 export async function fetchLearnerProfile(): Promise<string> {
-	learnerProfilePromise ??= (async () => {
-		try {
+	if (!learnerProfilePromise) {
+		learnerProfilePromise = (async () => {
 			const res = await fetch("/api/learner-profile");
-			if (!res.ok) return "";
+			if (!res.ok) throw new Error(`Profile request failed: ${res.status}`);
 			const body = (await res.json()) as { profile?: string };
 			return body.profile ?? "";
-		} catch {
-			return "";
-		}
-	})();
-	return learnerProfilePromise;
+		})();
+	}
+
+	try {
+		return await learnerProfilePromise;
+	} catch {
+		learnerProfilePromise = null;
+		return "";
+	}
 }
 
 /**
@@ -160,6 +164,7 @@ export async function refineLearnerProfileFromChat(
 ): Promise<void> {
 	if (messages.length === 0) return;
 	try {
+		invalidateLearnerProfile();
 		const res = await fetch("/api/learner-profile/refine", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -189,7 +194,7 @@ export async function generateReadingStoryPartStream(
 	text: string;
 	messages: ChatMessage[];
 }> {
-	const learnerProfile = await fetchLearnerProfile();
+	const learnerProfile = frame.learnerProfile ?? (await fetchLearnerProfile());
 	const messages = readingPartMessages(
 		frame,
 		partIndex,

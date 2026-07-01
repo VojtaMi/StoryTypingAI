@@ -23,6 +23,8 @@ import {
 	wordFilePattern,
 } from "./wordAudioStore";
 
+let learnerProfileRefineQueue: Promise<void> = Promise.resolve();
+
 export async function handleBackgroundImageRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
@@ -249,21 +251,48 @@ export async function handleLearnerProfileRefineRequest(
 		sendJson(res, 400, { error: "messages must be an array." });
 		return;
 	}
-	const current = await readLearnerProfile();
+
+	if (
+		messages.some(
+			(message) =>
+				!message ||
+				(message.role !== "user" && message.role !== "assistant") ||
+				typeof message.content !== "string",
+		)
+	) {
+		sendJson(res, 400, {
+			error:
+				"messages must contain user/assistant messages with string content.",
+		});
+		return;
+	}
+
+	let responseProfile = await readLearnerProfile();
 	try {
-		const updated = await refineLearnerProfile(
-			openai,
-			current,
-			messages,
-			anthropicKey,
-			new Date().toISOString().slice(0, 10),
+		const refineTask = learnerProfileRefineQueue
+			.catch(() => undefined)
+			.then(async () => {
+				const current = await readLearnerProfile();
+				const updated = await refineLearnerProfile(
+					openai,
+					current,
+					messages,
+					anthropicKey,
+					new Date().toISOString().slice(0, 10),
+				);
+				await writeLearnerProfile(updated);
+				responseProfile = updated;
+			});
+		learnerProfileRefineQueue = refineTask.then(
+			() => undefined,
+			() => undefined,
 		);
-		await writeLearnerProfile(updated);
-		sendJson(res, 200, { profile: updated });
+		await refineTask;
+		sendJson(res, 200, { profile: responseProfile });
 	} catch (err) {
 		// Never break the capture loop: keep the existing profile on failure.
 		console.warn("Could not refine learner profile.", err);
-		sendJson(res, 200, { profile: current });
+		sendJson(res, 200, { profile: responseProfile });
 	}
 }
 
