@@ -8,6 +8,8 @@ import {
 	handleBackgroundImageRequest,
 	handleCompleteRequest,
 	handleCompleteStreamRequest,
+	handleLearnerProfileGetRequest,
+	handleLearnerProfileRefineRequest,
 	handleOpeningAudioRequest,
 	handleRegenerateWordAudioRequest,
 	handleRegenerateWordRequest,
@@ -313,6 +315,21 @@ const server = createServer(async (req, res) => {
 			}
 
 			sendJson(res, 405, { error: "Method not allowed." });
+			return;
+		}
+
+		if (pathname === "/api/learner-profile" && req.method === "GET") {
+			await handleLearnerProfileGetRequest(req, res);
+			return;
+		}
+
+		if (pathname === "/api/learner-profile/refine" && req.method === "POST") {
+			await handleLearnerProfileRefineRequest(
+				req,
+				res,
+				openai,
+				ANTHROPIC_API_KEY,
+			);
 			return;
 		}
 

@@ -5,6 +5,8 @@ import { DEFAULT_TEXT_MODEL, STORY_SEGMENT_MAX_TOKENS } from "../models";
 import { isNarrationVoiceId } from "../narrationVoice";
 import { completeAi, streamAi, translateWords } from "./aiService";
 import { readBody, sendJson } from "./http";
+import { refineLearnerProfile } from "./learnerProfileService";
+import { readLearnerProfile, writeLearnerProfile } from "./learnerProfileStore";
 import { startNdjsonResponse, writeJsonLine } from "./ndjson";
 import { createBackgroundImage, findGenre } from "./openingsStore";
 import { saveIdPattern } from "./savesStore";
@@ -227,6 +229,42 @@ export async function handleCompleteRequest(
 	sendJson(res, 200, {
 		text: await completeAi(openai, messages, maxTokens, model, anthropicKey),
 	});
+}
+
+export async function handleLearnerProfileGetRequest(
+	_req: IncomingMessage,
+	res: ServerResponse,
+) {
+	sendJson(res, 200, { profile: await readLearnerProfile() });
+}
+
+export async function handleLearnerProfileRefineRequest(
+	req: IncomingMessage,
+	res: ServerResponse,
+	openai: OpenAI,
+	anthropicKey: string,
+) {
+	const { messages } = JSON.parse(await readBody(req));
+	if (!Array.isArray(messages)) {
+		sendJson(res, 400, { error: "messages must be an array." });
+		return;
+	}
+	const current = await readLearnerProfile();
+	try {
+		const updated = await refineLearnerProfile(
+			openai,
+			current,
+			messages,
+			anthropicKey,
+			new Date().toISOString().slice(0, 10),
+		);
+		await writeLearnerProfile(updated);
+		sendJson(res, 200, { profile: updated });
+	} catch (err) {
+		// Never break the capture loop: keep the existing profile on failure.
+		console.warn("Could not refine learner profile.", err);
+		sendJson(res, 200, { profile: current });
+	}
 }
 
 function storyTextFromMessages(messages: ChatMessage[]) {

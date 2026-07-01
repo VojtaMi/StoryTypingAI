@@ -125,11 +125,58 @@ export async function startStory(
 	return { text, messages };
 }
 
+let learnerProfilePromise: Promise<string> | null = null;
+
+/** Drops the cached learner profile so the next reading story refetches it. */
+export function invalidateLearnerProfile() {
+	learnerProfilePromise = null;
+}
+
+/**
+ * Fetches the durable learner handout that adapts reading stories to what the
+ * learner knows. Cached for the session; refreshed after the tutor chat refines
+ * it. Returns "" on any failure so story generation still works.
+ */
+export async function fetchLearnerProfile(): Promise<string> {
+	learnerProfilePromise ??= (async () => {
+		try {
+			const res = await fetch("/api/learner-profile");
+			if (!res.ok) return "";
+			const body = (await res.json()) as { profile?: string };
+			return body.profile ?? "";
+		} catch {
+			return "";
+		}
+	})();
+	return learnerProfilePromise;
+}
+
+/**
+ * Folds a tutor-chat transcript into the learner handout. Fire-and-forget: it
+ * must never disrupt closing the chat, so all failures are swallowed.
+ */
+export async function refineLearnerProfileFromChat(
+	messages: EsperantoTutorChatMessage[],
+): Promise<void> {
+	if (messages.length === 0) return;
+	try {
+		const res = await fetch("/api/learner-profile/refine", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ messages }),
+		});
+		if (res.ok) invalidateLearnerProfile();
+	} catch {
+		// Fire-and-forget: the handout simply stays as it was.
+	}
+}
+
 export async function generateReadingStoryFrame(
 	genre: Genre,
 	model: TextModelId = DEFAULT_TEXT_MODEL,
 ): Promise<ReadingStoryFrame> {
-	return generateReadingFrame(httpCompleter(model), genre);
+	const learnerProfile = await fetchLearnerProfile();
+	return generateReadingFrame(httpCompleter(model), genre, learnerProfile);
 }
 
 export async function generateReadingStoryPartStream(
@@ -142,7 +189,13 @@ export async function generateReadingStoryPartStream(
 	text: string;
 	messages: ChatMessage[];
 }> {
-	const messages = readingPartMessages(frame, partIndex, previousParts);
+	const learnerProfile = await fetchLearnerProfile();
+	const messages = readingPartMessages(
+		frame,
+		partIndex,
+		previousParts,
+		learnerProfile,
+	);
 	const text = await completeStream(messages, model, onChunk, 260);
 	return {
 		text,

@@ -5,7 +5,11 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { askEsperantoTutor, type EsperantoTutorChatMessage } from "../../ai";
+import {
+	askEsperantoTutor,
+	type EsperantoTutorChatMessage,
+	refineLearnerProfileFromChat,
+} from "../../ai";
 import { ESPERANTO_KEY_MAP } from "../../esperantoKeyboard";
 import {
 	readSelectedChatModel,
@@ -47,6 +51,13 @@ export function EsperantoChatModal({
 	const sessionIdRef = useRef(0);
 
 	const closeChat = useCallback(() => {
+		// Fold this session's questions into the learner handout before the
+		// transcript is wiped below. Fire-and-forget so it never blocks closing.
+		if (messages.length > 0) {
+			void refineLearnerProfileFromChat(
+				messages.map(({ role, content }) => ({ role, content })),
+			);
+		}
 		sessionIdRef.current += 1;
 		nextMessageIdRef.current = 0;
 		setMessages([]);
@@ -54,7 +65,7 @@ export function EsperantoChatModal({
 		setError(null);
 		setIsSending(false);
 		onClose();
-	}, [onClose]);
+	}, [messages, onClose]);
 
 	function createMessage(
 		role: EsperantoTutorChatMessage["role"],

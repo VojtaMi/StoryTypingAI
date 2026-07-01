@@ -84,9 +84,31 @@ export function openingMessages(genre: Genre, seed?: string): ChatMessage[] {
 	];
 }
 
-export function readingFrameMessages(genre: Genre): ChatMessage[] {
+const LEARNER_PROFILE_GUIDANCE =
+	"Adapt the story's vocabulary and grammar to the learner handout below. " +
+	"Reuse the words and grammar the learner already knows; that should make up most of the text. " +
+	"Gently stretch exactly one step into what they are currently learning, and do not exceed it. " +
+	"When the handout shows a complete beginner, keep to the very simplest words and the copula.";
+
+/** A system turn carrying the learner handout, or nothing when no profile is available. */
+function learnerProfileMessages(learnerProfile?: string): ChatMessage[] {
+	const trimmed = learnerProfile?.trim();
+	if (!trimmed) return [];
+	return [
+		{
+			role: "system",
+			content: `${LEARNER_PROFILE_GUIDANCE}\n\nLearner handout:\n${trimmed}`,
+		},
+	];
+}
+
+export function readingFrameMessages(
+	genre: Genre,
+	learnerProfile?: string,
+): ChatMessage[] {
 	return [
 		{ role: "system", content: READING_FRAME_PROMPT },
+		...learnerProfileMessages(learnerProfile),
 		{
 			role: "user",
 			content: `Create the reading story frame for this genre: ${genre.label}.\nGenre guidance: ${genre.systemPrompt}`,
@@ -98,10 +120,12 @@ export function readingPartMessages(
 	frame: ReadingStoryFrame,
 	partIndex: number,
 	previousParts: string[],
+	learnerProfile?: string,
 ): ChatMessage[] {
 	const beat = frame.beats[partIndex - 1];
 	return [
 		{ role: "system", content: READING_PART_SYSTEM_PROMPT },
+		...learnerProfileMessages(learnerProfile),
 		{
 			role: "user",
 			content: JSON.stringify(
@@ -121,9 +145,10 @@ export function readingPartMessages(
 export async function generateReadingFrame(
 	complete: Complete,
 	genre: Genre,
+	learnerProfile?: string,
 ): Promise<ReadingStoryFrame> {
 	const raw = await complete(
-		readingFrameMessages(genre),
+		readingFrameMessages(genre, learnerProfile),
 		READING_FRAME_MAX_TOKENS,
 	);
 	try {
