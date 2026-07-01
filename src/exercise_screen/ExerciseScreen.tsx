@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { getWordAudioUrl, regenerateWordAudioUrl } from "../ai";
+import {
+	getWordAudioUrl,
+	logLearnerWordClick,
+	regenerateWordAudioUrl,
+} from "../ai";
 import "../gallery/gallery.css";
 import { GalleryModal } from "../gallery/GalleryModal";
 import { AuthoringInput } from "./authoring/AuthoringInput";
@@ -120,6 +124,7 @@ export default function ExerciseScreen({
 		translation: string,
 		e: React.MouseEvent<HTMLButtonElement>,
 	) => {
+		void logLearnerWordClick(token);
 		playWordAudio(token);
 
 		const rect = e.currentTarget.getBoundingClientRect();

@@ -10,6 +10,7 @@ import {
 	handleCompleteStreamRequest,
 	handleLearnerProfileGetRequest,
 	handleLearnerProfileRefineRequest,
+	handleLearnerWordLogRequest,
 	handleOpeningAudioRequest,
 	handleRegenerateWordAudioRequest,
 	handleRegenerateWordRequest,
@@ -333,6 +334,11 @@ const server = createServer(async (req, res) => {
 			return;
 		}
 
+		if (pathname === "/api/learner-profile/word-log" && req.method === "POST") {
+			await handleLearnerWordLogRequest(req, res);
+			return;
+		}
+
 		if (pathname === "/api/ai/complete" && req.method === "POST") {
 			await handleCompleteRequest(req, res, openai, ANTHROPIC_API_KEY);
 			return;
@@ -380,9 +386,9 @@ const server = createServer(async (req, res) => {
 			try {
 				const file = await readWordAudio(word);
 				res.statusCode = 200;
-				res.setHeader("Content-Type", "audio/mpeg");
+				res.setHeader("Content-Type", file.mimeType);
 				res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-				res.end(file);
+				res.end(file.audio);
 			} catch {
 				sendJson(res, 404, { error: "Audio not found." });
 			}

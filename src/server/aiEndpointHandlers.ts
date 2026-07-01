@@ -7,6 +7,7 @@ import { completeAi, streamAi, translateWords } from "./aiService";
 import { readBody, sendJson } from "./http";
 import { refineLearnerProfile } from "./learnerProfileService";
 import { readLearnerProfile, writeLearnerProfile } from "./learnerProfileStore";
+import { appendLearnerWordLogEntry } from "./learnerWordLogStore";
 import { startNdjsonResponse, writeJsonLine } from "./ndjson";
 import { createBackgroundImage, findGenre } from "./openingsStore";
 import { saveIdPattern } from "./savesStore";
@@ -24,6 +25,7 @@ import {
 } from "./wordAudioStore";
 
 let learnerProfileRefineQueue: Promise<void> = Promise.resolve();
+const learnerWordPattern = /^[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+$/u;
 
 export async function handleBackgroundImageRequest(
 	req: IncomingMessage,
@@ -294,6 +296,24 @@ export async function handleLearnerProfileRefineRequest(
 		console.warn("Could not refine learner profile.", err);
 		sendJson(res, 200, { profile: responseProfile });
 	}
+}
+
+export async function handleLearnerWordLogRequest(
+	req: IncomingMessage,
+	res: ServerResponse,
+) {
+	const { word } = JSON.parse(await readBody(req));
+	if (!word || typeof word !== "string") {
+		sendJson(res, 400, { error: "word is required." });
+		return;
+	}
+	const normalizedWord = word.toLowerCase();
+	if (!learnerWordPattern.test(normalizedWord)) {
+		sendJson(res, 400, { error: "word contains unsupported characters." });
+		return;
+	}
+	await appendLearnerWordLogEntry(normalizedWord);
+	sendJson(res, 204, null);
 }
 
 function storyTextFromMessages(messages: ChatMessage[]) {

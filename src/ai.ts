@@ -346,6 +346,18 @@ export async function getWordAudioUrl(word: string): Promise<string> {
 	return body.url;
 }
 
+export async function logLearnerWordClick(word: string): Promise<void> {
+	try {
+		await fetch("/api/learner-profile/word-log", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ word }),
+		});
+	} catch {
+		// Learning signals should never interrupt reading.
+	}
+}
+
 export async function regenerateWordAudioUrl(word: string): Promise<string> {
 	const res = await fetch("/api/word-audio/regenerate", {
 		method: "POST",
