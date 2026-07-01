@@ -181,6 +181,11 @@ const server = createServer(async (req, res) => {
 				sendJson(res, 404, { error: "Genre not found." });
 				return;
 			}
+			const cached = await consumePreparedReadingOpening(genreId as GenreId);
+			if (cached) {
+				sendJson(res, 200, cached);
+				return;
+			}
 			if (prepareReadingPromise) await prepareReadingPromise;
 			sendJson(
 				res,

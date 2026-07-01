@@ -186,11 +186,10 @@ export async function generateReadingStoryFrame(
 	return generateReadingFrame(httpCompleter(model), genre, learnerProfile);
 }
 
-export async function generateReadingStoryPartStream(
+export async function generateReadingStoryPart(
 	frame: ReadingStoryFrame,
 	partIndex: number,
 	previousParts: string[],
-	onChunk: (chunk: string) => void,
 	model: TextModelId = DEFAULT_TEXT_MODEL,
 ): Promise<{
 	text: string;
@@ -203,12 +202,7 @@ export async function generateReadingStoryPartStream(
 		previousParts,
 		learnerProfile,
 	);
-	const text = await completeStream(
-		messages,
-		model,
-		onChunk,
-		READING_STORY_PART_MAX_TOKENS,
-	);
+	const text = await complete(messages, model, READING_STORY_PART_MAX_TOKENS);
 	return {
 		text,
 		messages: [...messages, { role: "assistant", content: text }],

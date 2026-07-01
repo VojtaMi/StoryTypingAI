@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type OpenAI from "openai";
@@ -31,6 +32,7 @@ export async function createOpeningAudio(
 			...narrationVoiceOptions(narrationVoice),
 		});
 		const filename = audioFilename(
+			text,
 			narrationVoice,
 			speech.provider,
 			speech.extension,
@@ -43,6 +45,7 @@ export async function createOpeningAudio(
 			openingAudioUrl: `/api/story-audio/${storyId}/${filename}`,
 			openingAudioSource: "generated",
 			openingAudioText: text,
+			openingAudioTextHash: audioTextHash(text),
 			openingAudioVoice: narrationVoice,
 			openingAudioProvider: speech.provider,
 			openingAudioModel: speech.model,
@@ -64,18 +67,23 @@ export async function readStoryAudio(relativePath: string) {
 }
 
 function audioFilename(
+	text: string,
 	voice: NarrationVoiceId,
 	provider: string,
 	extension: "mp3" | "wav",
 	sectionIndex?: number,
 ) {
 	if (sectionIndex !== undefined) {
-		return `section_${sectionIndex}_${voice}_${provider}.${extension}`;
+		return `section_${sectionIndex}_${voice}_${provider}_${audioTextHash(text)}.${extension}`;
 	}
-	return `opening-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+	return `opening-${audioTextHash(text)}-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 }
 
 function audioPath(storyId: string, filename: string) {
 	if (bundleIdPattern.test(storyId)) return bundledAudioPath(storyId, filename);
 	return join(storyAudioDir, storyId, filename);
+}
+
+function audioTextHash(text: string) {
+	return createHash("sha256").update(text).digest("hex").slice(0, 12);
 }

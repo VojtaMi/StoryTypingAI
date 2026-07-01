@@ -5,7 +5,7 @@ import {
 	continueStoryStream,
 	generateOpeningAudio,
 	generateReadingStoryFrame,
-	generateReadingStoryPartStream,
+	generateReadingStoryPart,
 	generateStoryBackgroundImage,
 	generateStoryIntro,
 	type ReadingStoryFrame,
@@ -35,7 +35,10 @@ import {
 	prepareMissingReadingOpenings,
 } from "../openings";
 import { loadSavedStory, type PreparedReadingPart } from "../saves";
-import type { StoryOpeningAudio } from "../storyAudio";
+import {
+	isStoryOpeningAudioForText,
+	type StoryOpeningAudio,
+} from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
 import {
 	backgroundFromOpening,
@@ -64,6 +67,9 @@ type View =
 	| "garden-phrase-builder"
 	| "garden-typing"
 	| "story";
+
+const PREPARED_READING_WAIT_MS = 1500;
+const PREPARED_READING_POLL_MS = 75;
 
 interface UseStorySessionOptions {
 	model: TextModelId;
@@ -113,8 +119,24 @@ function completedAiSegment(
 		id,
 		author: "ai",
 		text,
-		narrationAudio: audio?.openingAudioText === text ? audio : undefined,
+		narrationAudio: isStoryOpeningAudioForText(audio, text) ? audio : undefined,
 	};
+}
+
+function wait(ms: number) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isPendingPreparedReadingPart(
+	prepared: PreparedReadingPart | null,
+	partIndex: number,
+) {
+	return (
+		prepared !== null &&
+		prepared.partIndex === partIndex &&
+		prepared.status === "generating" &&
+		prepared.text === undefined
+	);
 }
 
 export function useStorySession({
@@ -415,11 +437,10 @@ export function useStorySession({
 			];
 
 			try {
-				const { text } = await generateReadingStoryPartStream(
+				const { text } = await generateReadingStoryPart(
 					frame,
 					nextPartIndex,
 					previousParts,
-					() => {},
 					model,
 				);
 
@@ -729,11 +750,10 @@ export function useStorySession({
 						messages: preparedOpening.messages,
 					}
 				: await (async () => {
-						const generated = await generateReadingStoryPartStream(
+						const generated = await generateReadingStoryPart(
 							frame,
 							1,
 							[],
-							(chunk) => setStreamingTarget((current) => current + chunk),
 							model,
 						);
 						return {
@@ -1087,21 +1107,17 @@ export function useStorySession({
 			return;
 		}
 
-		// Read prepared state before clearing it (ref is synchronously current).
-		const prepared = preparedNextPartRef.current;
-
 		const nextSegments: StorySegment[] = [
 			...segments,
 			completedAiSegment(segments.length, currentTarget, openingAudio),
 		];
 		const totalParts = readingFrame.totalParts;
-
-		// Cancel any in-flight preload and clear stored prepared part.
-		++preloadGenerationRef.current;
-		setPreparedNextPart(null);
 		setError(null);
 
 		if (readingPartIndex >= totalParts) {
+			// Cancel any in-flight preload and clear stored prepared part.
+			++preloadGenerationRef.current;
+			setPreparedNextPart(null);
 			setSegments(nextSegments);
 			setCurrentTarget(null);
 			setStreamingTarget("");
@@ -1130,22 +1146,32 @@ export function useStorySession({
 		}
 
 		const nextPartIndex = readingPartIndex + 1;
-		const hasPreloadedText =
-			prepared?.partIndex === nextPartIndex && prepared.text !== undefined;
+		let prepared = preparedNextPartRef.current;
+		const waitUntil = Date.now() + PREPARED_READING_WAIT_MS;
+		while (
+			isPendingPreparedReadingPart(prepared, nextPartIndex) &&
+			Date.now() < waitUntil
+		) {
+			await wait(PREPARED_READING_POLL_MS);
+			prepared = preparedNextPartRef.current;
+		}
 
-		if (hasPreloadedText) {
-			// Fast path: text was preloaded — skip the loading phase entirely.
-			const text = prepared.text as string;
-			const updatedMessages = prepared.messages as ChatMessage[];
-			const nextOpeningAudio =
-				prepared.openingAudio ??
-				(await generateOpeningAudio(text, activeSaveId, narrationVoice, {
-					sectionIndex: nextPartIndex,
-				}).catch((err) => {
-					console.warn("Could not generate opening audio.", err);
-					return null;
-				}));
-			const nextBackgroundImage = prepared.backgroundImage; // undefined = cadence skipped it
+		const preloadedTextPart =
+			prepared?.partIndex === nextPartIndex && prepared.text !== undefined
+				? prepared
+				: null;
+
+		// Cancel any in-flight preload and clear stored prepared part.
+		++preloadGenerationRef.current;
+		setPreparedNextPart(null);
+
+		if (preloadedTextPart) {
+			// Fast path: text was preloaded, so show it immediately. Audio recovery
+			// will fill in narration if the preload had not finished audio yet.
+			const text = preloadedTextPart.text as string;
+			const updatedMessages = preloadedTextPart.messages as ChatMessage[];
+			const nextOpeningAudio = preloadedTextPart.openingAudio ?? null;
+			const nextBackgroundImage = preloadedTextPart.backgroundImage; // undefined = cadence skipped it
 
 			if (nextBackgroundImage) setBackgroundImage(nextBackgroundImage);
 
@@ -1217,13 +1243,12 @@ export function useStorySession({
 		setPhase("loading");
 
 		try {
-			const { text } = await generateReadingStoryPartStream(
+			const { text } = await generateReadingStoryPart(
 				readingFrame,
 				nextPartIndex,
 				nextSegments
 					.filter((segment) => segment.author === "ai")
 					.map((segment) => segment.text),
-				(chunk) => setStreamingTarget((current) => current + chunk),
 				model,
 			);
 			const updatedMessages: ChatMessage[] = [
@@ -1482,9 +1507,7 @@ export function useStorySession({
 		startReadingStory,
 		openingAudio:
 			currentTarget &&
-			openingAudio?.openingAudioText === currentTarget &&
-			(!openingAudio.openingAudioVoice ||
-				openingAudio.openingAudioVoice === narrationVoice)
+			isStoryOpeningAudioForText(openingAudio, currentTarget, narrationVoice)
 				? openingAudio
 				: null,
 		narrationVoice,

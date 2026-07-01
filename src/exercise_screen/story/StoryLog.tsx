@@ -1,3 +1,4 @@
+import { isStoryOpeningAudioForText } from "../../storyAudio";
 import type { StorySegment } from "../types";
 import {
 	type NarrationStatus,
@@ -32,6 +33,12 @@ export function StoryLog({ segments }: StoryLogProps) {
 			{segments.map((segment) => {
 				const segmentKey = String(segment.id);
 				const status = segment.author === "ai" ? statusFor(segmentKey) : "idle";
+				const narrationAudio = isStoryOpeningAudioForText(
+					segment.narrationAudio,
+					segment.text,
+				)
+					? segment.narrationAudio
+					: null;
 				return (
 					<p key={segment.id} className={`segment segment--${segment.author}`}>
 						{segment.text}
@@ -47,7 +54,7 @@ export function StoryLog({ segments }: StoryLogProps) {
 									void toggle({
 										key: segmentKey,
 										text: segment.text,
-										audioUrl: segment.narrationAudio?.openingAudioUrl,
+										audioUrl: narrationAudio?.openingAudioUrl,
 									})
 								}
 							>
