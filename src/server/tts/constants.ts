@@ -1,6 +1,15 @@
 export const OPENAI_TTS_MODEL = "gpt-4o-mini-tts";
 export const OPENAI_TTS_VOICE = "fable";
-export const GEMINI_TTS_MODEL = "gemini-3.1-flash-tts-preview";
+
+export const GEMINI_TTS_MODELS = [
+	"gemini-2.5-flash-preview-tts",
+	"gemini-3.1-flash-tts-preview",
+] as const;
+export type GeminiTtsModel = (typeof GEMINI_TTS_MODELS)[number];
+
+/** Cheaper of the two Gemini TTS models; switch a request to the newer one via `geminiModel`. */
+export const DEFAULT_GEMINI_TTS_MODEL: GeminiTtsModel =
+	"gemini-2.5-flash-preview-tts";
 
 /**
  * Hard character ceiling for a single speech request. The OpenAI speech endpoint

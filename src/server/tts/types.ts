@@ -1,9 +1,11 @@
 import type OpenAI from "openai";
+import type { GeminiTtsModel } from "./constants";
 
 export type TtsProvider = "openai" | "gemini";
 export type TtsProviderPreference = TtsProvider | "auto";
 
 export interface SpeechOptions {
+	geminiModel?: GeminiTtsModel;
 	instructions?: string;
 	provider?: TtsProviderPreference;
 	speed?: number;

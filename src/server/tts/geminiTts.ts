@@ -1,4 +1,4 @@
-import { GEMINI_TTS_MODEL } from "./constants";
+import { DEFAULT_GEMINI_TTS_MODEL } from "./constants";
 import type { ProviderTtsRequest, SynthesizedSpeech } from "./types";
 import { geminiVoice } from "./voices";
 import { pcmToWav } from "./wav";
@@ -17,6 +17,7 @@ type GeminiGenerateContentResponse = {
 };
 
 export async function synthesizeGeminiSpeech({
+	geminiModel,
 	input,
 	instructions,
 	voice,
@@ -24,6 +25,7 @@ export async function synthesizeGeminiSpeech({
 	const apiKey = process.env.GEMINI_API_KEY ?? "";
 	if (!apiKey) throw new Error("Gemini API key is not configured.");
 
+	const selectedModel = geminiModel ?? DEFAULT_GEMINI_TTS_MODEL;
 	const selectedVoice = geminiVoice(voice);
 	const prompt = [
 		"Synthesize speech for an Esperanto learning app.",
@@ -36,7 +38,7 @@ export async function synthesizeGeminiSpeech({
 		.filter(Boolean)
 		.join("\n");
 	const response = await fetch(
-		`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent`,
+		`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent`,
 		{
 			method: "POST",
 			headers: {
@@ -75,7 +77,7 @@ export async function synthesizeGeminiSpeech({
 		audio: pcmToWav(Buffer.from(inlineData.data, "base64")),
 		extension: "wav",
 		mimeType: "audio/wav",
-		model: GEMINI_TTS_MODEL,
+		model: selectedModel,
 		provider: "gemini",
 		voice: selectedVoice,
 	};

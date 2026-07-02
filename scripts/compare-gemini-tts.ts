@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
+import { GEMINI_TTS_MODELS } from "../src/server/tts/constants.ts";
 
 type StoryRecord = {
 	id?: string;
@@ -23,7 +24,7 @@ type GeminiGenerateContentResponse = {
 
 const DEFAULT_STORY_PATH = "stories/esperanto-story--b34f4dde/story.json";
 const DEFAULT_VOICE = "Kore";
-const MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview"];
+const MODELS = GEMINI_TTS_MODELS;
 const SAMPLE_RATE = 24_000;
 const CHANNELS = 1;
 const BITS_PER_SAMPLE = 16;

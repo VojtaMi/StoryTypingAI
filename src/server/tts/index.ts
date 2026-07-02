@@ -9,7 +9,12 @@ import type {
 	TtsRequest,
 } from "./types";
 
-export { OPENAI_TTS_MODEL } from "./constants";
+export type { GeminiTtsModel } from "./constants";
+export {
+	DEFAULT_GEMINI_TTS_MODEL,
+	GEMINI_TTS_MODELS,
+	OPENAI_TTS_MODEL,
+} from "./constants";
 export type { SpeechOptions, SynthesizedSpeech, TtsProvider, TtsRequest };
 
 export async function synthesizeSpeech(
