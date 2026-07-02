@@ -12,7 +12,8 @@ import {
 	bundleIdPattern,
 	pathExists,
 } from "./storyBundleStore";
-import { tts } from "./tts";
+import { DEFAULT_GEMINI_TTS_MODEL, OPENAI_TTS_MODEL, tts } from "./tts";
+import type { TtsProvider } from "./tts/types";
 
 const storyAudioDir = join(process.cwd(), "story-audio");
 
@@ -26,6 +27,14 @@ export async function createOpeningAudio(
 	options: { sectionIndex?: number } = {},
 ): Promise<StoryOpeningAudio | null> {
 	try {
+		const existingAudio = await findExistingSectionAudio(
+			text,
+			storyId,
+			narrationVoice,
+			options.sectionIndex,
+		);
+		if (existingAudio) return existingAudio;
+
 		const speech = await tts({
 			openai,
 			text,
@@ -55,6 +64,60 @@ export async function createOpeningAudio(
 		console.warn("Could not generate opening audio.", err);
 		return null;
 	}
+}
+
+async function findExistingSectionAudio(
+	text: string,
+	storyId: string,
+	narrationVoice: NarrationVoiceId,
+	sectionIndex?: number,
+): Promise<StoryOpeningAudio | null> {
+	if (sectionIndex === undefined) return null;
+
+	const providers = preferredExistingProviders();
+	for (const provider of providers) {
+		const filename = audioFilename(
+			text,
+			narrationVoice,
+			provider.provider,
+			provider.extension,
+			sectionIndex,
+		);
+		if (!(await pathExists(audioPath(storyId, filename)))) continue;
+		return {
+			openingAudioUrl: `/api/story-audio/${storyId}/${filename}`,
+			openingAudioSource: "generated",
+			openingAudioText: text,
+			openingAudioTextHash: audioTextHash(text),
+			openingAudioVoice: narrationVoice,
+			openingAudioProvider: provider.provider,
+			openingAudioModel: provider.model,
+			openingAudioMimeType: provider.mimeType,
+		};
+	}
+
+	return null;
+}
+
+function preferredExistingProviders(): Array<{
+	provider: TtsProvider;
+	extension: "mp3" | "wav";
+	mimeType: "audio/mpeg" | "audio/wav";
+	model: string;
+}> {
+	const openai = {
+		provider: "openai" as const,
+		extension: "mp3" as const,
+		mimeType: "audio/mpeg" as const,
+		model: OPENAI_TTS_MODEL,
+	};
+	const gemini = {
+		provider: "gemini" as const,
+		extension: "wav" as const,
+		mimeType: "audio/wav" as const,
+		model: DEFAULT_GEMINI_TTS_MODEL,
+	};
+	return process.env.GEMINI_API_KEY ? [gemini, openai] : [openai, gemini];
 }
 
 export async function readStoryAudio(relativePath: string) {
