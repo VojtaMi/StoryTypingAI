@@ -5,9 +5,16 @@ import { DEFAULT_TEXT_MODEL, STORY_SEGMENT_MAX_TOKENS } from "../models";
 import { isNarrationVoiceId } from "../narrationVoice";
 import { completeAi, streamAi, translateWords } from "./aiService";
 import { readBody, sendJson } from "./http";
-import { refineLearnerProfile } from "./learnerProfileService";
+import {
+	refineLearnerProfile,
+	refineLearnerProfileFromStory,
+} from "./learnerProfileService";
 import { readLearnerProfile, writeLearnerProfile } from "./learnerProfileStore";
-import { appendLearnerWordLogEntry } from "./learnerWordLogStore";
+import {
+	advanceWordLogCursor,
+	appendLearnerWordLogEntry,
+	readWordLookupsSinceLastRefine,
+} from "./learnerWordLogStore";
 import { startNdjsonResponse, writeJsonLine } from "./ndjson";
 import { createBackgroundImage, findGenre } from "./openingsStore";
 import { saveIdPattern } from "./savesStore";
@@ -294,6 +301,59 @@ export async function handleLearnerProfileRefineRequest(
 	} catch (err) {
 		// Never break the capture loop: keep the existing profile on failure.
 		console.warn("Could not refine learner profile.", err);
+		sendJson(res, 200, { profile: responseProfile });
+	}
+}
+
+export async function handleLearnerProfileStoryRefineRequest(
+	req: IncomingMessage,
+	res: ServerResponse,
+	openai: OpenAI,
+	anthropicKey: string,
+) {
+	const { storySummary, feedback } = JSON.parse(await readBody(req));
+	if (storySummary !== undefined && typeof storySummary !== "string") {
+		sendJson(res, 400, { error: "storySummary must be a string." });
+		return;
+	}
+	if (feedback !== undefined && typeof feedback !== "string") {
+		sendJson(res, 400, { error: "feedback must be a string." });
+		return;
+	}
+
+	let responseProfile = await readLearnerProfile();
+	try {
+		const refineTask = learnerProfileRefineQueue
+			.catch(() => undefined)
+			.then(async () => {
+				const [current, wordLookupSummary] = await Promise.all([
+					readLearnerProfile(),
+					readWordLookupsSinceLastRefine(),
+				]);
+				const updated = await refineLearnerProfileFromStory(
+					openai,
+					current,
+					{ storySummary, feedback, wordLookups: wordLookupSummary.lookups },
+					anthropicKey,
+					new Date().toISOString().slice(0, 10),
+				);
+				await writeLearnerProfile(updated);
+				// Only mark these lookups consumed once they're durably folded into
+				// the written profile, so a failed refine or write can retry them.
+				if (wordLookupSummary.cursorCandidate) {
+					await advanceWordLogCursor(wordLookupSummary.cursorCandidate);
+				}
+				responseProfile = updated;
+			});
+		learnerProfileRefineQueue = refineTask.then(
+			() => undefined,
+			() => undefined,
+		);
+		await refineTask;
+		sendJson(res, 200, { profile: responseProfile });
+	} catch (err) {
+		// Never break the story-finish flow: keep the existing profile on failure.
+		console.warn("Could not refine learner profile from story.", err);
 		sendJson(res, 200, { profile: responseProfile });
 	}
 }

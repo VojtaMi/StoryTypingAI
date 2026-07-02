@@ -9,6 +9,7 @@ import {
 	generateStoryBackgroundImage,
 	generateStoryIntro,
 	type ReadingStoryFrame,
+	refineLearnerProfileFromStory,
 	regenerateWordTranslation,
 	type StoryMemory,
 	startStory,
@@ -108,6 +109,10 @@ function readingVisualContext(frame: ReadingStoryFrame): string {
 	]
 		.filter(Boolean)
 		.join(" ");
+}
+
+function readingStorySummary(frame: ReadingStoryFrame): string {
+	return `${frame.premise} Main character: ${frame.mainCharacter}. Setting: ${frame.setting}.`;
 }
 
 function completedAiSegment(
@@ -1142,6 +1147,9 @@ export function useStorySession({
 					preparedNextPart: null,
 				}),
 			);
+			void refineLearnerProfileFromStory({
+				storySummary: readingStorySummary(readingFrame),
+			});
 			return;
 		}
 
@@ -1474,6 +1482,10 @@ export function useStorySession({
 		[onSavesError, onViewChange],
 	);
 
+	const submitStoryFeedback = useCallback((feedback: string) => {
+		void refineLearnerProfileFromStory({ feedback });
+	}, []);
+
 	const handleRegenerateWord = useCallback(
 		async (word: string): Promise<string | null> => {
 			try {
@@ -1520,6 +1532,7 @@ export function useStorySession({
 		startLessonStory,
 		streamingTarget,
 		submitContinuation,
+		submitStoryFeedback,
 		wordTranslations,
 	};
 }

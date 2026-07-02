@@ -10,6 +10,7 @@ import { AuthoringInput } from "./authoring/AuthoringInput";
 import { EsperantoChatModal } from "./chatbot/EsperantoChatModal";
 import { ExerciseControls } from "./controls/ExerciseControls";
 import { OpeningAudioControl } from "./story/OpeningAudioControl";
+import { StoryFeedbackForm } from "./story/StoryFeedbackForm";
 import { StoryLoading } from "./story/StoryLoading";
 import { StoryLog } from "./story/StoryLog";
 import type { StoryPhase, StorySegment, TypingStats } from "./types";
@@ -43,6 +44,7 @@ interface ExerciseScreenProps {
 	onSubmitContinuation: (text: string) => void;
 	onAutoContinue: () => void;
 	onBackToMenu: () => void;
+	onSubmitStoryFeedback: (feedback: string) => void;
 }
 
 export default function ExerciseScreen({
@@ -64,6 +66,7 @@ export default function ExerciseScreen({
 	onSubmitContinuation,
 	onAutoContinue,
 	onBackToMenu,
+	onSubmitStoryFeedback,
 }: ExerciseScreenProps) {
 	const [galleryOpen, setGalleryOpen] = useState(false);
 	const [chatOpen, setChatOpen] = useState(false);
@@ -211,6 +214,7 @@ export default function ExerciseScreen({
 						)}
 					</div>
 					<p className="story__reading-finished">Story finished</p>
+					<StoryFeedbackForm key={storyId} onSubmit={onSubmitStoryFeedback} />
 				</div>
 			)}
 

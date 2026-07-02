@@ -10,6 +10,7 @@ import {
 	handleCompleteStreamRequest,
 	handleLearnerProfileGetRequest,
 	handleLearnerProfileRefineRequest,
+	handleLearnerProfileStoryRefineRequest,
 	handleLearnerWordLogRequest,
 	handleOpeningAudioRequest,
 	handleRegenerateWordAudioRequest,
@@ -341,6 +342,19 @@ const server = createServer(async (req, res) => {
 
 		if (pathname === "/api/learner-profile/word-log" && req.method === "POST") {
 			await handleLearnerWordLogRequest(req, res);
+			return;
+		}
+
+		if (
+			pathname === "/api/learner-profile/refine-story" &&
+			req.method === "POST"
+		) {
+			await handleLearnerProfileStoryRefineRequest(
+				req,
+				res,
+				openai,
+				ANTHROPIC_API_KEY,
+			);
 			return;
 		}
 

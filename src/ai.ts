@@ -178,6 +178,34 @@ export async function refineLearnerProfileFromChat(
 	}
 }
 
+export interface StoryFinishFeedback {
+	storySummary?: string;
+	feedback?: string;
+}
+
+/**
+ * Folds evidence from a just-finished reading story (word lookups since the
+ * last refine, the story's premise/character/setting, and optional learner
+ * difficulty feedback) into the learner handout. Fire-and-forget: it must
+ * never disrupt the reading flow, so all failures are swallowed.
+ */
+export async function refineLearnerProfileFromStory(
+	evidence: StoryFinishFeedback,
+): Promise<void> {
+	if (!evidence.storySummary?.trim() && !evidence.feedback?.trim()) return;
+	try {
+		invalidateLearnerProfile();
+		const res = await fetch("/api/learner-profile/refine-story", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(evidence),
+		});
+		if (res.ok) invalidateLearnerProfile();
+	} catch {
+		// Fire-and-forget: the handout simply stays as it was.
+	}
+}
+
 export async function generateReadingStoryFrame(
 	genre: Genre,
 	model: TextModelId = DEFAULT_TEXT_MODEL,

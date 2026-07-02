@@ -26,6 +26,10 @@ The very first Esperanto words and the copula \`estas\`.
 
 Unknown so far. Introduce new vocabulary slowly and repeat it often.
 
+# Recently practiced
+
+Nothing yet — no stories finished so far.
+
 # About this learner
 
 New to Esperanto. Prefers short, concrete sentences with plenty of repetition.

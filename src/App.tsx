@@ -285,6 +285,7 @@ export default function App() {
 		startReadingStory,
 		streamingTarget,
 		submitContinuation,
+		submitStoryFeedback,
 		wordTranslations,
 	} = useStorySession({
 		model,
@@ -613,6 +614,7 @@ export default function App() {
 					onSubmitContinuation={submitContinuation}
 					onAutoContinue={autoContinueStory}
 					onBackToMenu={backToMenu}
+					onSubmitStoryFeedback={submitStoryFeedback}
 				/>
 			)}
 		</div>
