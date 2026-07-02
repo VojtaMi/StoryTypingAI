@@ -1247,13 +1247,39 @@ export function useStorySession({
 			await wait(PREPARED_READING_POLL_MS);
 		}
 
-		const currentOpeningAudio = isStoryOpeningAudioForText(
+		let currentOpeningAudio = isStoryOpeningAudioForText(
 			openingAudioRef.current,
 			currentTarget,
 			narrationVoice,
 		)
 			? openingAudioRef.current
 			: null;
+		if (!currentOpeningAudio) {
+			currentOpeningAudio = await generateOpeningAudio(
+				currentTarget,
+				activeSaveId,
+				narrationVoice,
+				{ sectionIndex: readingPartIndex },
+			).catch((err) => {
+				console.warn("Could not recover current reading audio.", err);
+				return null;
+			});
+			if (
+				currentOpeningAudio &&
+				activeSaveIdRef.current === activeSaveId &&
+				currentTargetRef.current === currentTarget &&
+				readingPartIndexRef.current === readingPartIndex
+			) {
+				setOpeningAudio(currentOpeningAudio);
+			}
+			if (
+				activeSaveIdRef.current !== activeSaveId ||
+				currentTargetRef.current !== currentTarget ||
+				readingPartIndexRef.current !== readingPartIndex
+			) {
+				return;
+			}
+		}
 		if (!currentOpeningAudio) {
 			setError("Narration is still preparing. Try again in a moment.");
 			return;
