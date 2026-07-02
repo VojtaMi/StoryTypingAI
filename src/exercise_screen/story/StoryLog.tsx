@@ -20,7 +20,7 @@ const NARRATION_LABEL: Record<NarrationStatus, string> = {
 	idle: "Play narration",
 	loading: "Loading narration",
 	playing: "Pause narration",
-	error: "Narration failed — click to retry",
+	error: "Narration unavailable for this segment",
 };
 
 export function StoryLog({ segments }: StoryLogProps) {
@@ -53,7 +53,6 @@ export function StoryLog({ segments }: StoryLogProps) {
 								onClick={() =>
 									void toggle({
 										key: segmentKey,
-										text: segment.text,
 										audioUrl: narrationAudio?.openingAudioUrl,
 									})
 								}

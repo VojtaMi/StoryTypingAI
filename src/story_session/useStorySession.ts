@@ -1112,9 +1112,36 @@ export function useStorySession({
 			return;
 		}
 
+		// The current part's audio may still be generating (see the recovery
+		// effect above). Give it a brief window to land in state before
+		// finalizing the segment, so we don't persist it without narration.
+		const audioWaitUntil = Date.now() + PREPARED_READING_WAIT_MS;
+		while (
+			Date.now() < audioWaitUntil &&
+			!isStoryOpeningAudioForText(
+				openingAudioRef.current,
+				currentTarget,
+				narrationVoice,
+			)
+		) {
+			await wait(PREPARED_READING_POLL_MS);
+		}
+
+		const currentOpeningAudio = isStoryOpeningAudioForText(
+			openingAudioRef.current,
+			currentTarget,
+			narrationVoice,
+		)
+			? openingAudioRef.current
+			: null;
+		if (!currentOpeningAudio) {
+			setError("Narration is still preparing. Try again in a moment.");
+			return;
+		}
+
 		const nextSegments: StorySegment[] = [
 			...segments,
-			completedAiSegment(segments.length, currentTarget, openingAudio),
+			completedAiSegment(segments.length, currentTarget, currentOpeningAudio),
 		];
 		const totalParts = readingFrame.totalParts;
 		setError(null);
@@ -1334,7 +1361,6 @@ export function useStorySession({
 		messages,
 		model,
 		narrationVoice,
-		openingAudio,
 		persistStory,
 		preloadNextReadingPart,
 		readingFrame,

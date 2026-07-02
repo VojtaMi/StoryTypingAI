@@ -1,16 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { speakStorySegment } from "../../ai";
 
 export type NarrationStatus = "idle" | "loading" | "playing" | "error";
 
 /**
- * Plays story segment narration. Segments with prepared audio replay that stable
- * MP3 URL; older segments without saved audio fall back to lazy TTS generation.
+ * Plays story segment narration from its prepared audio URL. Segments without
+ * one show an error state instead of falling back to a different TTS voice.
  * A single shared <audio> element guarantees only one segment plays at a time.
  */
 export function useSegmentNarration() {
 	const audioRef = useRef<HTMLAudioElement | null>(null);
-	const urlCacheRef = useRef(new Map<string, string>());
 	const [activeKey, setActiveKey] = useState<string | null>(null);
 	const [status, setStatus] = useState<NarrationStatus>("idle");
 
@@ -22,25 +20,14 @@ export function useSegmentNarration() {
 			setStatus("idle");
 		};
 		audio.addEventListener("ended", handleEnd);
-		const cache = urlCacheRef.current;
 		return () => {
 			audio.removeEventListener("ended", handleEnd);
 			audio.pause();
-			for (const url of cache.values()) URL.revokeObjectURL(url);
-			cache.clear();
 		};
 	}, []);
 
 	const toggle = useCallback(
-		async ({
-			key,
-			text,
-			audioUrl,
-		}: {
-			key: string;
-			text: string;
-			audioUrl?: string | null;
-		}) => {
+		async ({ key, audioUrl }: { key: string; audioUrl?: string | null }) => {
 			const audio = audioRef.current;
 			if (!audio) return;
 
@@ -53,16 +40,17 @@ export function useSegmentNarration() {
 			}
 
 			audio.pause();
+
+			if (!audioUrl) {
+				setActiveKey(key);
+				setStatus("error");
+				return;
+			}
+
 			setActiveKey(key);
 			setStatus("loading");
 			try {
-				let url = audioUrl ?? urlCacheRef.current.get(text);
-				if (!url) {
-					const blob = await speakStorySegment(text);
-					url = URL.createObjectURL(blob);
-					urlCacheRef.current.set(text, url);
-				}
-				audio.src = url;
+				audio.src = audioUrl;
 				audio.currentTime = 0;
 				await audio.play();
 				setStatus("playing");

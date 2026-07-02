@@ -15,7 +15,6 @@ import {
 	handleOpeningAudioRequest,
 	handleRegenerateWordAudioRequest,
 	handleRegenerateWordRequest,
-	handleSpeakRequest,
 	handleTranslateWordsRequest,
 	handleWordAudioRequest,
 } from "./aiEndpointHandlers";
@@ -411,11 +410,6 @@ const server = createServer(async (req, res) => {
 			} catch {
 				sendJson(res, 404, { error: "Audio not found." });
 			}
-			return;
-		}
-
-		if (pathname === "/api/ai/speak" && req.method === "POST") {
-			await handleSpeakRequest(req, res, openai);
 			return;
 		}
 

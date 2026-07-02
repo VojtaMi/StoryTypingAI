@@ -81,6 +81,26 @@ Exercise selection can be flexible, but it should respect the learner model:
 known words should dominate, weak words should reappear, and new material should
 arrive slowly.
 
+Today exercises live in dedicated sessions (typing story, reading story)
+rather than inside a story itself. A further step under consideration is
+letting exercises appear dynamically within a story's parts, and closing each
+story with a recap exercise — see Story Completion Moment below.
+
+## Story Completion Moment (idea, undecided)
+
+Today, finishing a story shows an inline feedback card asking about difficulty.
+One direction being considered: replace this with a light-themed modal —
+"Congratulations for completing the story," the Esperanto Bot companion, and a
+gallery of the images generated across the story's parts as a visual recap.
+Difficulty feedback would still be captured here, alongside the celebration.
+
+This moment could also be where a recap exercise lives — a short exercise
+drawing on the vocabulary/sentences from the story just read, once exercises
+can be generated dynamically per-story rather than only in dedicated typing
+sessions (see Exercise Direction below). Open questions: whether the recap
+exercise blocks moving on, how it relates to the mid-story exercise rotation,
+and whether the modal replaces or supplements the existing feedback card.
+
 ## AI Boundary
 
 AI should remain a constrained content generator, not the curriculum itself.
