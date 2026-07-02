@@ -1,11 +1,13 @@
 import { useState } from "react";
 
-type Difficulty = "easy" | "right" | "hard";
+type Difficulty = "tooEasy" | "bitEasy" | "right" | "bitHard" | "tooHard";
 
 const DIFFICULTY_LABEL: Record<Difficulty, string> = {
-	easy: "Too easy",
+	tooEasy: "Too easy",
+	bitEasy: "A bit easy",
 	right: "Just right",
-	hard: "Too hard",
+	bitHard: "A bit hard",
+	tooHard: "Too hard",
 };
 
 interface StoryFeedbackFormProps {
