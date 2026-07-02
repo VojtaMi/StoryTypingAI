@@ -43,11 +43,7 @@ export async function tts({
 				: "openai"
 			: options.provider;
 	if (requestedProvider === "gemini") {
-		try {
-			return await synthesizeGeminiSpeech({ openai, input, ...options });
-		} catch (err) {
-			console.warn("Gemini TTS failed; falling back to OpenAI.", err);
-		}
+		return synthesizeGeminiSpeech({ openai, input, ...options });
 	}
 
 	return synthesizeOpenAiSpeech({ openai, input, ...options });

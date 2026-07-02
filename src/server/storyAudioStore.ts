@@ -74,37 +74,34 @@ async function findExistingSectionAudio(
 ): Promise<StoryOpeningAudio | null> {
 	if (sectionIndex === undefined) return null;
 
-	const providers = preferredExistingProviders();
-	for (const provider of providers) {
-		const filename = audioFilename(
-			text,
-			narrationVoice,
-			provider.provider,
-			provider.extension,
-			sectionIndex,
-		);
-		if (!(await pathExists(audioPath(storyId, filename)))) continue;
-		return {
-			openingAudioUrl: `/api/story-audio/${storyId}/${filename}`,
-			openingAudioSource: "generated",
-			openingAudioText: text,
-			openingAudioTextHash: audioTextHash(text),
-			openingAudioVoice: narrationVoice,
-			openingAudioProvider: provider.provider,
-			openingAudioModel: provider.model,
-			openingAudioMimeType: provider.mimeType,
-		};
-	}
+	const provider = activeExistingProvider();
+	const filename = audioFilename(
+		text,
+		narrationVoice,
+		provider.provider,
+		provider.extension,
+		sectionIndex,
+	);
+	if (!(await pathExists(audioPath(storyId, filename)))) return null;
 
-	return null;
+	return {
+		openingAudioUrl: `/api/story-audio/${storyId}/${filename}`,
+		openingAudioSource: "generated",
+		openingAudioText: text,
+		openingAudioTextHash: audioTextHash(text),
+		openingAudioVoice: narrationVoice,
+		openingAudioProvider: provider.provider,
+		openingAudioModel: provider.model,
+		openingAudioMimeType: provider.mimeType,
+	};
 }
 
-function preferredExistingProviders(): Array<{
+function activeExistingProvider(): {
 	provider: TtsProvider;
 	extension: "mp3" | "wav";
 	mimeType: "audio/mpeg" | "audio/wav";
 	model: string;
-}> {
+} {
 	const openai = {
 		provider: "openai" as const,
 		extension: "mp3" as const,
@@ -117,7 +114,7 @@ function preferredExistingProviders(): Array<{
 		mimeType: "audio/wav" as const,
 		model: DEFAULT_GEMINI_TTS_MODEL,
 	};
-	return process.env.GEMINI_API_KEY ? [gemini, openai] : [openai, gemini];
+	return process.env.GEMINI_API_KEY ? gemini : openai;
 }
 
 export async function readStoryAudio(relativePath: string) {
