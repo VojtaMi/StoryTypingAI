@@ -512,6 +512,13 @@
 	cursor: default;
 }
 
+.word-match__item--correct {
+	border-color: #27ae60;
+	background: rgba(39, 174, 96, 0.12);
+	color: #27ae60;
+	cursor: default;
+}
+
 .word-match__item--matched {
 	animation: word-match-correct 0.55s ease forwards;
 	cursor: default;

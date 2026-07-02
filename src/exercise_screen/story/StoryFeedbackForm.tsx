@@ -21,7 +21,7 @@ export function StoryFeedbackForm({ onSubmit }: StoryFeedbackFormProps) {
 
 	if (submitted) {
 		return (
-			<p className="story__feedback-thanks">Thanks — noted for next time.</p>
+			<p className="lesson-doc__paragraph">Thanks — noted for next time.</p>
 		);
 	}
 
@@ -37,15 +37,18 @@ export function StoryFeedbackForm({ onSubmit }: StoryFeedbackFormProps) {
 	}
 
 	return (
-		<div className="story__feedback">
-			<p className="story__feedback-prompt">How was this story's difficulty?</p>
-			<div className="story__feedback-options">
+		<div className="story-completion__feedback">
+			<p className="lesson-doc__subheading">How was this story's difficulty?</p>
+			<div className="phrase-builder__tiles">
 				{(Object.keys(DIFFICULTY_LABEL) as Difficulty[]).map((option) => (
 					<button
 						type="button"
 						key={option}
-						className="story__feedback-option"
-						data-active={difficulty === option}
+						className={
+							difficulty === option
+								? "phrase-builder__selected"
+								: "phrase-builder__tile"
+						}
 						onClick={() => setDifficulty(option)}
 					>
 						{DIFFICULTY_LABEL[option]}
@@ -53,7 +56,7 @@ export function StoryFeedbackForm({ onSubmit }: StoryFeedbackFormProps) {
 				))}
 			</div>
 			<textarea
-				className="story__feedback-note"
+				className="story-completion__note"
 				value={note}
 				onChange={(event) => setNote(event.target.value)}
 				placeholder="Anything else? (optional)"
@@ -61,7 +64,7 @@ export function StoryFeedbackForm({ onSubmit }: StoryFeedbackFormProps) {
 			/>
 			<button
 				type="button"
-				className="story__feedback-submit"
+				className="lesson-doc__begin"
 				disabled={!difficulty}
 				onClick={handleSubmit}
 			>

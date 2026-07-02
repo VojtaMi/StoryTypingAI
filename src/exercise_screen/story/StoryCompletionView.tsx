@@ -1,5 +1,6 @@
 import type React from "react";
 import { useRef, useState } from "react";
+import "../../lessons/lesson.css";
 import type { StorySegment } from "../types";
 import { StoryFeedbackForm } from "./StoryFeedbackForm";
 
@@ -54,22 +55,19 @@ export function StoryCompletionView({
 	}
 
 	return (
-		<div className="story__reading story__reading--finished story-completion">
-			<div className="story__reading-header">
-				{readingTotalParts !== null && (
-					<p className="story__reading-progress">
-						Part {readingTotalParts} of {readingTotalParts}
-					</p>
-				)}
-			</div>
-			<p className="story-completion__eyebrow">Story complete</p>
-			<h2 className="story-completion__title">Congratulations</h2>
-			<p className="story-completion__lede">You finished the whole story.</p>
+		<div className="story-completion">
+			<p className="lesson-doc__eyebrow">Story complete</p>
+			<h2 className="lesson-doc__heading">Congratulations</h2>
+			<p className="lesson-doc__lede">
+				{readingTotalParts !== null
+					? `You finished all ${readingTotalParts} parts.`
+					: "You finished the whole story."}
+			</p>
 
 			<div className="story-completion__actions">
 				<button
 					type="button"
-					className="story__reading-next"
+					className="lesson-doc__begin"
 					disabled={playableUrls.length === 0}
 					onClick={playing ? stopPlayback : playStoryAgain}
 				>
@@ -78,7 +76,7 @@ export function StoryCompletionView({
 				{canShowGallery && (
 					<button
 						type="button"
-						className="story-completion__gallery"
+						className="word-match__item"
 						onClick={onOpenGallery}
 					>
 						Review gallery
@@ -97,6 +95,7 @@ export function StoryCompletionView({
 				</button>
 			)}
 
+			<hr className="lesson-doc__rule" />
 			<StoryFeedbackForm key={storyId} onSubmit={onSubmitStoryFeedback} />
 		</div>
 	);

@@ -1,5 +1,6 @@
 import type React from "react";
 import { useMemo, useRef, useState } from "react";
+import "../../lessons/lesson.css";
 import type {
 	StoryRecapExercise,
 	StoryRecapLesson,
@@ -23,6 +24,10 @@ function shuffle<T>(items: T[]): T[] {
 	return result;
 }
 
+function itemClass(...modifiers: (string | false | null)[]): string {
+	return ["word-match__item", ...modifiers.filter(Boolean)].join(" ");
+}
+
 export function StoryRecapView({
 	lesson,
 	error,
@@ -39,35 +44,43 @@ export function StoryRecapView({
 
 	if (!lesson) {
 		return (
-			<div className="story__reading story-recap">
-				<p className="story__reading-progress">Eta praktiko</p>
-				<h2 className="story-recap__title">Preparing your recap</h2>
-				<p className="story-recap__hint">
+			<div className="story-recap">
+				<p className="lesson-doc__eyebrow">Eta praktiko</p>
+				<h2 className="lesson-doc__heading">Preparing your recap</h2>
+				<p className="lesson-doc__paragraph">
 					A few tiny questions are being made from the story you just read.
 				</p>
 				{error ? (
 					<div className="story-recap__error">
 						<p>{error}</p>
 						<div className="story-recap__actions">
-							<button type="button" onClick={onRetry}>
+							<button
+								type="button"
+								className="lesson-doc__begin"
+								onClick={onRetry}
+							>
 								Try again
 							</button>
-							<button type="button" onClick={onSkip}>
+							<button
+								type="button"
+								className="word-match__item"
+								onClick={onSkip}
+							>
 								Skip recap
 							</button>
 						</div>
 					</div>
 				) : (
-					<p className="story-recap__loading">Generating practice...</p>
+					<p className="lesson-doc__paragraph">Generating practice...</p>
 				)}
 			</div>
 		);
 	}
 
 	return (
-		<div className="story__reading story-recap">
-			<p className="story__reading-progress">Eta praktiko</p>
-			<h2 className="story-recap__title">{lesson.title}</h2>
+		<div className="story-recap">
+			<p className="lesson-doc__eyebrow">Eta praktiko</p>
+			<h2 className="lesson-doc__heading">{lesson.title}</h2>
 			<div className="story-recap__list">
 				{lesson.exercises.map((exercise) => (
 					<RecapExercise
@@ -80,7 +93,11 @@ export function StoryRecapView({
 			</div>
 			{allDone && (
 				<div className="story-recap__actions story-recap__actions--end">
-					<button type="button" onClick={onComplete}>
+					<button
+						type="button"
+						className="lesson-doc__begin"
+						onClick={onComplete}
+					>
 						Continue
 					</button>
 				</div>
@@ -221,18 +238,19 @@ function WordConnectRecap({
 	}
 
 	return (
-		<section className="story-recap__exercise" data-done={done}>
+		<section className="story-recap__exercise">
 			<ExerciseHeader title={exercise.title} hint={exercise.hint} done={done} />
-			<div className="story-recap__match">
-				<div className="story-recap__match-col">
+			<div className="word-match__columns">
+				<div className="word-match__col">
 					{terms.map((term) => (
 						<button
 							key={term}
 							type="button"
-							className="story-recap__choice"
-							data-selected={selectedTerm === term}
-							data-correct={matched.has(term)}
-							data-wrong={wrongPair?.term === term}
+							className={itemClass(
+								matched.has(term) && "word-match__item--matched",
+								selectedTerm === term && "word-match__item--selected",
+								wrongPair?.term === term && "word-match__item--wrong",
+							)}
 							disabled={matched.has(term)}
 							onClick={() => chooseTerm(term)}
 						>
@@ -240,15 +258,16 @@ function WordConnectRecap({
 						</button>
 					))}
 				</div>
-				<div className="story-recap__match-col">
+				<div className="word-match__col">
 					{meanings.map((meaning) => (
 						<button
 							key={meaning}
 							type="button"
-							className="story-recap__choice"
-							data-selected={selectedMeaning === meaning}
-							data-correct={matchedMeanings.has(meaning)}
-							data-wrong={wrongPair?.meaning === meaning}
+							className={itemClass(
+								matchedMeanings.has(meaning) && "word-match__item--matched",
+								selectedMeaning === meaning && "word-match__item--selected",
+								wrongPair?.meaning === meaning && "word-match__item--wrong",
+							)}
 							disabled={matchedMeanings.has(meaning)}
 							onClick={() => chooseMeaning(meaning)}
 						>
@@ -293,17 +312,19 @@ function ChoiceRecap({
 	}
 
 	return (
-		<section className="story-recap__exercise" data-done={done}>
+		<section className="story-recap__exercise">
 			<ExerciseHeader title={title} hint={hint} done={done} />
 			<p className="story-recap__prompt">{prompt}</p>
-			<div className="story-recap__choices">
+			<div className="word-match__col">
 				{shuffledChoices.map((choice) => (
 					<button
 						key={choice}
 						type="button"
-						className="story-recap__choice"
-						data-correct={done && choice === answer}
-						data-wrong={wrongChoice === choice}
+						className={itemClass(
+							done && choice === answer && "word-match__item--correct",
+							wrongChoice === choice && "word-match__item--wrong",
+						)}
+						disabled={done}
 						onClick={() => choose(choice)}
 					>
 						{choice}
@@ -326,10 +347,10 @@ function ExerciseHeader({
 	return (
 		<div className="story-recap__exercise-head">
 			<div>
-				<h3>{title}</h3>
+				<h3 className="lesson-doc__subheading">{title}</h3>
 				<p>{hint}</p>
 			</div>
-			{done && <span>Done</span>}
+			{done && <span className="story-recap__done-badge">Done</span>}
 		</div>
 	);
 }
