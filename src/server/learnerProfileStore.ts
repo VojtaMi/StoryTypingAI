@@ -114,6 +114,10 @@ export async function writeLearnerProfile(content: string): Promise<void> {
 	return writeLearnerFile(profilePath, content);
 }
 
+export async function writeLearnerPreferences(content: string): Promise<void> {
+	return writeLearnerFile(preferencesPath, content);
+}
+
 export async function writeStoryMemory(content: string): Promise<void> {
 	return writeLearnerFile(storyMemoryPath, content);
 }

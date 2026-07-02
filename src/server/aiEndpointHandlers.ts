@@ -6,14 +6,17 @@ import { isNarrationVoiceId } from "../narrationVoice";
 import { completeAi, streamAi, translateWords } from "./aiService";
 import { readBody, sendJson } from "./http";
 import {
+	refineLearnerPreferencesFromChat,
 	refineLearnerProfile,
 	refineLearnerProfileFromStory,
 	refineStoryMemoryFromStory,
 } from "./learnerProfileService";
 import {
 	readLearnerContext,
+	readLearnerPreferences,
 	readLearnerProfile,
 	readStoryMemory,
+	writeLearnerPreferences,
 	writeLearnerProfile,
 	writeStoryMemory,
 } from "./learnerProfileStore";
@@ -272,15 +275,31 @@ export async function handleLearnerProfileRefineRequest(
 		const refineTask = learnerProfileRefineQueue
 			.catch(() => undefined)
 			.then(async () => {
-				const current = await readLearnerProfile();
-				const updated = await refineLearnerProfile(
-					openai,
-					current,
-					messages,
-					anthropicKey,
-					new Date().toISOString().slice(0, 10),
-				);
-				await writeLearnerProfile(updated);
+				const [currentProfile, currentPreferences] = await Promise.all([
+					readLearnerProfile(),
+					readLearnerPreferences(),
+				]);
+				const today = new Date().toISOString().slice(0, 10);
+				const [updated, updatedPreferences] = await Promise.all([
+					refineLearnerProfile(
+						openai,
+						currentProfile,
+						messages,
+						anthropicKey,
+						today,
+					),
+					refineLearnerPreferencesFromChat(
+						openai,
+						currentPreferences,
+						messages,
+						anthropicKey,
+						today,
+					),
+				]);
+				await Promise.all([
+					writeLearnerProfile(updated),
+					writeLearnerPreferences(updatedPreferences),
+				]);
 				responseProfile = updated;
 			});
 		learnerProfileRefineQueue = refineTask.then(
