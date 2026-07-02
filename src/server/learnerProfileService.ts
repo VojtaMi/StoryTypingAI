@@ -1,6 +1,6 @@
 import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
-import { DEFAULT_TEXT_MODEL } from "../models";
+import { SYSTEM_AI_MODEL } from "../models";
 import { completeAi } from "./aiService";
 
 const REFINE_MAX_TOKENS = 700;
@@ -88,7 +88,7 @@ export async function refineLearnerProfile(
 		openai,
 		messages,
 		REFINE_MAX_TOKENS,
-		DEFAULT_TEXT_MODEL,
+		SYSTEM_AI_MODEL,
 		anthropicKey,
 	);
 	return cleanLearnerProfile(updated, today);
@@ -146,7 +146,7 @@ export async function refineLearnerProfileFromStory(
 		openai,
 		messages,
 		REFINE_MAX_TOKENS,
-		DEFAULT_TEXT_MODEL,
+		SYSTEM_AI_MODEL,
 		anthropicKey,
 	);
 	return cleanLearnerProfile(updated, today);
@@ -185,7 +185,7 @@ export async function refineStoryMemoryFromStory(
 		openai,
 		messages,
 		REFINE_MAX_TOKENS,
-		DEFAULT_TEXT_MODEL,
+		SYSTEM_AI_MODEL,
 		anthropicKey,
 	);
 	return cleanStoryMemory(updated, today);

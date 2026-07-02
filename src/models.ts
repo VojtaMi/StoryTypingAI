@@ -32,3 +32,6 @@ export const STORY_SEGMENT_MAX_TOKENS = 400;
 
 /** Cheap model used for batch word translations — not user-selectable. */
 export const TRANSLATION_MODEL = "gpt-5.4-mini";
+
+/** Cheap model used for internal memory/refinement tasks — not user-selectable. */
+export const SYSTEM_AI_MODEL: TextModelId = "gpt-5.4-mini";
