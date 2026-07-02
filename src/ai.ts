@@ -1,4 +1,5 @@
 import type { Genre, GenreId } from "./genres";
+import type { LearnerContext } from "./learnerContext";
 import {
 	DEFAULT_TEXT_MODEL,
 	STORY_SEGMENT_MAX_TOKENS,
@@ -127,11 +128,11 @@ export async function startStory(
 	return { text, messages };
 }
 
-let learnerProfilePromise: Promise<string> | null = null;
+let learnerContextPromise: Promise<LearnerContext> | null = null;
 
 /** Drops the cached learner profile so the next reading story refetches it. */
 export function invalidateLearnerProfile() {
-	learnerProfilePromise = null;
+	learnerContextPromise = null;
 }
 
 /**
@@ -140,20 +141,34 @@ export function invalidateLearnerProfile() {
  * it. Returns "" on any failure so story generation still works.
  */
 export async function fetchLearnerProfile(): Promise<string> {
-	if (!learnerProfilePromise) {
-		learnerProfilePromise = (async () => {
+	const context = await fetchLearnerContext();
+	return context.languageProfile;
+}
+
+async function fetchLearnerContext(): Promise<LearnerContext> {
+	if (!learnerContextPromise) {
+		learnerContextPromise = (async () => {
 			const res = await fetch("/api/learner-profile");
 			if (!res.ok) throw new Error(`Profile request failed: ${res.status}`);
-			const body = (await res.json()) as { profile?: string };
-			return body.profile ?? "";
+			const body = (await res.json()) as {
+				profile?: string;
+				languageProfile?: string;
+				preferences?: string;
+				storyMemory?: string;
+			};
+			return {
+				languageProfile: body.languageProfile ?? body.profile ?? "",
+				preferences: body.preferences ?? "",
+				storyMemory: body.storyMemory ?? "",
+			};
 		})();
 	}
 
 	try {
-		return await learnerProfilePromise;
+		return await learnerContextPromise;
 	} catch {
-		learnerProfilePromise = null;
-		return "";
+		learnerContextPromise = null;
+		return { languageProfile: "", preferences: "", storyMemory: "" };
 	}
 }
 
@@ -210,8 +225,8 @@ export async function generateReadingStoryFrame(
 	genre: Genre,
 	model: TextModelId = DEFAULT_TEXT_MODEL,
 ): Promise<ReadingStoryFrame> {
-	const learnerProfile = await fetchLearnerProfile();
-	return generateReadingFrame(httpCompleter(model), genre, learnerProfile);
+	const learnerContext = await fetchLearnerContext();
+	return generateReadingFrame(httpCompleter(model), genre, learnerContext);
 }
 
 export async function generateReadingStoryPart(
@@ -223,12 +238,17 @@ export async function generateReadingStoryPart(
 	text: string;
 	messages: ChatMessage[];
 }> {
-	const learnerProfile = frame.learnerProfile ?? (await fetchLearnerProfile());
+	const fallbackContext = await fetchLearnerContext();
+	const learnerContext = {
+		languageProfile: frame.learnerProfile ?? fallbackContext.languageProfile,
+		preferences: frame.learnerPreferences ?? fallbackContext.preferences,
+		storyMemory: frame.storyMemory ?? fallbackContext.storyMemory,
+	};
 	const messages = readingPartMessages(
 		frame,
 		partIndex,
 		previousParts,
-		learnerProfile,
+		learnerContext,
 	);
 	const text = await complete(messages, model, READING_STORY_PART_MAX_TOKENS);
 	return {

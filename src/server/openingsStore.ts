@@ -20,7 +20,7 @@ import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
 import { completeAi } from "./aiService";
 import { buildStoryBackgroundPrompt, generateStoryImage } from "./images";
-import { readLearnerProfile } from "./learnerProfileStore";
+import { readLearnerContext } from "./learnerProfileStore";
 import { createOpeningAudio } from "./storyAudioStore";
 import {
 	bundledImagesPath,
@@ -350,11 +350,11 @@ async function createPreparedReadingOpening(
 ): Promise<PreparedReadingOpening> {
 	const complete = (messages: ChatMessage[], maxTokens: number) =>
 		completeAi(openai, messages, maxTokens, model, anthropicKey);
-	const learnerProfile = await readLearnerProfile();
+	const learnerContext = await readLearnerContext();
 	const readingFrame = await generateReadingFrame(
 		complete,
 		genre,
-		learnerProfile,
+		learnerContext,
 	);
 	const text = await complete(readingPartMessages(readingFrame, 1, []), 260);
 	const messages: ChatMessage[] = [

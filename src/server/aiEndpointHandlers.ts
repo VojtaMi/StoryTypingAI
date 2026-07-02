@@ -8,8 +8,15 @@ import { readBody, sendJson } from "./http";
 import {
 	refineLearnerProfile,
 	refineLearnerProfileFromStory,
+	refineStoryMemoryFromStory,
 } from "./learnerProfileService";
-import { readLearnerProfile, writeLearnerProfile } from "./learnerProfileStore";
+import {
+	readLearnerContext,
+	readLearnerProfile,
+	readStoryMemory,
+	writeLearnerProfile,
+	writeStoryMemory,
+} from "./learnerProfileStore";
 import {
 	advanceWordLogCursor,
 	appendLearnerWordLogEntry,
@@ -226,7 +233,11 @@ export async function handleLearnerProfileGetRequest(
 	_req: IncomingMessage,
 	res: ServerResponse,
 ) {
-	sendJson(res, 200, { profile: await readLearnerProfile() });
+	const context = await readLearnerContext();
+	sendJson(res, 200, {
+		profile: context.languageProfile,
+		...context,
+	});
 }
 
 export async function handleLearnerProfileRefineRequest(
@@ -306,18 +317,33 @@ export async function handleLearnerProfileStoryRefineRequest(
 		const refineTask = learnerProfileRefineQueue
 			.catch(() => undefined)
 			.then(async () => {
-				const [current, wordLookupSummary] = await Promise.all([
-					readLearnerProfile(),
-					readWordLookupsSinceLastRefine(),
+				const [current, currentStoryMemory, wordLookupSummary] =
+					await Promise.all([
+						readLearnerProfile(),
+						readStoryMemory(),
+						readWordLookupsSinceLastRefine(),
+					]);
+				const today = new Date().toISOString().slice(0, 10);
+				const [updated, updatedStoryMemory] = await Promise.all([
+					refineLearnerProfileFromStory(
+						openai,
+						current,
+						{ storySummary, feedback, wordLookups: wordLookupSummary.lookups },
+						anthropicKey,
+						today,
+					),
+					refineStoryMemoryFromStory(
+						openai,
+						currentStoryMemory,
+						{ storySummary, feedback },
+						anthropicKey,
+						today,
+					),
 				]);
-				const updated = await refineLearnerProfileFromStory(
-					openai,
-					current,
-					{ storySummary, feedback, wordLookups: wordLookupSummary.lookups },
-					anthropicKey,
-					new Date().toISOString().slice(0, 10),
-				);
-				await writeLearnerProfile(updated);
+				await Promise.all([
+					writeLearnerProfile(updated),
+					writeStoryMemory(updatedStoryMemory),
+				]);
 				// Only mark these lookups consumed once they're durably folded into
 				// the written profile, so a failed refine or write can retry them.
 				if (wordLookupSummary.cursorCandidate) {
