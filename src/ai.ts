@@ -19,10 +19,17 @@ import {
 import { prepareStoryContext, type StoryMemory } from "./story_memory";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
+import type {
+	StoryRecapFillMissingWordExercise,
+	StoryRecapLesson,
+	StoryRecapQuestionExercise,
+	StoryRecapWordConnectExercise,
+} from "./storyRecap";
 
 export type { ChatMessage, ReadingStoryFrame, StoryMemory };
 
 const READING_STORY_PART_MAX_TOKENS = 700;
+const STORY_RECAP_MAX_TOKENS = 900;
 
 export type EsperantoTutorChatMessage = {
 	role: "user" | "assistant";
@@ -255,6 +262,171 @@ export async function generateReadingStoryPart(
 		text,
 		messages: [...messages, { role: "assistant", content: text }],
 	};
+}
+
+interface GenerateStoryRecapLessonInput {
+	storyParts: string[];
+	languageFocuses: string[];
+	wordTranslations: Record<string, string>;
+}
+
+const STORY_RECAP_SYSTEM_PROMPT =
+	"Create a tiny end-of-story Esperanto recap lesson for a beginner. " +
+	"Return only valid JSON with this exact shape: " +
+	'{"title":"Eta praktiko","exercises":[{"id":"word-connect","type":"word-connect","title":"Connect the words","hint":"Select a word, then its meaning.","pairs":[{"term":"Esperanto word","meaning":"English meaning"}]},{"id":"fill-missing-word","type":"fill-missing-word","title":"Fill the missing word","hint":"Choose the word that completes the sentence.","sentenceBeforeBlank":"Esperanto text before blank","sentenceAfterBlank":"Esperanto text after blank","answer":"correct Esperanto word","choices":["correct","wrong","wrong"]},{"id":"story-question","type":"story-question","title":"Story question","hint":"Choose the answer that fits the story.","question":"Simple English question about the story","answer":"correct answer","choices":["correct","wrong"]}]} ' +
+	"Use exactly three word-connect pairs. Use exactly three fill choices. Use two or three story-question choices. " +
+	"Use only words and facts from the story. Keep all English meanings short. " +
+	"The fill sentence must be Esperanto and must read naturally when answer is inserted between sentenceBeforeBlank and sentenceAfterBlank. " +
+	"Do not include markdown, comments, explanations, trailing commas, or extra fields.";
+
+export async function generateStoryRecapLesson(
+	input: GenerateStoryRecapLessonInput,
+	model: TextModelId = DEFAULT_TEXT_MODEL,
+): Promise<StoryRecapLesson> {
+	const learnerProfile = await fetchLearnerProfile();
+	const text = await complete(
+		[
+			{ role: "system", content: STORY_RECAP_SYSTEM_PROMPT },
+			{
+				role: "user",
+				content: [
+					"Finished six-part reading story:",
+					input.storyParts
+						.map((part, index) => `Part ${index + 1}: ${part}`)
+						.join("\n\n"),
+					"",
+					"Language focuses:",
+					input.languageFocuses.join("\n"),
+					"",
+					"Available word translations:",
+					JSON.stringify(input.wordTranslations, null, 2),
+					"",
+					"Learner profile:",
+					learnerProfile || "(none)",
+				].join("\n"),
+			},
+		],
+		model,
+		STORY_RECAP_MAX_TOKENS,
+	);
+	return parseStoryRecapLesson(text);
+}
+
+function parseStoryRecapLesson(text: string): StoryRecapLesson {
+	const parsed = JSON.parse(text) as unknown;
+	if (!isObject(parsed)) throw new Error("Recap JSON was not an object.");
+	if (!Array.isArray(parsed.exercises)) {
+		throw new Error("Recap JSON is missing exercises.");
+	}
+
+	return {
+		id: `story-recap-${Date.now()}`,
+		title: stringValue(parsed.title, "Eta praktiko"),
+		exercises: [
+			parseWordConnect(parsed.exercises[0]),
+			parseFillMissingWord(parsed.exercises[1]),
+			parseStoryQuestion(parsed.exercises[2]),
+		],
+	};
+}
+
+function parseWordConnect(value: unknown): StoryRecapWordConnectExercise {
+	if (!isObject(value) || value.type !== "word-connect") {
+		throw new Error("Recap word-connect exercise is invalid.");
+	}
+	if (!Array.isArray(value.pairs) || value.pairs.length !== 3) {
+		throw new Error("Recap word-connect exercise needs three pairs.");
+	}
+	return {
+		id: "word-connect",
+		type: "word-connect",
+		title: stringValue(value.title, "Connect the words"),
+		hint: stringValue(value.hint, "Select a word, then its meaning."),
+		pairs: value.pairs.map((pair) => {
+			if (!isObject(pair)) throw new Error("Recap word pair is invalid.");
+			return {
+				term: requiredString(pair.term, "word term"),
+				meaning: requiredString(pair.meaning, "word meaning"),
+			};
+		}),
+	};
+}
+
+function parseFillMissingWord(
+	value: unknown,
+): StoryRecapFillMissingWordExercise {
+	if (!isObject(value) || value.type !== "fill-missing-word") {
+		throw new Error("Recap fill exercise is invalid.");
+	}
+	const answer = requiredString(value.answer, "fill answer");
+	return {
+		id: "fill-missing-word",
+		type: "fill-missing-word",
+		title: stringValue(value.title, "Fill the missing word"),
+		hint: stringValue(
+			value.hint,
+			"Choose the word that completes the sentence.",
+		),
+		sentenceBeforeBlank: requiredString(
+			value.sentenceBeforeBlank,
+			"fill sentence before blank",
+		),
+		sentenceAfterBlank: requiredString(
+			value.sentenceAfterBlank,
+			"fill sentence after blank",
+		),
+		answer,
+		choices: parseChoices(value.choices, answer, 3, 3),
+	};
+}
+
+function parseStoryQuestion(value: unknown): StoryRecapQuestionExercise {
+	if (!isObject(value) || value.type !== "story-question") {
+		throw new Error("Recap story question is invalid.");
+	}
+	const answer = requiredString(value.answer, "story question answer");
+	return {
+		id: "story-question",
+		type: "story-question",
+		title: stringValue(value.title, "Story question"),
+		hint: stringValue(value.hint, "Choose the answer that fits the story."),
+		question: requiredString(value.question, "story question"),
+		answer,
+		choices: parseChoices(value.choices, answer, 2, 3),
+	};
+}
+
+function parseChoices(
+	value: unknown,
+	answer: string,
+	min: number,
+	max: number,
+): string[] {
+	if (!Array.isArray(value)) throw new Error("Recap choices are invalid.");
+	const choices = value.map((choice) => requiredString(choice, "choice"));
+	if (
+		choices.length < min ||
+		choices.length > max ||
+		!choices.includes(answer)
+	) {
+		throw new Error("Recap choices do not include the answer.");
+	}
+	return choices;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+function requiredString(value: unknown, label: string): string {
+	if (typeof value !== "string" || !value.trim()) {
+		throw new Error(`Recap JSON is missing ${label}.`);
+	}
+	return value.trim();
+}
+
+function stringValue(value: unknown, fallback: string): string {
+	return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
 export async function continueStoryStream(

@@ -12,6 +12,8 @@ export type StoryPhase =
 	| "authoring"
 	| "loading"
 	| "reading"
+	| "recap-loading"
+	| "recap"
 	| "finished";
 
 export interface TypingStats {

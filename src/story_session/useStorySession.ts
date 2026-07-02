@@ -8,6 +8,7 @@ import {
 	generateReadingStoryPart,
 	generateStoryBackgroundImage,
 	generateStoryIntro,
+	generateStoryRecapLesson,
 	type ReadingStoryFrame,
 	refineLearnerProfileFromStory,
 	regenerateWordTranslation,
@@ -41,6 +42,7 @@ import {
 	type StoryOpeningAudio,
 } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
+import type { StoryRecapLesson } from "../storyRecap";
 import {
 	backgroundFromOpening,
 	fallbackBackgroundImage,
@@ -71,6 +73,7 @@ type View =
 
 const PREPARED_READING_WAIT_MS = 1500;
 const PREPARED_READING_POLL_MS = 75;
+const STORY_WORD_PATTERN = /[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+/g;
 
 interface UseStorySessionOptions {
 	model: TextModelId;
@@ -144,6 +147,16 @@ function isPendingPreparedReadingPart(
 	);
 }
 
+function storyWords(parts: string[]) {
+	return [
+		...new Set(
+			parts
+				.flatMap((part) => part.match(STORY_WORD_PATTERN) ?? [])
+				.map((word) => word.toLowerCase()),
+		),
+	];
+}
+
 export function useStorySession({
 	model,
 	view,
@@ -180,6 +193,9 @@ export function useStorySession({
 	);
 	const [preparedNextPart, setPreparedNextPart] =
 		useState<PreparedReadingPart | null>(null);
+	const [storyRecapLesson, setStoryRecapLesson] =
+		useState<StoryRecapLesson | null>(null);
+	const [storyRecapError, setStoryRecapError] = useState<string | null>(null);
 	const activeSaveIdRef = useRef<string | null>(null);
 	const activeTitleRef = useRef<string | null>(null);
 	const messagesRef = useRef<ChatMessage[]>([]);
@@ -192,6 +208,7 @@ export function useStorySession({
 	const readingPartIndexRef = useRef<number | null>(null);
 	const narrationVoiceRef = useRef<NarrationVoiceId>(DEFAULT_NARRATION_VOICE);
 	const preparedNextPartRef = useRef<PreparedReadingPart | null>(null);
+	const storyRecapLessonRef = useRef<StoryRecapLesson | null>(null);
 	const preloadGenerationRef = useRef(0);
 	const preparingOpeningsRef = useRef(false);
 	const prepareOpeningsAgainRef = useRef(false);
@@ -246,6 +263,10 @@ export function useStorySession({
 	useEffect(() => {
 		preparedNextPartRef.current = preparedNextPart;
 	}, [preparedNextPart]);
+
+	useEffect(() => {
+		storyRecapLessonRef.current = storyRecapLesson;
+	}, [storyRecapLesson]);
 
 	useEffect(() => {
 		if (phase !== "reading" || !currentTarget) {
@@ -395,6 +416,7 @@ export function useStorySession({
 						readingFrame: readingFrameRef.current ?? undefined,
 						readingPartIndex: readingPartIndexRef.current ?? undefined,
 						narrationVoice: narrationVoiceRef.current,
+						storyRecapLesson: storyRecapLessonRef.current,
 					}),
 				);
 			} catch (err) {
@@ -596,6 +618,9 @@ export function useStorySession({
 			setOpeningAudio(null);
 			setReadingFrame(null);
 			setReadingPartIndex(null);
+			setStoryRecapLesson(null);
+			storyRecapLessonRef.current = null;
+			setStoryRecapError(null);
 			setPhase("loading");
 			onViewChange("story");
 			try {
@@ -725,6 +750,9 @@ export function useStorySession({
 		setOpeningAudio(null);
 		setReadingFrame(null);
 		setReadingPartIndex(1);
+		setStoryRecapLesson(null);
+		storyRecapLessonRef.current = null;
+		setStoryRecapError(null);
 		setPhase("loading");
 		onViewChange("story");
 		try {
@@ -910,6 +938,9 @@ export function useStorySession({
 			setOpeningAudio(null);
 			setReadingFrame(null);
 			setReadingPartIndex(null);
+			setStoryRecapLesson(null);
+			storyRecapLessonRef.current = null;
+			setStoryRecapError(null);
 			setError(null);
 			setPhase("typing");
 			onViewChange("story");
@@ -1101,6 +1132,95 @@ export function useStorySession({
 		});
 	}, [activeSaveId, genre, memory, messages, model, runContinuation, segments]);
 
+	const generateAndApplyStoryRecap = useCallback(
+		async (finishedSegments: StorySegment[]) => {
+			if (!genre || !activeSaveId || !readingFrame) return;
+
+			setStoryRecapError(null);
+			setPhase("recap-loading");
+
+			try {
+				const storyParts = finishedSegments
+					.filter((segment) => segment.author === "ai")
+					.map((segment) => segment.text);
+				const translations = await translateWords(storyWords(storyParts));
+				const lesson = await generateStoryRecapLesson(
+					{
+						storyParts,
+						languageFocuses: readingFrame.beats.map(
+							(beat) => `Part ${beat.part}: ${beat.languageFocus}`,
+						),
+						wordTranslations: translations,
+					},
+					model,
+				);
+
+				storyRecapLessonRef.current = lesson;
+				setStoryRecapLesson(lesson);
+				setStoryRecapError(null);
+				setPhase("recap");
+				void persistStory(
+					buildStorySaveSnapshot({
+						id: activeSaveId,
+						genre,
+						title: activeTitle ?? fallbackTitle(genre),
+						messages,
+						memory,
+						segments: finishedSegments,
+						currentTarget: null,
+						phase: "recap",
+						backgroundIntro: backgroundIntro ?? undefined,
+						backgroundImage,
+						openingAudio: null,
+						readingFrame,
+						readingPartIndex: readingPartIndex ?? readingFrame.totalParts,
+						narrationVoice,
+						preparedNextPart: null,
+						storyRecapLesson: lesson,
+					}),
+				);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				setStoryRecapError(`Could not build the recap practice: ${message}`);
+				setPhase("recap-loading");
+				void persistStory(
+					buildStorySaveSnapshot({
+						id: activeSaveId,
+						genre,
+						title: activeTitle ?? fallbackTitle(genre),
+						messages,
+						memory,
+						segments: finishedSegments,
+						currentTarget: null,
+						phase: "recap-loading",
+						backgroundIntro: backgroundIntro ?? undefined,
+						backgroundImage,
+						openingAudio: null,
+						readingFrame,
+						readingPartIndex: readingPartIndex ?? readingFrame.totalParts,
+						narrationVoice,
+						preparedNextPart: null,
+						storyRecapLesson: storyRecapLessonRef.current,
+					}),
+				);
+			}
+		},
+		[
+			activeSaveId,
+			activeTitle,
+			backgroundImage,
+			backgroundIntro,
+			genre,
+			memory,
+			messages,
+			model,
+			narrationVoice,
+			persistStory,
+			readingFrame,
+			readingPartIndex,
+		],
+	);
+
 	const continueReadingStory = useCallback(async () => {
 		if (
 			!genre ||
@@ -1154,7 +1274,10 @@ export function useStorySession({
 			setCurrentTarget(null);
 			setStreamingTarget("");
 			setOpeningAudio(null);
-			setPhase("finished");
+			setStoryRecapLesson(null);
+			storyRecapLessonRef.current = null;
+			setStoryRecapError(null);
+			setPhase("recap-loading");
 			void persistStory(
 				buildStorySaveSnapshot({
 					id: activeSaveId,
@@ -1164,7 +1287,7 @@ export function useStorySession({
 					memory,
 					segments: nextSegments,
 					currentTarget: null,
-					phase: "finished",
+					phase: "recap-loading",
 					backgroundIntro: backgroundIntro ?? undefined,
 					backgroundImage,
 					openingAudio: null,
@@ -1172,11 +1295,13 @@ export function useStorySession({
 					readingPartIndex,
 					narrationVoice,
 					preparedNextPart: null,
+					storyRecapLesson: null,
 				}),
 			);
 			void refineLearnerProfileFromStory({
 				storySummary: readingStorySummary(readingFrame),
 			});
+			void generateAndApplyStoryRecap(nextSegments);
 			return;
 		}
 
@@ -1366,8 +1491,57 @@ export function useStorySession({
 		readingFrame,
 		readingPartIndex,
 		generateAndApplyStoryBackground,
+		generateAndApplyStoryRecap,
 		segments,
 	]);
+
+	const completeStoryRecap = useCallback(() => {
+		if (!genre || !activeSaveId) return;
+		setPhase("finished");
+		setStoryRecapError(null);
+		void persistStory(
+			buildStorySaveSnapshot({
+				id: activeSaveId,
+				genre,
+				title: activeTitle ?? fallbackTitle(genre),
+				messages,
+				memory,
+				segments,
+				currentTarget: null,
+				phase: "finished",
+				backgroundIntro: backgroundIntro ?? undefined,
+				backgroundImage,
+				openingAudio: null,
+				readingFrame: readingFrame ?? undefined,
+				readingPartIndex: readingPartIndex ?? undefined,
+				narrationVoice,
+				preparedNextPart: null,
+				storyRecapLesson,
+			}),
+		);
+	}, [
+		activeSaveId,
+		activeTitle,
+		backgroundImage,
+		backgroundIntro,
+		genre,
+		memory,
+		messages,
+		narrationVoice,
+		persistStory,
+		readingFrame,
+		readingPartIndex,
+		segments,
+		storyRecapLesson,
+	]);
+
+	const retryStoryRecap = useCallback(() => {
+		void generateAndApplyStoryRecap(segments);
+	}, [generateAndApplyStoryRecap, segments]);
+
+	const skipStoryRecap = useCallback(() => {
+		completeStoryRecap();
+	}, [completeStoryRecap]);
 
 	const backToMenu = useCallback(() => {
 		if (genre && activeSaveId) {
@@ -1390,6 +1564,7 @@ export function useStorySession({
 					// Use the ref so preparedNextPart doesn't appear in the deps array and
 					// doesn't cause backToMenu to be recreated on every preload update.
 					preparedNextPart: preparedNextPartRef.current ?? undefined,
+					storyRecapLesson: storyRecapLessonRef.current,
 				}),
 			);
 		}
@@ -1409,6 +1584,9 @@ export function useStorySession({
 		setReadingFrame(null);
 		setReadingPartIndex(null);
 		setPreparedNextPart(null);
+		setStoryRecapLesson(null);
+		storyRecapLessonRef.current = null;
+		setStoryRecapError(null);
 		setNarrationVoice(DEFAULT_NARRATION_VOICE);
 		narrationVoiceRef.current = DEFAULT_NARRATION_VOICE;
 		activeSaveIdRef.current = null;
@@ -1450,8 +1628,12 @@ export function useStorySession({
 					save.readingFrame !== undefined &&
 					save.segments.filter((segment) => segment.author === "ai").length >=
 						save.readingFrame.totalParts
-						? "finished"
-						: save.phase;
+						? save.storyRecapLesson
+							? "recap"
+							: "recap-loading"
+						: save.phase === "recap-loading" && save.storyRecapLesson
+							? "recap"
+							: save.phase;
 				setActiveSaveId(save.id);
 				setActiveTitle(save.title);
 				setGenre(selected);
@@ -1498,6 +1680,13 @@ export function useStorySession({
 						? { ...save.preparedNextPart, status: "ready" }
 						: null,
 				);
+				storyRecapLessonRef.current = save.storyRecapLesson ?? null;
+				setStoryRecapLesson(save.storyRecapLesson ?? null);
+				setStoryRecapError(
+					restoredPhase === "recap-loading"
+						? "The recap practice needs to be generated again."
+						: null,
+				);
 				setError(null);
 				onViewChange("story");
 			} catch (err) {
@@ -1536,6 +1725,7 @@ export function useStorySession({
 		backToMenu,
 		backgroundImage,
 		backgroundIntro,
+		completeStoryRecap,
 		continueReadingStory,
 		currentTarget,
 		error,
@@ -1553,10 +1743,14 @@ export function useStorySession({
 		resumeStory,
 		readingPartIndex,
 		readingTotalParts: readingFrame?.totalParts ?? null,
+		retryStoryRecap,
 		segments,
 		selectGenre,
+		skipStoryRecap,
 		startLessonStory,
 		streamingTarget,
+		storyRecapError,
+		storyRecapLesson,
 		submitContinuation,
 		submitStoryFeedback,
 		wordTranslations,

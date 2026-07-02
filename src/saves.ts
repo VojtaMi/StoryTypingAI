@@ -4,6 +4,7 @@ import type { GenreId } from "./genres";
 import type { NarrationVoiceId } from "./narrationVoice";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
+import type { StoryRecapLesson } from "./storyRecap";
 
 export interface PreparedReadingPart {
 	partIndex: number;
@@ -31,6 +32,7 @@ export interface SavedStory
 	readingFrame?: ReadingStoryFrame;
 	readingPartIndex?: number;
 	preparedNextPart?: PreparedReadingPart;
+	storyRecapLesson?: StoryRecapLesson | null;
 }
 
 export interface SavedStorySummary {

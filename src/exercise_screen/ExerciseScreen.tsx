@@ -6,13 +6,15 @@ import {
 } from "../ai";
 import "../gallery/gallery.css";
 import { GalleryModal } from "../gallery/GalleryModal";
+import type { StoryRecapLesson } from "../storyRecap";
 import { AuthoringInput } from "./authoring/AuthoringInput";
 import { EsperantoChatModal } from "./chatbot/EsperantoChatModal";
 import { ExerciseControls } from "./controls/ExerciseControls";
 import { OpeningAudioControl } from "./story/OpeningAudioControl";
-import { StoryFeedbackForm } from "./story/StoryFeedbackForm";
+import { StoryCompletionView } from "./story/StoryCompletionView";
 import { StoryLoading } from "./story/StoryLoading";
 import { StoryLog } from "./story/StoryLog";
+import { StoryRecapView } from "./story/StoryRecapView";
 import type { StoryPhase, StorySegment, TypingStats } from "./types";
 import { TypingExercise } from "./typing/TypingExercise";
 
@@ -38,8 +40,13 @@ interface ExerciseScreenProps {
 	readingPartIndex: number | null;
 	readingTotalParts: number | null;
 	wordTranslations: Record<string, string> | null;
+	storyRecapLesson: StoryRecapLesson | null;
+	storyRecapError: string | null;
 	onRegenerateWord: (word: string) => Promise<string | null>;
 	onContinueReading: () => void;
+	onCompleteStoryRecap: () => void;
+	onRetryStoryRecap: () => void;
+	onSkipStoryRecap: () => void;
 	onTypingComplete: (stats: TypingStats) => void;
 	onSubmitContinuation: (text: string) => void;
 	onAutoContinue: () => void;
@@ -60,8 +67,13 @@ export default function ExerciseScreen({
 	readingPartIndex,
 	readingTotalParts,
 	wordTranslations,
+	storyRecapLesson,
+	storyRecapError,
 	onRegenerateWord,
 	onContinueReading,
+	onCompleteStoryRecap,
+	onRetryStoryRecap,
+	onSkipStoryRecap,
 	onTypingComplete,
 	onSubmitContinuation,
 	onAutoContinue,
@@ -204,18 +216,26 @@ export default function ExerciseScreen({
 				</div>
 			)}
 
+			{(phase === "recap-loading" || phase === "recap") && (
+				<StoryRecapView
+					lesson={storyRecapLesson}
+					error={storyRecapError}
+					onComplete={onCompleteStoryRecap}
+					onRetry={onRetryStoryRecap}
+					onSkip={onSkipStoryRecap}
+				/>
+			)}
+
 			{phase === "finished" && (
-				<div className="story__reading story__reading--finished">
-					<div className="story__reading-header">
-						{readingTotalParts !== null && (
-							<p className="story__reading-progress">
-								Part {readingTotalParts} of {readingTotalParts}
-							</p>
-						)}
-					</div>
-					<p className="story__reading-finished">Story finished</p>
-					<StoryFeedbackForm key={storyId} onSubmit={onSubmitStoryFeedback} />
-				</div>
+				<StoryCompletionView
+					storyId={storyId}
+					currentImageUrl={currentImageUrl}
+					readingTotalParts={readingTotalParts}
+					segments={segments}
+					canShowGallery={canShowGallery}
+					onOpenGallery={() => setGalleryOpen(true)}
+					onSubmitStoryFeedback={onSubmitStoryFeedback}
+				/>
 			)}
 
 			{phase === "typing" && currentTarget && (

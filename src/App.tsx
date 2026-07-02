@@ -268,6 +268,7 @@ export default function App() {
 		backToMenu,
 		backgroundImage,
 		backgroundIntro,
+		completeStoryRecap,
 		continueReadingStory,
 		currentTarget,
 		error,
@@ -277,13 +278,17 @@ export default function App() {
 		phase,
 		readingPartIndex,
 		readingTotalParts,
+		retryStoryRecap,
 		resumeStory,
 		segments,
 		selectGenre,
+		skipStoryRecap,
 		regenerateWordTranslation,
 		startLessonStory,
 		startReadingStory,
 		streamingTarget,
+		storyRecapError,
+		storyRecapLesson,
 		submitContinuation,
 		submitStoryFeedback,
 		wordTranslations,
@@ -608,8 +613,13 @@ export default function App() {
 					readingPartIndex={readingPartIndex}
 					readingTotalParts={readingTotalParts}
 					wordTranslations={wordTranslations}
+					storyRecapLesson={storyRecapLesson}
+					storyRecapError={storyRecapError}
 					onRegenerateWord={regenerateWordTranslation}
 					onContinueReading={continueReadingStory}
+					onCompleteStoryRecap={completeStoryRecap}
+					onRetryStoryRecap={retryStoryRecap}
+					onSkipStoryRecap={skipStoryRecap}
 					onTypingComplete={handleTypingComplete}
 					onSubmitContinuation={submitContinuation}
 					onAutoContinue={autoContinueStory}

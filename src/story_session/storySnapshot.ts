@@ -5,6 +5,7 @@ import type { NarrationVoiceId } from "../narrationVoice";
 import type { PreparedReadingPart, SavedStory } from "../saves";
 import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
+import type { StoryRecapLesson } from "../storyRecap";
 
 interface StorySaveSnapshotInput {
 	id: string;
@@ -22,6 +23,7 @@ interface StorySaveSnapshotInput {
 	backgroundImage?: StoryBackgroundImage | null;
 	openingAudio?: StoryOpeningAudio | null;
 	preparedNextPart?: PreparedReadingPart | null;
+	storyRecapLesson?: StoryRecapLesson | null;
 }
 
 export function fallbackTitle(selected: Genre) {
@@ -63,6 +65,7 @@ export function buildStorySaveSnapshot({
 	backgroundImage,
 	openingAudio,
 	preparedNextPart,
+	storyRecapLesson,
 }: StorySaveSnapshotInput): Omit<SavedStory, "updatedAt"> {
 	return {
 		id,
@@ -78,6 +81,7 @@ export function buildStorySaveSnapshot({
 		readingFrame,
 		readingPartIndex,
 		preparedNextPart: preparedNextPart ?? undefined,
+		storyRecapLesson: storyRecapLesson ?? undefined,
 		...(backgroundImage ?? undefined),
 		...(openingAudio ?? undefined),
 	};
