@@ -361,7 +361,7 @@ async function createPreparedReadingOpening(
 		{ role: "system", content: genre.systemPrompt },
 		{
 			role: "user",
-			content: `Six-part beginner reading story frame:\n${JSON.stringify(
+			content: `Six-part profile-adapted reading story frame:\n${JSON.stringify(
 				readingFrame,
 				null,
 				2,

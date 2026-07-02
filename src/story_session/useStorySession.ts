@@ -795,7 +795,7 @@ export function useStorySession({
 								{ role: "system", content: selected.systemPrompt },
 								{
 									role: "user",
-									content: `Six-part beginner reading story frame:\n${JSON.stringify(
+									content: `Six-part profile-adapted reading story frame:\n${JSON.stringify(
 										frame,
 										null,
 										2,

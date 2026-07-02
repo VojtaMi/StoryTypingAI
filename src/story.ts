@@ -13,9 +13,11 @@ export interface ReadingStoryBeat {
 	languageFocus: string;
 }
 
+export type ReadingStoryLevel = "profile-adapted" | "beginner";
+
 export interface ReadingStoryFrame {
 	totalParts: 6;
-	level: "beginner";
+	level: ReadingStoryLevel;
 	premise: string;
 	mainCharacter: string;
 	mainCharacterVisual: string;
@@ -57,32 +59,34 @@ const INTRO_MAX_TOKENS = 180;
 const READING_FRAME_MAX_TOKENS = 1200;
 
 const READING_FRAME_PROMPT =
-	"Plan a six-part beginner Esperanto reading story. " +
+	"Plan a six-part Esperanto reading story adapted to the learner profile and preferences. " +
 	"Return only valid JSON with this exact shape: " +
-	'{"totalParts":6,"level":"beginner","premise":"short English premise","mainCharacter":"short English description","mainCharacterVisual":"concrete hidden visual continuity description","setting":"short English setting","beats":[{"part":1,"role":"beginning","summary":"English beat summary","languageFocus":"English language focus"},{"part":2,"role":"inciting event","summary":"English beat summary","languageFocus":"English language focus"},{"part":3,"role":"first attempt","summary":"English beat summary","languageFocus":"English language focus"},{"part":4,"role":"complication","summary":"English beat summary","languageFocus":"English language focus"},{"part":5,"role":"resolution attempt","summary":"English beat summary","languageFocus":"English language focus"},{"part":6,"role":"ending","summary":"English beat summary","languageFocus":"English language focus"}]} ' +
+	'{"totalParts":6,"level":"profile-adapted","premise":"short English premise","mainCharacter":"short English description","mainCharacterVisual":"concrete hidden visual continuity description","setting":"short English setting","beats":[{"part":1,"role":"beginning","summary":"English beat summary","languageFocus":"English language focus"},{"part":2,"role":"inciting event","summary":"English beat summary","languageFocus":"English language focus"},{"part":3,"role":"first attempt","summary":"English beat summary","languageFocus":"English language focus"},{"part":4,"role":"complication","summary":"English beat summary","languageFocus":"English language focus"},{"part":5,"role":"resolution attempt","summary":"English beat summary","languageFocus":"English language focus"},{"part":6,"role":"ending","summary":"English beat summary","languageFocus":"English language focus"}]} ' +
 	"Write the frame fields in English. Use exactly six beats numbered 1 through 6. " +
 	"Do not include comments, markdown, prose outside the JSON, trailing commas, or ellipses. " +
 	"Use character names that do not look like common Esperanto grammar words; do not use names like Mia. " +
-	"mainCharacterVisual is hidden image-generation context: state the main character's age bracket, visual presentation, hair, clothing, recurring object, and any stable distinctive detail. " +
-	"Keep the story concrete, warm, and suitable for a beginner. Beginner Esperanto does not imply a childlike premise. " +
+	"mainCharacterVisual is hidden image-generation context: state the main character's age bracket, stable gender presentation, hair, clothing, recurring object, and any stable distinctive detail. " +
+	"Do not leave the visual identity as only Adult or person when the beats, name, or pronouns imply a specific presentation; mainCharacter, mainCharacterVisual, and beat pronouns must agree. " +
+	"Use concrete, visible story details and match the tone, audience fit, and subject matter to learner preferences. " +
 	"Prefer adult or age-neutral protagonists unless the learner preferences explicitly request child stories. " +
-	"Do not default to lost/found objects, animal rescue, worried-neighbor helper arcs, or simple rescue/return plots when story memory marks those motifs as recent. " +
-	"The six beats can describe observation, decision, comparison, preparation, misunderstanding, routine disruption, quiet mystery, or another small adult-respectful situation; they do not need to be a rescue or return-object arc.";
+	"When story memory marks motifs as recent, choose a clearly different premise, relationship pattern, object set, and story arc. " +
+	"The six beats can describe observation, decision, comparison, preparation, misunderstanding, routine disruption, quiet mystery, or another small situation.";
 
 const READING_FRAME_REPAIR_PROMPT =
-	"Repair this into valid JSON for a six-part beginner Esperanto reading story frame. " +
-	"Return only JSON with totalParts 6, level beginner, premise, mainCharacter, mainCharacterVisual, setting, and exactly six beats. " +
-	"mainCharacterVisual must be concrete hidden image-generation context with age bracket, visual presentation, hair, clothing, recurring object, and stable distinctive detail. " +
+	"Repair this into valid JSON for a six-part Esperanto reading story frame adapted to the learner profile and preferences. " +
+	"Return only JSON with totalParts 6, level profile-adapted, premise, mainCharacter, mainCharacterVisual, setting, and exactly six beats. " +
+	"mainCharacterVisual must be concrete hidden image-generation context with age bracket, stable gender presentation, hair, clothing, recurring object, and stable distinctive detail. " +
+	"Do not leave the visual identity as only Adult or person when the beats, name, or pronouns imply a specific presentation; mainCharacter, mainCharacterVisual, and beat pronouns must agree. " +
 	"Each beat must have part, role, summary, and languageFocus. No markdown, comments, trailing commas, or ellipses.";
 
 export const READING_STORY_TOTAL_PARTS = 6;
 
 const READING_PART_SYSTEM_PROMPT =
-	"Write one part of a six-part Esperanto reading story for a beginner. " +
+	"Write one part of a six-part Esperanto reading story adapted to the learner profile and frame. " +
 	"Output only Esperanto story prose: no title, no headings, no English, no markdown. " +
-	"Use 3-5 short simple sentences. Use concrete vocabulary, natural Esperanto word endings, and helpful repetition. " +
-	"Avoid uncommon idioms and unusual metaphorical phrases. Prefer concrete actions and visible details. " +
-	"Repeat important nouns instead of relying too much on pronouns. " +
+	"Use 3-5 sentences unless the profile clearly supports more complexity. Use concrete vocabulary, natural Esperanto word endings, and repetition that supports the learner's current edge. " +
+	"Avoid idioms and metaphorical phrases that are beyond the learner profile. Prefer concrete actions and visible details. " +
+	"Repeat important nouns instead of relying too much on pronouns when that helps the learner. " +
 	"Use character names that do not look like common Esperanto grammar words; do not use names like Mia. " +
 	"Follow the given frame beat exactly while preserving continuity with previous parts.";
 
@@ -133,12 +137,12 @@ const READING_RECIPE_SITUATIONS = [
 
 const READING_RECIPE_TONES = [
 	"calm and observant",
-	"warm but adult",
+	"clear and concrete",
 	"lightly mysterious",
 	"practical and grounded",
 	"quietly funny",
 	"reflective and simple",
-	"cozy but not childish",
+	"ordinary but specific",
 	"curious and low-stakes",
 ];
 
@@ -342,7 +346,7 @@ export function parseReadingStoryFrame(raw: string): ReadingStoryFrame {
 	const parsed = JSON.parse(jsonText) as Partial<ReadingStoryFrame>;
 	if (
 		parsed.totalParts !== READING_STORY_TOTAL_PARTS ||
-		parsed.level !== "beginner" ||
+		!isReadingStoryLevel(parsed.level) ||
 		typeof parsed.premise !== "string" ||
 		typeof parsed.mainCharacter !== "string" ||
 		typeof parsed.mainCharacterVisual !== "string" ||
@@ -373,13 +377,72 @@ export function parseReadingStoryFrame(raw: string): ReadingStoryFrame {
 
 	return {
 		totalParts: READING_STORY_TOTAL_PARTS,
-		level: "beginner",
+		level: parsed.level,
 		premise: parsed.premise,
 		mainCharacter: parsed.mainCharacter,
-		mainCharacterVisual: parsed.mainCharacterVisual,
+		mainCharacterVisual: stabilizeMainCharacterVisual({
+			premise: parsed.premise,
+			mainCharacter: parsed.mainCharacter,
+			mainCharacterVisual: parsed.mainCharacterVisual,
+			beats,
+		}),
 		setting: parsed.setting,
 		beats,
 	};
+}
+
+function isReadingStoryLevel(value: unknown): value is ReadingStoryLevel {
+	return value === "profile-adapted" || value === "beginner";
+}
+
+function stabilizeMainCharacterVisual(
+	frame: Pick<
+		ReadingStoryFrame,
+		"premise" | "mainCharacter" | "mainCharacterVisual" | "beats"
+	>,
+): string {
+	if (hasStableGenderPresentation(frame.mainCharacterVisual)) {
+		return frame.mainCharacterVisual;
+	}
+
+	const presentation = inferGenderPresentation(frame);
+	if (!presentation) return frame.mainCharacterVisual;
+
+	if (presentation === "woman") {
+		return frame.mainCharacterVisual
+			.replace(/^Adult in their\b/i, "Woman in her")
+			.replace(/^Adult\b/i, "Woman");
+	}
+	if (presentation === "man") {
+		return frame.mainCharacterVisual
+			.replace(/^Adult in their\b/i, "Man in his")
+			.replace(/^Adult\b/i, "Man");
+	}
+	return frame.mainCharacterVisual
+		.replace(/^Adult in their\b/i, "Gender-neutral adult in their")
+		.replace(/^Adult\b/i, "Gender-neutral adult");
+}
+
+function hasStableGenderPresentation(visual: string): boolean {
+	return /\b(woman|women|female|feminine|man|men|male|masculine|nonbinary|non-binary|androgynous|gender-neutral|gender neutral)\b/i.test(
+		visual,
+	);
+}
+
+function inferGenderPresentation(
+	frame: Pick<ReadingStoryFrame, "premise" | "mainCharacter" | "beats">,
+): "woman" | "man" | "gender-neutral" | null {
+	const text = [
+		frame.premise,
+		frame.mainCharacter,
+		...frame.beats.map((beat) => beat.summary),
+	].join(" ");
+	const hasFemalePronoun = /\b(she|her|hers)\b/i.test(text);
+	const hasMalePronoun = /\b(he|him|his)\b/i.test(text);
+	if (hasFemalePronoun && !hasMalePronoun) return "woman";
+	if (hasMalePronoun && !hasFemalePronoun) return "man";
+	if (/\b(they|them|their|theirs)\b/i.test(text)) return "gender-neutral";
+	return null;
 }
 
 function extractJsonObject(raw: string): string {
