@@ -41,7 +41,13 @@ Finishing a reading story now closes with two steps:
    from the story just read, always three exercises: word-connect,
    fill-missing-word, and a comprehension question. It currently blocks
    progression until completed (a "Skip recap" escape hatch only appears if
-   generation fails).
+   generation fails). Each exercise tracks how many attempts it took to answer
+   correctly (1 = first try). On completion, these results are folded into the
+   learner profile the same way chat transcripts and word lookups are: a
+   first-try-correct answer is stronger evidence of real command than a mere
+   lookup and can promote a word out of "Shaky / watch for" toward "Confident";
+   an item that took several attempts reinforces it as shaky, even if it was
+   never separately clicked or asked about.
 2. **Completion screen** — a congratulations message, a gallery of the images
    generated across the story's parts, and the existing difficulty feedback
    form (five-point scale plus optional note), kept inline rather than in a
@@ -66,11 +72,23 @@ The next useful refinement is a small scoring layer on top of the log:
 - repeated lookup or mistake: keep in review
 
 That scoring layer can be added without changing the current profile format.
+Recap exercise results are now one input to it (see Current Learning Model
+above): first-try-correct vs. multi-attempt is itself a small score per word,
+even before a structured scoring layer exists.
 
-Open questions on the recap/completion flow: whether recap should ever be
-skippable on success (not just on generation failure), and how recap exercise
-results should feed back into the learner profile (today they don't — only
-word clicks and chat transcripts do).
+Two follow-ups on top of the current recap feedback loop:
+
+- Recap generation doesn't yet deliberately target "Shaky / watch for" words —
+  it sees the full profile but picks vocabulary from whatever the story used.
+  Prompting it to prefer shaky words would make the quiz (and its resulting
+  evidence) more targeted.
+- A possible branch on recap outcome: on an all-correct recap, offer an
+  optional stretch round pulling from "Currently learning (their edge)"; on a
+  missed item, offer optional remediation on that specific word. Neither
+  exists yet — recap today is always the same fixed three exercises.
+
+Open question on the recap/completion flow: whether recap should ever be
+skippable on success (not just on generation failure).
 
 ## Future Curriculum Model
 

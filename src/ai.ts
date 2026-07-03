@@ -20,6 +20,7 @@ import { prepareStoryContext, type StoryMemory } from "./story_memory";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
 import type {
+	StoryRecapExerciseResult,
 	StoryRecapFillMissingWordExercise,
 	StoryRecapLesson,
 	StoryRecapQuestionExercise,
@@ -221,6 +222,28 @@ export async function refineLearnerProfileFromStory(
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(evidence),
+		});
+		if (res.ok) invalidateLearnerProfile();
+	} catch {
+		// Fire-and-forget: the handout simply stays as it was.
+	}
+}
+
+/**
+ * Folds the learner's answers on the end-of-story recap quiz (correct on
+ * first attempt vs. needed retries) into the learner handout. Fire-and-forget:
+ * it must never disrupt finishing the story, so all failures are swallowed.
+ */
+export async function refineLearnerProfileFromRecap(
+	results: StoryRecapExerciseResult[],
+): Promise<void> {
+	if (results.length === 0) return;
+	try {
+		invalidateLearnerProfile();
+		const res = await fetch("/api/learner-profile/refine-recap", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ results }),
 		});
 		if (res.ok) invalidateLearnerProfile();
 	} catch {

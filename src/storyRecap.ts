@@ -44,3 +44,10 @@ export interface StoryRecapLesson {
 		StoryRecapQuestionExercise,
 	];
 }
+
+export interface StoryRecapExerciseResult {
+	id: string;
+	type: StoryRecapExercise["type"];
+	label: string;
+	attempts: number;
+}

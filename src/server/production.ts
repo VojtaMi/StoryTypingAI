@@ -9,6 +9,7 @@ import {
 	handleCompleteRequest,
 	handleCompleteStreamRequest,
 	handleLearnerProfileGetRequest,
+	handleLearnerProfileRecapRefineRequest,
 	handleLearnerProfileRefineRequest,
 	handleLearnerProfileStoryRefineRequest,
 	handleLearnerWordLogRequest,
@@ -349,6 +350,19 @@ const server = createServer(async (req, res) => {
 			req.method === "POST"
 		) {
 			await handleLearnerProfileStoryRefineRequest(
+				req,
+				res,
+				openai,
+				ANTHROPIC_API_KEY,
+			);
+			return;
+		}
+
+		if (
+			pathname === "/api/learner-profile/refine-recap" &&
+			req.method === "POST"
+		) {
+			await handleLearnerProfileRecapRefineRequest(
 				req,
 				res,
 				openai,

@@ -10,6 +10,7 @@ import {
 	generateStoryIntro,
 	generateStoryRecapLesson,
 	type ReadingStoryFrame,
+	refineLearnerProfileFromRecap,
 	refineLearnerProfileFromStory,
 	regenerateWordTranslation,
 	type StoryMemory,
@@ -43,7 +44,7 @@ import {
 	type StoryOpeningAudio,
 } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
-import type { StoryRecapLesson } from "../storyRecap";
+import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
 import {
 	backgroundFromOpening,
 	buildSectionImageMap,
@@ -1639,45 +1640,49 @@ export function useStorySession({
 		segments,
 	]);
 
-	const completeStoryRecap = useCallback(() => {
-		if (!genre || !activeSaveId) return;
-		setPhase("finished");
-		setStoryRecapError(null);
-		void persistStory(
-			makeStorySaveSnapshot.current({
-				id: activeSaveId,
-				genre,
-				title: activeTitle ?? fallbackTitle(genre),
-				messages,
-				memory,
-				segments,
-				currentTarget: null,
-				phase: "finished",
-				backgroundIntro: backgroundIntro ?? undefined,
-				backgroundImage,
-				openingAudio: null,
-				readingFrame: readingFrame ?? undefined,
-				readingPartIndex: readingPartIndex ?? undefined,
-				narrationVoice,
-				preparedNextPart: null,
-				storyRecapLesson,
-			}),
-		);
-	}, [
-		activeSaveId,
-		activeTitle,
-		backgroundImage,
-		backgroundIntro,
-		genre,
-		memory,
-		messages,
-		narrationVoice,
-		persistStory,
-		readingFrame,
-		readingPartIndex,
-		segments,
-		storyRecapLesson,
-	]);
+	const completeStoryRecap = useCallback(
+		(results: StoryRecapExerciseResult[] = []) => {
+			if (!genre || !activeSaveId) return;
+			setPhase("finished");
+			setStoryRecapError(null);
+			void refineLearnerProfileFromRecap(results);
+			void persistStory(
+				makeStorySaveSnapshot.current({
+					id: activeSaveId,
+					genre,
+					title: activeTitle ?? fallbackTitle(genre),
+					messages,
+					memory,
+					segments,
+					currentTarget: null,
+					phase: "finished",
+					backgroundIntro: backgroundIntro ?? undefined,
+					backgroundImage,
+					openingAudio: null,
+					readingFrame: readingFrame ?? undefined,
+					readingPartIndex: readingPartIndex ?? undefined,
+					narrationVoice,
+					preparedNextPart: null,
+					storyRecapLesson,
+				}),
+			);
+		},
+		[
+			activeSaveId,
+			activeTitle,
+			backgroundImage,
+			backgroundIntro,
+			genre,
+			memory,
+			messages,
+			narrationVoice,
+			persistStory,
+			readingFrame,
+			readingPartIndex,
+			segments,
+			storyRecapLesson,
+		],
+	);
 
 	const retryStoryRecap = useCallback(() => {
 		void generateAndApplyStoryRecap(segments);

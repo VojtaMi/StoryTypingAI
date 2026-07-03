@@ -8,6 +8,7 @@ import { readBody, sendJson } from "./http";
 import {
 	refineLearnerPreferencesFromChat,
 	refineLearnerProfile,
+	refineLearnerProfileFromRecap,
 	refineLearnerProfileFromStory,
 	refineStoryMemoryFromStory,
 } from "./learnerProfileService";
@@ -379,6 +380,61 @@ export async function handleLearnerProfileStoryRefineRequest(
 	} catch (err) {
 		// Never break the story-finish flow: keep the existing profile on failure.
 		console.warn("Could not refine learner profile from story.", err);
+		sendJson(res, 200, { profile: responseProfile });
+	}
+}
+
+export async function handleLearnerProfileRecapRefineRequest(
+	req: IncomingMessage,
+	res: ServerResponse,
+	openai: OpenAI,
+	anthropicKey: string,
+) {
+	const { results } = JSON.parse(await readBody(req));
+	if (
+		!Array.isArray(results) ||
+		results.some(
+			(result) =>
+				!result ||
+				typeof result.type !== "string" ||
+				typeof result.label !== "string" ||
+				typeof result.attempts !== "number" ||
+				!Number.isFinite(result.attempts) ||
+				result.attempts < 1,
+		)
+	) {
+		sendJson(res, 400, {
+			error: "results must be an array of {type, label, attempts}.",
+		});
+		return;
+	}
+
+	let responseProfile = await readLearnerProfile();
+	try {
+		const refineTask = learnerProfileRefineQueue
+			.catch(() => undefined)
+			.then(async () => {
+				const current = await readLearnerProfile();
+				const today = new Date().toISOString().slice(0, 10);
+				const updated = await refineLearnerProfileFromRecap(
+					openai,
+					current,
+					results,
+					anthropicKey,
+					today,
+				);
+				await writeLearnerProfile(updated);
+				responseProfile = updated;
+			});
+		learnerProfileRefineQueue = refineTask.then(
+			() => undefined,
+			() => undefined,
+		);
+		await refineTask;
+		sendJson(res, 200, { profile: responseProfile });
+	} catch (err) {
+		// Never break the story-finish flow: keep the existing profile on failure.
+		console.warn("Could not refine learner profile from recap.", err);
 		sendJson(res, 200, { profile: responseProfile });
 	}
 }

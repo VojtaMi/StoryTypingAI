@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import "../../lessons/lesson.css";
 import type {
 	StoryRecapExercise,
+	StoryRecapExerciseResult,
 	StoryRecapLesson,
 	StoryRecapWordConnectExercise,
 } from "../../storyRecap";
@@ -10,9 +11,21 @@ import type {
 interface StoryRecapViewProps {
 	lesson: StoryRecapLesson | null;
 	error: string | null;
-	onComplete: () => void;
+	onComplete: (results: StoryRecapExerciseResult[]) => void;
 	onRetry: () => void;
 	onSkip: () => void;
+}
+
+function describeExercise(exercise: StoryRecapExercise): string {
+	if (exercise.type === "word-connect") {
+		return exercise.pairs
+			.map((pair) => `${pair.term} = ${pair.meaning}`)
+			.join(", ");
+	}
+	if (exercise.type === "fill-missing-word") {
+		return `${exercise.sentenceBeforeBlank}___${exercise.sentenceAfterBlank} (${exercise.answer})`;
+	}
+	return `${exercise.question} -> ${exercise.answer}`;
 }
 
 function shuffle<T>(items: T[]): T[] {
@@ -36,10 +49,24 @@ export function StoryRecapView({
 	onSkip,
 }: StoryRecapViewProps) {
 	const [completed, setCompleted] = useState<Set<string>>(new Set());
+	const [attempts, setAttempts] = useState<Record<string, number>>({});
 	const allDone = lesson ? completed.size === lesson.exercises.length : false;
 
-	function markComplete(id: string) {
+	function markComplete(id: string, attemptCount: number) {
 		setCompleted((prev) => new Set([...prev, id]));
+		setAttempts((prev) => ({ ...prev, [id]: attemptCount }));
+	}
+
+	function handleContinue() {
+		if (!lesson) return;
+		onComplete(
+			lesson.exercises.map((exercise) => ({
+				id: exercise.id,
+				type: exercise.type,
+				label: describeExercise(exercise),
+				attempts: attempts[exercise.id] ?? 1,
+			})),
+		);
 	}
 
 	if (!lesson) {
@@ -87,7 +114,9 @@ export function StoryRecapView({
 						key={exercise.id}
 						exercise={exercise}
 						done={completed.has(exercise.id)}
-						onComplete={() => markComplete(exercise.id)}
+						onComplete={(attemptCount) =>
+							markComplete(exercise.id, attemptCount)
+						}
 					/>
 				))}
 			</div>
@@ -96,7 +125,7 @@ export function StoryRecapView({
 					<button
 						type="button"
 						className="lesson-doc__begin"
-						onClick={onComplete}
+						onClick={handleContinue}
 					>
 						Continue
 					</button>
@@ -113,7 +142,7 @@ function RecapExercise({
 }: {
 	exercise: StoryRecapExercise;
 	done: boolean;
-	onComplete: () => void;
+	onComplete: (attempts: number) => void;
 }) {
 	if (exercise.type === "word-connect") {
 		return (
@@ -165,7 +194,7 @@ function WordConnectRecap({
 }: {
 	exercise: StoryRecapWordConnectExercise;
 	done: boolean;
-	onComplete: () => void;
+	onComplete: (attempts: number) => void;
 }) {
 	const terms = useMemo(
 		() => exercise.pairs.map((pair) => pair.term),
@@ -189,6 +218,7 @@ function WordConnectRecap({
 		term: string;
 		meaning: string;
 	} | null>(null);
+	const [wrongAttempts, setWrongAttempts] = useState(0);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const matchedMeanings = useMemo(
@@ -204,9 +234,10 @@ function WordConnectRecap({
 			const next = new Set([...matched, term]);
 			setMatched(next);
 			setWrongPair(null);
-			if (next.size === exercise.pairs.length) onComplete();
+			if (next.size === exercise.pairs.length) onComplete(wrongAttempts + 1);
 			return;
 		}
+		setWrongAttempts((count) => count + 1);
 		setWrongPair({ term, meaning });
 		timeoutRef.current = setTimeout(() => setWrongPair(null), 700);
 	}
@@ -295,18 +326,20 @@ function ChoiceRecap({
 	answer: string;
 	choices: string[];
 	done: boolean;
-	onComplete: () => void;
+	onComplete: (attempts: number) => void;
 }) {
 	const shuffledChoices = useMemo(() => shuffle(choices), [choices]);
 	const [wrongChoice, setWrongChoice] = useState<string | null>(null);
+	const [wrongAttempts, setWrongAttempts] = useState(0);
 
 	function choose(choice: string) {
 		if (done) return;
 		if (choice === answer) {
 			setWrongChoice(null);
-			onComplete();
+			onComplete(wrongAttempts + 1);
 			return;
 		}
+		setWrongAttempts((count) => count + 1);
 		setWrongChoice(choice);
 		setTimeout(() => setWrongChoice(null), 700);
 	}

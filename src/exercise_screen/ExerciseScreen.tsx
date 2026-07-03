@@ -6,7 +6,7 @@ import {
 } from "../ai";
 import "../gallery/gallery.css";
 import { GalleryModal } from "../gallery/GalleryModal";
-import type { StoryRecapLesson } from "../storyRecap";
+import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
 import { AuthoringInput } from "./authoring/AuthoringInput";
 import { EsperantoChatModal } from "./chatbot/EsperantoChatModal";
 import { ExerciseControls } from "./controls/ExerciseControls";
@@ -45,7 +45,7 @@ interface ExerciseScreenProps {
 	storyRecapError: string | null;
 	onRegenerateWord: (word: string) => Promise<string | null>;
 	onContinueReading: () => void;
-	onCompleteStoryRecap: () => void;
+	onCompleteStoryRecap: (results: StoryRecapExerciseResult[]) => void;
 	onRetryStoryRecap: () => void;
 	onSkipStoryRecap: () => void;
 	onRestartStory: () => void;
