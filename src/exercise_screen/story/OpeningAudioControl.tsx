@@ -27,6 +27,7 @@ export function OpeningAudioControl({ audioUrl }: OpeningAudioControlProps) {
 	const [status, setStatus] = useState<OpeningAudioStatus>("idle");
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
+	const resumeAfterSeekRef = useRef(false);
 
 	useEffect(() => {
 		setCurrentTime(0);
@@ -107,11 +108,30 @@ export function OpeningAudioControl({ audioUrl }: OpeningAudioControlProps) {
 		[],
 	);
 
+	const startSeek = useCallback(() => {
+		const audio = audioRef.current;
+		if (!audio || audio.paused) return;
+		resumeAfterSeekRef.current = true;
+		audio.pause();
+		setStatus("idle");
+	}, []);
+
 	const commitSeek = useCallback(
-		(event: React.SyntheticEvent<HTMLInputElement>) => {
+		async (event: React.SyntheticEvent<HTMLInputElement>) => {
 			const audio = audioRef.current;
 			if (!audio) return;
 			audio.currentTime = Number(event.currentTarget.value);
+
+			if (!resumeAfterSeekRef.current) return;
+			resumeAfterSeekRef.current = false;
+			setStatus("loading");
+			try {
+				await audio.play();
+				setStatus("playing");
+			} catch (err) {
+				console.warn("Could not resume opening audio after seeking.", err);
+				setStatus("error");
+			}
 		},
 		[],
 	);
@@ -143,6 +163,7 @@ export function OpeningAudioControl({ audioUrl }: OpeningAudioControlProps) {
 				disabled={!duration}
 				aria-label="Seek narration"
 				onChange={previewSeek}
+				onPointerDown={startSeek}
 				onPointerUp={commitSeek}
 				onKeyUp={commitSeek}
 				style={{ "--progress": `${progress}%` } as React.CSSProperties}
