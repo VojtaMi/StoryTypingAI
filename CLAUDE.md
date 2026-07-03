@@ -34,4 +34,4 @@ Deployment to Rosti (rosti.cz) is documented in [`rosti/README.md`](./rosti/READ
 
 ## Playwright Screenshots
 
-When using the Playwright MCP tool, always pass absolute scratchpad paths for screenshots — never bare filenames. The scratchpad path is provided in the system prompt at session start (under "Scratchpad Directory"). Bare filenames land in the project root and pollute the working tree.
+Playwright MCP is configured locally (`~/.claude.json`, not in this repo) with a custom `--output-dir` and `--headless`. Use bare filenames for screenshots — absolute paths outside that dir get rejected. Browser stays headless (no popup); for a debugging session needing headed mode, drop `--headless` and reconnect the MCP server.
