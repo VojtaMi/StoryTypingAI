@@ -1010,11 +1010,19 @@ body[data-view="lesson-typing"] {
 	);
 	border-radius: 999px;
 	cursor: pointer;
+	opacity: 0.45;
+	transition: opacity 0.15s ease;
+}
+
+.story__opening-audio-bar:hover,
+.story__opening-audio-bar:focus-visible,
+.story__opening-audio-bar:active {
+	opacity: 1;
 }
 
 .story__opening-audio-bar:disabled {
 	cursor: default;
-	opacity: 0.5;
+	opacity: 0.3;
 }
 
 .story__opening-audio-bar::-webkit-slider-thumb {
