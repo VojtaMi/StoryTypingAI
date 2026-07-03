@@ -24,6 +24,7 @@ interface StorySaveSnapshotInput {
 	openingAudio?: StoryOpeningAudio | null;
 	preparedNextPart?: PreparedReadingPart | null;
 	storyRecapLesson?: StoryRecapLesson | null;
+	storyFeedbackSubmittedAt?: string | null;
 }
 
 export function fallbackTitle(selected: Genre) {
@@ -66,6 +67,7 @@ export function buildStorySaveSnapshot({
 	openingAudio,
 	preparedNextPart,
 	storyRecapLesson,
+	storyFeedbackSubmittedAt,
 }: StorySaveSnapshotInput): Omit<SavedStory, "updatedAt"> {
 	return {
 		id,
@@ -84,5 +86,6 @@ export function buildStorySaveSnapshot({
 		storyRecapLesson: storyRecapLesson ?? undefined,
 		...(backgroundImage ?? undefined),
 		...(openingAudio ?? undefined),
+		...(storyFeedbackSubmittedAt ? { storyFeedbackSubmittedAt } : {}),
 	};
 }

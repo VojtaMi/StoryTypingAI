@@ -198,6 +198,9 @@ export function useStorySession({
 	const [storyRecapLesson, setStoryRecapLesson] =
 		useState<StoryRecapLesson | null>(null);
 	const [storyRecapError, setStoryRecapError] = useState<string | null>(null);
+	const [storyFeedbackSubmittedAt, setStoryFeedbackSubmittedAt] = useState<
+		string | null
+	>(null);
 	const activeSaveIdRef = useRef<string | null>(null);
 	const activeTitleRef = useRef<string | null>(null);
 	const messagesRef = useRef<ChatMessage[]>([]);
@@ -211,6 +214,7 @@ export function useStorySession({
 	const narrationVoiceRef = useRef<NarrationVoiceId>(DEFAULT_NARRATION_VOICE);
 	const preparedNextPartRef = useRef<PreparedReadingPart | null>(null);
 	const storyRecapLessonRef = useRef<StoryRecapLesson | null>(null);
+	const storyFeedbackSubmittedAtRef = useRef<string | null>(null);
 	const preloadGenerationRef = useRef(0);
 	const preparingOpeningsRef = useRef(false);
 	const prepareOpeningsAgainRef = useRef(false);
@@ -274,6 +278,19 @@ export function useStorySession({
 	useEffect(() => {
 		storyRecapLessonRef.current = storyRecapLesson;
 	}, [storyRecapLesson]);
+
+	useEffect(() => {
+		storyFeedbackSubmittedAtRef.current = storyFeedbackSubmittedAt;
+	}, [storyFeedbackSubmittedAt]);
+
+	const makeStorySaveSnapshot = useRef(
+		(input: Parameters<typeof buildStorySaveSnapshot>[0]) =>
+			buildStorySaveSnapshot({
+				...input,
+				storyFeedbackSubmittedAt:
+					storyFeedbackSubmittedAtRef.current ?? undefined,
+			}),
+	);
 
 	useEffect(() => {
 		if (phase !== "reading" || !currentTarget) {
@@ -346,7 +363,7 @@ export function useStorySession({
 
 				setOpeningAudio(nextOpeningAudio);
 				void persistStory(
-					buildStorySaveSnapshot({
+					makeStorySaveSnapshot.current({
 						id: activeSaveId,
 						genre,
 						title: activeTitleRef.current ?? fallbackTitle(genre),
@@ -409,7 +426,7 @@ export function useStorySession({
 
 				setBackgroundImage(nextBackgroundImage);
 				void persistStory(
-					buildStorySaveSnapshot({
+					makeStorySaveSnapshot.current({
 						id: saveId,
 						genre: selected,
 						title: activeTitleRef.current ?? fallbackTitle(selected),
@@ -615,6 +632,8 @@ export function useStorySession({
 		async (selected: Genre) => {
 			++preloadGenerationRef.current;
 			setPreparedNextPart(null);
+			storyFeedbackSubmittedAtRef.current = null;
+			setStoryFeedbackSubmittedAt(null);
 			setGenre(selected);
 			setMessages([]);
 			setMemory(undefined);
@@ -711,7 +730,7 @@ export function useStorySession({
 				setOpeningAudio(nextOpeningAudio);
 				setPhase("typing");
 				void persistStory(
-					buildStorySaveSnapshot({
+					makeStorySaveSnapshot.current({
 						id: saveId,
 						genre: selected,
 						title,
@@ -749,6 +768,8 @@ export function useStorySession({
 		setPreparedNextPart(null);
 		restartSegmentsRef.current = null;
 		restartImageMapRef.current = null;
+		storyFeedbackSubmittedAtRef.current = null;
+		setStoryFeedbackSubmittedAt(null);
 		setGenre(selected);
 		setMessages([]);
 		setMemory(undefined);
@@ -868,7 +889,7 @@ export function useStorySession({
 			setReadingPartIndex(1);
 			setPhase("reading");
 			void persistStory(
-				buildStorySaveSnapshot({
+				makeStorySaveSnapshot.current({
 					id: saveId,
 					genre: selected,
 					title,
@@ -931,6 +952,8 @@ export function useStorySession({
 
 			++preloadGenerationRef.current;
 			setPreparedNextPart(null);
+			storyFeedbackSubmittedAtRef.current = null;
+			setStoryFeedbackSubmittedAt(null);
 			narrationVoiceRef.current = nextNarrationVoice;
 			activeSaveIdRef.current = saveId;
 			setGenre(selected);
@@ -954,7 +977,7 @@ export function useStorySession({
 			setPhase("typing");
 			onViewChange("story");
 			void persistStory(
-				buildStorySaveSnapshot({
+				makeStorySaveSnapshot.current({
 					id: saveId,
 					genre: selected,
 					title,
@@ -986,7 +1009,7 @@ export function useStorySession({
 			setPhase("authoring");
 			if (genre && activeSaveId) {
 				void persistStory(
-					buildStorySaveSnapshot({
+					makeStorySaveSnapshot.current({
 						id: activeSaveId,
 						genre,
 						title: activeTitle ?? fallbackTitle(genre),
@@ -1039,7 +1062,7 @@ export function useStorySession({
 			setError(null);
 			setPhase("loading");
 			void persistStory(
-				buildStorySaveSnapshot({
+				makeStorySaveSnapshot.current({
 					id: activeSaveId,
 					genre,
 					title: activeTitle ?? fallbackTitle(genre),
@@ -1069,7 +1092,7 @@ export function useStorySession({
 				setStreamingTarget("");
 				setPhase("typing");
 				void persistStory(
-					buildStorySaveSnapshot({
+					makeStorySaveSnapshot.current({
 						id: activeSaveId,
 						genre,
 						title: activeTitle ?? fallbackTitle(genre),
@@ -1169,7 +1192,7 @@ export function useStorySession({
 				setStoryRecapError(null);
 				setPhase("recap");
 				void persistStory(
-					buildStorySaveSnapshot({
+					makeStorySaveSnapshot.current({
 						id: activeSaveId,
 						genre,
 						title: activeTitle ?? fallbackTitle(genre),
@@ -1193,7 +1216,7 @@ export function useStorySession({
 				setStoryRecapError(`Could not build the recap practice: ${message}`);
 				setPhase("recap-loading");
 				void persistStory(
-					buildStorySaveSnapshot({
+					makeStorySaveSnapshot.current({
 						id: activeSaveId,
 						genre,
 						title: activeTitle ?? fallbackTitle(genre),
@@ -1268,7 +1291,7 @@ export function useStorySession({
 				setStoryRecapError(null);
 				setPhase("recap-loading");
 				void persistStory(
-					buildStorySaveSnapshot({
+					makeStorySaveSnapshot.current({
 						id: activeSaveId,
 						genre,
 						title: activeTitle ?? fallbackTitle(genre),
@@ -1303,7 +1326,7 @@ export function useStorySession({
 				setReadingPartIndex(nextPartIndex);
 				setPhase("reading");
 				void persistStory(
-					buildStorySaveSnapshot({
+					makeStorySaveSnapshot.current({
 						id: activeSaveId,
 						genre,
 						title: activeTitle ?? fallbackTitle(genre),
@@ -1400,7 +1423,7 @@ export function useStorySession({
 			setStoryRecapError(null);
 			setPhase("recap-loading");
 			void persistStory(
-				buildStorySaveSnapshot({
+				makeStorySaveSnapshot.current({
 					id: activeSaveId,
 					genre,
 					title: activeTitle ?? fallbackTitle(genre),
@@ -1465,7 +1488,7 @@ export function useStorySession({
 			setPhase("reading");
 
 			void persistStory(
-				buildStorySaveSnapshot({
+				makeStorySaveSnapshot.current({
 					id: activeSaveId,
 					genre,
 					title: activeTitle ?? fallbackTitle(genre),
@@ -1554,7 +1577,7 @@ export function useStorySession({
 			setReadingPartIndex(nextPartIndex);
 			setPhase("reading");
 			void persistStory(
-				buildStorySaveSnapshot({
+				makeStorySaveSnapshot.current({
 					id: activeSaveId,
 					genre,
 					title: activeTitle ?? fallbackTitle(genre),
@@ -1621,7 +1644,7 @@ export function useStorySession({
 		setPhase("finished");
 		setStoryRecapError(null);
 		void persistStory(
-			buildStorySaveSnapshot({
+			makeStorySaveSnapshot.current({
 				id: activeSaveId,
 				genre,
 				title: activeTitle ?? fallbackTitle(genre),
@@ -1681,6 +1704,8 @@ export function useStorySession({
 		setPreparedNextPart(null);
 		restartSegmentsRef.current = segments;
 		restartImageMapRef.current = imageMap;
+		storyFeedbackSubmittedAtRef.current = null;
+		setStoryFeedbackSubmittedAt(null);
 
 		setStoryRecapLesson(null);
 		storyRecapLessonRef.current = null;
@@ -1693,7 +1718,7 @@ export function useStorySession({
 		setReadingPartIndex(1);
 		setPhase("reading");
 		void persistStory(
-			buildStorySaveSnapshot({
+			makeStorySaveSnapshot.current({
 				id: activeSaveId,
 				genre,
 				title: activeTitle ?? fallbackTitle(genre),
@@ -1729,7 +1754,7 @@ export function useStorySession({
 	const backToMenu = useCallback(() => {
 		if (genre && activeSaveId) {
 			void persistStory(
-				buildStorySaveSnapshot({
+				makeStorySaveSnapshot.current({
 					id: activeSaveId,
 					genre,
 					title: activeTitle ?? fallbackTitle(genre),
@@ -1865,6 +1890,9 @@ export function useStorySession({
 				);
 				storyRecapLessonRef.current = save.storyRecapLesson ?? null;
 				setStoryRecapLesson(save.storyRecapLesson ?? null);
+				storyFeedbackSubmittedAtRef.current =
+					save.storyFeedbackSubmittedAt ?? null;
+				setStoryFeedbackSubmittedAt(save.storyFeedbackSubmittedAt ?? null);
 				setStoryRecapError(
 					restoredPhase === "recap-loading"
 						? "The recap practice needs to be generated again."
@@ -1880,9 +1908,53 @@ export function useStorySession({
 		[onSavesError, onViewChange],
 	);
 
-	const submitStoryFeedback = useCallback((feedback: string) => {
-		void refineLearnerProfileFromStory({ feedback });
-	}, []);
+	const submitStoryFeedback = useCallback(
+		(feedback: string) => {
+			const submittedAt = new Date().toISOString();
+			storyFeedbackSubmittedAtRef.current = submittedAt;
+			setStoryFeedbackSubmittedAt(submittedAt);
+			if (genre && activeSaveId) {
+				void persistStory(
+					makeStorySaveSnapshot.current({
+						id: activeSaveId,
+						genre,
+						title: activeTitle ?? fallbackTitle(genre),
+						messages,
+						memory,
+						segments,
+						currentTarget,
+						phase,
+						backgroundIntro: backgroundIntro ?? undefined,
+						backgroundImage,
+						openingAudio,
+						readingFrame: readingFrame ?? undefined,
+						readingPartIndex: readingPartIndex ?? undefined,
+						narrationVoice,
+						preparedNextPart: preparedNextPartRef.current ?? undefined,
+						storyRecapLesson: storyRecapLessonRef.current,
+					}),
+				);
+			}
+			void refineLearnerProfileFromStory({ feedback });
+		},
+		[
+			activeSaveId,
+			activeTitle,
+			backgroundImage,
+			backgroundIntro,
+			currentTarget,
+			genre,
+			memory,
+			messages,
+			openingAudio,
+			narrationVoice,
+			persistStory,
+			phase,
+			readingFrame,
+			readingPartIndex,
+			segments,
+		],
+	);
 
 	const handleRegenerateWord = useCallback(
 		async (word: string): Promise<string | null> => {
@@ -1935,6 +2007,7 @@ export function useStorySession({
 		streamingTarget,
 		storyRecapError,
 		storyRecapLesson,
+		storyFeedbackSubmittedAt,
 		submitContinuation,
 		submitStoryFeedback,
 		wordTranslations,

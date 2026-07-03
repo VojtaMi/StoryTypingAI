@@ -278,6 +278,7 @@ export default function App() {
 		phase,
 		readingPartIndex,
 		readingTotalParts,
+		storyFeedbackSubmittedAt,
 		restartReadingStory,
 		retryStoryRecap,
 		resumeStory,
@@ -613,6 +614,7 @@ export default function App() {
 					openingAudioUrl={openingAudio?.openingAudioUrl ?? null}
 					readingPartIndex={readingPartIndex}
 					readingTotalParts={readingTotalParts}
+					storyFeedbackSubmittedAt={storyFeedbackSubmittedAt}
 					wordTranslations={wordTranslations}
 					storyRecapLesson={storyRecapLesson}
 					storyRecapError={storyRecapError}

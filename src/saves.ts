@@ -33,6 +33,7 @@ export interface SavedStory
 	readingPartIndex?: number;
 	preparedNextPart?: PreparedReadingPart;
 	storyRecapLesson?: StoryRecapLesson | null;
+	storyFeedbackSubmittedAt?: string | null;
 }
 
 export interface SavedStorySummary {

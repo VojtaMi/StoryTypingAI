@@ -12,12 +12,15 @@ const DIFFICULTY_LABEL: Record<Difficulty, string> = {
 
 interface StoryFeedbackFormProps {
 	onSubmit: (feedback: string) => void;
+	submitted: boolean;
 }
 
-export function StoryFeedbackForm({ onSubmit }: StoryFeedbackFormProps) {
+export function StoryFeedbackForm({
+	onSubmit,
+	submitted,
+}: StoryFeedbackFormProps) {
 	const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
 	const [note, setNote] = useState("");
-	const [submitted, setSubmitted] = useState(false);
 
 	if (submitted) {
 		return (
@@ -33,7 +36,6 @@ export function StoryFeedbackForm({ onSubmit }: StoryFeedbackFormProps) {
 				? `${DIFFICULTY_LABEL[difficulty]}. ${trimmedNote}`
 				: DIFFICULTY_LABEL[difficulty],
 		);
-		setSubmitted(true);
 	}
 
 	return (

@@ -39,6 +39,7 @@ interface ExerciseScreenProps {
 	openingAudioUrl: string | null;
 	readingPartIndex: number | null;
 	readingTotalParts: number | null;
+	storyFeedbackSubmittedAt: string | null;
 	wordTranslations: Record<string, string> | null;
 	storyRecapLesson: StoryRecapLesson | null;
 	storyRecapError: string | null;
@@ -67,6 +68,7 @@ export default function ExerciseScreen({
 	openingAudioUrl,
 	readingPartIndex,
 	readingTotalParts,
+	storyFeedbackSubmittedAt,
 	wordTranslations,
 	storyRecapLesson,
 	storyRecapError,
@@ -233,6 +235,7 @@ export default function ExerciseScreen({
 					storyId={storyId}
 					currentImageUrl={currentImageUrl}
 					readingTotalParts={readingTotalParts}
+					storyFeedbackSubmittedAt={storyFeedbackSubmittedAt}
 					canShowGallery={canShowGallery}
 					onOpenGallery={() => setGalleryOpen(true)}
 					onSubmitStoryFeedback={onSubmitStoryFeedback}

@@ -5,6 +5,7 @@ interface StoryCompletionViewProps {
 	storyId: string | null;
 	currentImageUrl: string | null;
 	readingTotalParts: number | null;
+	storyFeedbackSubmittedAt: string | null;
 	canShowGallery: boolean;
 	onOpenGallery: () => void;
 	onSubmitStoryFeedback: (feedback: string) => void;
@@ -15,6 +16,7 @@ export function StoryCompletionView({
 	storyId,
 	currentImageUrl,
 	readingTotalParts,
+	storyFeedbackSubmittedAt,
 	canShowGallery,
 	onOpenGallery,
 	onSubmitStoryFeedback,
@@ -61,7 +63,11 @@ export function StoryCompletionView({
 			)}
 
 			<hr className="lesson-doc__rule" />
-			<StoryFeedbackForm key={storyId} onSubmit={onSubmitStoryFeedback} />
+			<StoryFeedbackForm
+				key={storyId}
+				onSubmit={onSubmitStoryFeedback}
+				submitted={storyFeedbackSubmittedAt !== null}
+			/>
 		</div>
 	);
 }
