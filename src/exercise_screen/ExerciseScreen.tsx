@@ -183,7 +183,6 @@ export default function ExerciseScreen({
 						{readingProgress && (
 							<p className="story__reading-progress">{readingProgress}</p>
 						)}
-						<OpeningAudioControl audioUrl={openingAudioUrl} />
 					</div>
 					<p className="story__reading-text">
 						{[...currentTarget.matchAll(WORD_PATTERN)].map((match) => {
@@ -205,6 +204,7 @@ export default function ExerciseScreen({
 							);
 						})}
 					</p>
+					<OpeningAudioControl audioUrl={openingAudioUrl} />
 					<div className="story__reading-actions">
 						<button
 							type="button"
@@ -247,13 +247,13 @@ export default function ExerciseScreen({
 				<div className="story__current">
 					<div className="story__current-header">
 						<p className="story__hint">Type the next part of the story:</p>
-						<OpeningAudioControl audioUrl={openingAudioUrl} />
 					</div>
 					<TypingExercise
 						key={segments.length}
 						target={currentTarget}
 						onComplete={onTypingComplete}
 					/>
+					<OpeningAudioControl audioUrl={openingAudioUrl} />
 				</div>
 			)}
 

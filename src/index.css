@@ -945,6 +945,15 @@ body[data-view="lesson-typing"] {
 	margin: 0;
 }
 
+.story__opening-audio-group {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	width: 100%;
+	min-width: 0;
+	margin-top: 1rem;
+}
+
 .story__opening-audio {
 	display: inline-flex;
 	align-items: center;
@@ -985,6 +994,59 @@ body[data-view="lesson-typing"] {
 .story__opening-audio[data-status="error"] {
 	color: #f3c56b;
 	border-color: #f3c56b;
+}
+
+.story__opening-audio-bar {
+	flex: 1 1 auto;
+	min-width: 0;
+	height: 6px;
+	margin: 0;
+	appearance: none;
+	-webkit-appearance: none;
+	background: linear-gradient(
+		to right,
+		var(--accent) var(--progress, 0%),
+		rgba(255, 255, 255, 0.14) var(--progress, 0%)
+	);
+	border-radius: 999px;
+	cursor: pointer;
+}
+
+.story__opening-audio-bar:disabled {
+	cursor: default;
+	opacity: 0.5;
+}
+
+.story__opening-audio-bar::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 0.9rem;
+	height: 0.9rem;
+	border-radius: 50%;
+	background: var(--accent);
+	border: 2px solid #0b0f1a;
+	cursor: pointer;
+}
+
+.story__opening-audio-bar::-moz-range-thumb {
+	width: 0.9rem;
+	height: 0.9rem;
+	border-radius: 50%;
+	background: var(--accent);
+	border: 2px solid #0b0f1a;
+	cursor: pointer;
+}
+
+.story__opening-audio-bar::-moz-range-track {
+	height: 6px;
+	border-radius: 999px;
+	background: transparent;
+}
+
+.story__opening-audio-bar::-moz-range-progress {
+	height: 6px;
+	border-radius: 999px;
+	background: var(--accent);
 }
 
 .story .passage {

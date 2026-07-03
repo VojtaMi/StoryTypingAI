@@ -19,7 +19,7 @@ import {
 	handleTranslateWordsRequest,
 	handleWordAudioRequest,
 } from "./aiEndpointHandlers";
-import { readBody, sendJson } from "./http";
+import { readBody, sendBufferWithRangeSupport, sendJson } from "./http";
 import {
 	getOrCreateLessonAudio,
 	lessonAudioFilePattern,
@@ -254,13 +254,13 @@ const server = createServer(async (req, res) => {
 			}
 			try {
 				const file = await readStoryAudio(`${storyId}/${filename}`);
-				res.statusCode = 200;
-				res.setHeader(
-					"Content-Type",
+				res.setHeader("Cache-Control", "no-store");
+				sendBufferWithRangeSupport(
+					req,
+					res,
+					file,
 					filename.endsWith(".wav") ? "audio/wav" : "audio/mpeg",
 				);
-				res.setHeader("Cache-Control", "no-store");
-				res.end(file);
 			} catch {
 				sendJson(res, 404, { error: "Audio not found." });
 			}

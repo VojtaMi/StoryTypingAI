@@ -25,8 +25,13 @@ interface OpeningAudioControlProps {
 export function OpeningAudioControl({ audioUrl }: OpeningAudioControlProps) {
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const [status, setStatus] = useState<OpeningAudioStatus>("idle");
+	const [currentTime, setCurrentTime] = useState(0);
+	const [duration, setDuration] = useState(0);
 
 	useEffect(() => {
+		setCurrentTime(0);
+		setDuration(0);
+
 		if (!audioUrl) {
 			setStatus("idle");
 			return;
@@ -37,9 +42,20 @@ export function OpeningAudioControl({ audioUrl }: OpeningAudioControlProps) {
 		let cancelled = false;
 
 		const handleEnd = () => {
-			if (!cancelled) setStatus("idle");
+			if (cancelled) return;
+			setStatus("idle");
+			audio.currentTime = 0;
+			setCurrentTime(0);
+		};
+		const handleTimeUpdate = () => {
+			if (!cancelled) setCurrentTime(audio.currentTime);
+		};
+		const handleLoadedMetadata = () => {
+			if (!cancelled) setDuration(audio.duration || 0);
 		};
 		audio.addEventListener("ended", handleEnd);
+		audio.addEventListener("timeupdate", handleTimeUpdate);
+		audio.addEventListener("loadedmetadata", handleLoadedMetadata);
 
 		async function playOpeningAudio() {
 			setStatus("loading");
@@ -57,6 +73,8 @@ export function OpeningAudioControl({ audioUrl }: OpeningAudioControlProps) {
 		return () => {
 			cancelled = true;
 			audio.removeEventListener("ended", handleEnd);
+			audio.removeEventListener("timeupdate", handleTimeUpdate);
+			audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
 			audio.pause();
 			audioRef.current = null;
 		};
@@ -82,19 +100,53 @@ export function OpeningAudioControl({ audioUrl }: OpeningAudioControlProps) {
 		}
 	}, [status]);
 
+	const previewSeek = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			setCurrentTime(Number(event.target.value));
+		},
+		[],
+	);
+
+	const commitSeek = useCallback(
+		(event: React.SyntheticEvent<HTMLInputElement>) => {
+			const audio = audioRef.current;
+			if (!audio) return;
+			audio.currentTime = Number(event.currentTarget.value);
+		},
+		[],
+	);
+
 	if (!audioUrl) return null;
 
+	const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
 	return (
-		<button
-			type="button"
-			className="story__opening-audio"
-			data-status={status}
-			aria-label={BUTTON_LABEL[status]}
-			title={BUTTON_LABEL[status]}
-			disabled={status === "loading"}
-			onClick={() => void toggle()}
-		>
-			{BUTTON_GLYPH[status]}
-		</button>
+		<div className="story__opening-audio-group">
+			<button
+				type="button"
+				className="story__opening-audio"
+				data-status={status}
+				aria-label={BUTTON_LABEL[status]}
+				title={BUTTON_LABEL[status]}
+				disabled={status === "loading"}
+				onClick={() => void toggle()}
+			>
+				{BUTTON_GLYPH[status]}
+			</button>
+			<input
+				type="range"
+				className="story__opening-audio-bar"
+				min={0}
+				max={duration || 0}
+				step={0.1}
+				value={currentTime}
+				disabled={!duration}
+				aria-label="Seek narration"
+				onChange={previewSeek}
+				onPointerUp={commitSeek}
+				onKeyUp={commitSeek}
+				style={{ "--progress": `${progress}%` } as React.CSSProperties}
+			/>
+		</div>
 	);
 }
