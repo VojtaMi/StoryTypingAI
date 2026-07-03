@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
 import "../lesson.css";
 import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
 import { buildLessonBotContext } from "../lessonBotContext";
 import type { IntroducedWord, Lesson } from "../types";
+import { useWordMatching } from "../useWordMatching";
 
 interface WordMatchExerciseProps {
 	lessonId: string;
@@ -14,15 +15,6 @@ interface WordMatchExerciseProps {
 	completeLabel?: string;
 	onComplete: () => void;
 	onBack: () => void;
-}
-
-function shuffle<T>(arr: T[]): T[] {
-	const result = [...arr];
-	for (let i = result.length - 1; i > 0; i--) {
-		const j = Math.floor(Math.random() * (i + 1));
-		[result[i], result[j]] = [result[j], result[i]];
-	}
-	return result;
 }
 
 export default function WordMatchExercise({
@@ -36,21 +28,18 @@ export default function WordMatchExercise({
 	onBack,
 }: WordMatchExerciseProps) {
 	const [chatOpen, setChatOpen] = useState(false);
-	const terms = useMemo(() => shuffle(words.map((w) => w.term)), [words]);
-	const meanings = useMemo(() => shuffle(words.map((w) => w.meaning)), [words]);
-	const termToMeaning = useMemo(
-		() => Object.fromEntries(words.map((w) => [w.term, w.meaning])),
-		[words],
-	);
-
-	const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
-	const [selectedRight, setSelectedRight] = useState<string | null>(null);
-	const [matched, setMatched] = useState<Set<string>>(new Set());
-	const [wrongPair, setWrongPair] = useState<{
-		term: string;
-		meaning: string;
-	} | null>(null);
-	const wrongTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const {
+		terms,
+		meanings,
+		selectedTerm: selectedLeft,
+		selectedMeaning: selectedRight,
+		matched,
+		matchedMeanings,
+		wrongPair,
+		allMatched,
+		chooseTerm,
+		chooseMeaning,
+	} = useWordMatching(words);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 
 	const playTerm = useCallback(
@@ -87,58 +76,14 @@ export default function WordMatchExercise({
 		[lessonId],
 	);
 
-	const matchedMeanings = useMemo(
-		() => new Set([...matched].map((t) => termToMeaning[t])),
-		[matched, termToMeaning],
-	);
-	const allMatched = matched.size === words.length;
-
-	function attemptMatch(term: string, meaning: string) {
-		if (wrongTimeout.current !== null) {
-			clearTimeout(wrongTimeout.current);
-			wrongTimeout.current = null;
-		}
-		setSelectedLeft(null);
-		setSelectedRight(null);
-		if (termToMeaning[term] === meaning) {
-			setMatched((prev) => new Set([...prev, term]));
-			setWrongPair(null);
-		} else {
-			setWrongPair({ term, meaning });
-			wrongTimeout.current = setTimeout(() => {
-				setWrongPair(null);
-				wrongTimeout.current = null;
-			}, 700);
-		}
-	}
-
 	function handleLeftClick(term: string) {
-		if (matched.has(term) || wrongPair !== null) return;
+		if (matched.has(term) || wrongPair) return;
 		playTerm(term);
-		if (selectedLeft === term) {
-			setSelectedLeft(null);
-			return;
-		}
-		const right = selectedRight;
-		if (right !== null) {
-			attemptMatch(term, right);
-		} else {
-			setSelectedLeft(term);
-		}
+		chooseTerm(term);
 	}
 
 	function handleRightClick(meaning: string) {
-		if (matchedMeanings.has(meaning) || wrongPair !== null) return;
-		if (selectedRight === meaning) {
-			setSelectedRight(null);
-			return;
-		}
-		const left = selectedLeft;
-		if (left !== null) {
-			attemptMatch(left, meaning);
-		} else {
-			setSelectedRight(meaning);
-		}
+		chooseMeaning(meaning);
 	}
 
 	return (

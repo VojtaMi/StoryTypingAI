@@ -1,6 +1,7 @@
 import type React from "react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "../../lessons/lesson.css";
+import { useWordMatching } from "../../lessons/useWordMatching";
 import type {
 	StoryRecapExercise,
 	StoryRecapExerciseResult,
@@ -196,77 +197,27 @@ function WordConnectRecap({
 	done: boolean;
 	onComplete: (attempts: number) => void;
 }) {
-	const terms = useMemo(
-		() => exercise.pairs.map((pair) => pair.term),
-		[exercise],
-	);
-	const meanings = useMemo(
-		() => shuffle(exercise.pairs.map((pair) => pair.meaning)),
-		[exercise],
-	);
-	const termToMeaning = useMemo(
-		() =>
-			Object.fromEntries(
-				exercise.pairs.map((pair) => [pair.term, pair.meaning]),
-			),
-		[exercise],
-	);
-	const [selectedTerm, setSelectedTerm] = useState<string | null>(null);
-	const [selectedMeaning, setSelectedMeaning] = useState<string | null>(null);
-	const [matched, setMatched] = useState<Set<string>>(new Set());
-	const [wrongPair, setWrongPair] = useState<{
-		term: string;
-		meaning: string;
-	} | null>(null);
-	const [wrongAttempts, setWrongAttempts] = useState(0);
-	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const {
+		terms,
+		meanings,
+		selectedTerm,
+		selectedMeaning,
+		matched,
+		matchedMeanings,
+		wrongPair,
+		wrongAttempts,
+		allMatched,
+		chooseTerm,
+		chooseMeaning,
+	} = useWordMatching(exercise.pairs);
+	const completedRef = useRef(false);
 
-	const matchedMeanings = useMemo(
-		() => new Set([...matched].map((term) => termToMeaning[term])),
-		[matched, termToMeaning],
-	);
-
-	function attempt(term: string, meaning: string) {
-		if (timeoutRef.current) clearTimeout(timeoutRef.current);
-		setSelectedTerm(null);
-		setSelectedMeaning(null);
-		if (termToMeaning[term] === meaning) {
-			const next = new Set([...matched, term]);
-			setMatched(next);
-			setWrongPair(null);
-			if (next.size === exercise.pairs.length) onComplete(wrongAttempts + 1);
-			return;
+	useEffect(() => {
+		if (allMatched && !completedRef.current) {
+			completedRef.current = true;
+			onComplete(wrongAttempts + 1);
 		}
-		setWrongAttempts((count) => count + 1);
-		setWrongPair({ term, meaning });
-		timeoutRef.current = setTimeout(() => setWrongPair(null), 700);
-	}
-
-	function chooseTerm(term: string) {
-		if (done || matched.has(term) || wrongPair) return;
-		if (selectedTerm === term) {
-			setSelectedTerm(null);
-			return;
-		}
-		if (selectedMeaning) {
-			attempt(term, selectedMeaning);
-		} else {
-			setSelectedTerm(term);
-		}
-	}
-
-	function chooseMeaning(meaning: string) {
-		if (done || matchedMeanings.has(meaning) || wrongPair) return;
-		if (selectedMeaning === meaning) {
-			setSelectedMeaning(null);
-			return;
-		}
-		if (selectedTerm) {
-			attempt(selectedTerm, meaning);
-		} else {
-			setSelectedMeaning(meaning);
-		}
-	}
+	}, [allMatched, wrongAttempts, onComplete]);
 
 	return (
 		<section className="story-recap__exercise">
@@ -282,7 +233,7 @@ function WordConnectRecap({
 								selectedTerm === term && "word-match__item--selected",
 								wrongPair?.term === term && "word-match__item--wrong",
 							)}
-							disabled={matched.has(term)}
+							disabled={done || matched.has(term)}
 							onClick={() => chooseTerm(term)}
 						>
 							{term}
@@ -299,7 +250,7 @@ function WordConnectRecap({
 								selectedMeaning === meaning && "word-match__item--selected",
 								wrongPair?.meaning === meaning && "word-match__item--wrong",
 							)}
-							disabled={matchedMeanings.has(meaning)}
+							disabled={done || matchedMeanings.has(meaning)}
 							onClick={() => chooseMeaning(meaning)}
 						>
 							{meaning}
