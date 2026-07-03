@@ -16,9 +16,11 @@ languages with heavier early grammar.
 
 ## Current Learning Model
 
-The app now has a lightweight learner model for adaptive reading:
+The app has a lightweight learner model for adaptive reading:
 
-- `learner/profile.md` stores a bounded, human-readable learner handout.
+- `learner/profile.md` stores a bounded, human-readable learner handout with
+  four sections: **Confident**, **Currently learning (their edge)**,
+  **Shaky / watch for**, and **Recently practiced**.
 - The seed profile treats the learner as a complete beginner, preserving the
   original day-one behavior.
 - When the Esperanto Bot chat closes, the transcript is folded into the profile
@@ -32,6 +34,18 @@ The app now has a lightweight learner model for adaptive reading:
 This is deliberately smaller than a full curriculum engine. The profile is the
 LLM-facing summary; the word log is raw evidence. Both are local single-user
 files.
+
+Finishing a reading story now closes with two steps:
+
+1. **Recap practice** ("Eta praktiko") — a short, auto-generated lesson drawn
+   from the story just read, always three exercises: word-connect,
+   fill-missing-word, and a comprehension question. It currently blocks
+   progression until completed (a "Skip recap" escape hatch only appears if
+   generation fails).
+2. **Completion screen** — a congratulations message, a gallery of the images
+   generated across the story's parts, and the existing difficulty feedback
+   form (five-point scale plus optional note), kept inline rather than in a
+   separate modal.
 
 ## Near-Term Shape
 
@@ -53,6 +67,11 @@ The next useful refinement is a small scoring layer on top of the log:
 
 That scoring layer can be added without changing the current profile format.
 
+Open questions on the recap/completion flow: whether recap should ever be
+skippable on success (not just on generation failure), and how recap exercise
+results should feed back into the learner profile (today they don't — only
+word clicks and chat transcripts do).
+
 ## Future Curriculum Model
 
 If the app needs more precise control, add structured state beneath the prose
@@ -68,38 +87,24 @@ only as compact context for story generation.
 
 ## Exercise Direction
 
-Early lessons and reading stories should rotate through a few exercise types:
+Exercise types in use or planned:
 
 - Type-over practice using the existing typing exercise.
 - Multiple-choice comprehension questions.
 - Fill-the-missing-word exercises.
+- Word-connect (match term to meaning).
 - Reading popovers for translation and word audio.
 - Later, AI-generated variants constrained to known vocabulary and unlocked
-  grammar.
+  grammar, beyond the current fixed three-exercise recap.
 
 Exercise selection can be flexible, but it should respect the learner model:
 known words should dominate, weak words should reappear, and new material should
 arrive slowly.
 
-Today exercises live in dedicated sessions (typing story, reading story)
-rather than inside a story itself. A further step under consideration is
-letting exercises appear dynamically within a story's parts, and closing each
-story with a recap exercise — see Story Completion Moment below.
-
-## Story Completion Moment (idea, undecided)
-
-Today, finishing a story shows an inline feedback card asking about difficulty.
-One direction being considered: replace this with a light-themed modal —
-"Congratulations for completing the story," the Esperanto Bot companion, and a
-gallery of the images generated across the story's parts as a visual recap.
-Difficulty feedback would still be captured here, alongside the celebration.
-
-This moment could also be where a recap exercise lives — a short exercise
-drawing on the vocabulary/sentences from the story just read, once exercises
-can be generated dynamically per-story rather than only in dedicated typing
-sessions (see Exercise Direction below). Open questions: whether the recap
-exercise blocks moving on, how it relates to the mid-story exercise rotation,
-and whether the modal replaces or supplements the existing feedback card.
+Today, dedicated exercise sessions (typing story, reading story) and the
+per-story recap are separate surfaces. Letting exercises appear dynamically
+within a story's parts, rather than only at typing sessions and story-end, is
+still a future step.
 
 ## AI Boundary
 
