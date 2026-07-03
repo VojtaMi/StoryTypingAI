@@ -22,6 +22,7 @@ import type {
 	StorySegment,
 	TypingStats,
 } from "../exercise_screen/types";
+import { listStoryImages } from "../gallery/galleryApi";
 import { type Genre, genres } from "../genres";
 import type { TextModelId } from "../models";
 import {
@@ -45,6 +46,7 @@ import type { StoryBackgroundImage } from "../storyBackground";
 import type { StoryRecapLesson } from "../storyRecap";
 import {
 	backgroundFromOpening,
+	buildSectionImageMap,
 	fallbackBackgroundImage,
 	shouldGenerateNextBackground,
 } from "./background";
@@ -215,6 +217,11 @@ export function useStorySession({
 	const preparingReadingOpeningsRef = useRef(false);
 	const prepareReadingOpeningsAgainRef = useRef(false);
 	const openingAudioRecoveryKeyRef = useRef<string | null>(null);
+	const restartSegmentsRef = useRef<StorySegment[] | null>(null);
+	const restartImageMapRef = useRef<Record<
+		number,
+		StoryBackgroundImage
+	> | null>(null);
 
 	useEffect(() => {
 		activeSaveIdRef.current = activeSaveId;
@@ -740,6 +747,8 @@ export function useStorySession({
 
 		++preloadGenerationRef.current;
 		setPreparedNextPart(null);
+		restartSegmentsRef.current = null;
+		restartImageMapRef.current = null;
 		setGenre(selected);
 		setMessages([]);
 		setMemory(undefined);
@@ -1232,6 +1241,92 @@ export function useStorySession({
 			return;
 		}
 
+		if (restartSegmentsRef.current) {
+			const cachedSegments = restartSegmentsRef.current;
+			const totalParts = readingFrame.totalParts;
+			const nextSegments: StorySegment[] = [
+				...segments,
+				completedAiSegment(
+					segments.length,
+					currentTarget,
+					openingAudioRef.current,
+				),
+			];
+			setError(null);
+
+			if (readingPartIndex >= totalParts) {
+				restartSegmentsRef.current = null;
+				restartImageMapRef.current = null;
+				++preloadGenerationRef.current;
+				setPreparedNextPart(null);
+				setSegments(nextSegments);
+				setCurrentTarget(null);
+				setStreamingTarget("");
+				setOpeningAudio(null);
+				setStoryRecapLesson(null);
+				storyRecapLessonRef.current = null;
+				setStoryRecapError(null);
+				setPhase("recap-loading");
+				void persistStory(
+					buildStorySaveSnapshot({
+						id: activeSaveId,
+						genre,
+						title: activeTitle ?? fallbackTitle(genre),
+						messages,
+						memory,
+						segments: nextSegments,
+						currentTarget: null,
+						phase: "recap-loading",
+						backgroundIntro: backgroundIntro ?? undefined,
+						backgroundImage,
+						openingAudio: null,
+						readingFrame,
+						readingPartIndex,
+						narrationVoice,
+						preparedNextPart: null,
+						storyRecapLesson: null,
+					}),
+				);
+				void generateAndApplyStoryRecap(nextSegments);
+				return;
+			}
+
+			const nextPartIndex = readingPartIndex + 1;
+			const nextCached = cachedSegments[nextPartIndex - 1];
+			if (nextCached) {
+				const nextImage = restartImageMapRef.current?.[nextPartIndex];
+				setSegments(nextSegments);
+				setCurrentTarget(nextCached.text);
+				setStreamingTarget("");
+				setOpeningAudio(nextCached.narrationAudio ?? null);
+				if (nextImage) setBackgroundImage(nextImage);
+				setReadingPartIndex(nextPartIndex);
+				setPhase("reading");
+				void persistStory(
+					buildStorySaveSnapshot({
+						id: activeSaveId,
+						genre,
+						title: activeTitle ?? fallbackTitle(genre),
+						messages,
+						memory,
+						segments: nextSegments,
+						currentTarget: nextCached.text,
+						phase: "reading",
+						backgroundIntro: backgroundIntro ?? undefined,
+						backgroundImage: nextImage ?? backgroundImage,
+						openingAudio: nextCached.narrationAudio ?? null,
+						readingFrame,
+						readingPartIndex: nextPartIndex,
+						narrationVoice,
+						preparedNextPart: null,
+					}),
+				);
+				return;
+			}
+			// Cached data missing unexpectedly — fall through to normal generation.
+			restartSegmentsRef.current = null;
+		}
+
 		// The current part's audio may still be generating (see the recovery
 		// effect above). Give it a brief window to land in state before
 		// finalizing the segment, so we don't persist it without narration.
@@ -1569,6 +1664,68 @@ export function useStorySession({
 		completeStoryRecap();
 	}, [completeStoryRecap]);
 
+	const restartReadingStory = useCallback(async () => {
+		if (!genre || !activeSaveId || !readingFrame) return;
+		const first = segments[0];
+		if (!first) return;
+
+		let imageMap: Record<number, StoryBackgroundImage> = {};
+		try {
+			const urls = await listStoryImages(activeSaveId);
+			imageMap = buildSectionImageMap(urls);
+		} catch (err) {
+			console.warn("Could not load story image gallery for restart.", err);
+		}
+
+		++preloadGenerationRef.current;
+		setPreparedNextPart(null);
+		restartSegmentsRef.current = segments;
+		restartImageMapRef.current = imageMap;
+
+		setStoryRecapLesson(null);
+		storyRecapLessonRef.current = null;
+		setStoryRecapError(null);
+		setSegments([]);
+		setCurrentTarget(first.text);
+		setStreamingTarget("");
+		setOpeningAudio(first.narrationAudio ?? null);
+		if (imageMap[1]) setBackgroundImage(imageMap[1]);
+		setReadingPartIndex(1);
+		setPhase("reading");
+		void persistStory(
+			buildStorySaveSnapshot({
+				id: activeSaveId,
+				genre,
+				title: activeTitle ?? fallbackTitle(genre),
+				messages,
+				memory,
+				segments: [],
+				currentTarget: first.text,
+				phase: "reading",
+				backgroundIntro: backgroundIntro ?? undefined,
+				backgroundImage: imageMap[1] ?? backgroundImage,
+				openingAudio: first.narrationAudio ?? null,
+				readingFrame,
+				readingPartIndex: 1,
+				narrationVoice,
+				preparedNextPart: null,
+				storyRecapLesson: null,
+			}),
+		);
+	}, [
+		activeSaveId,
+		activeTitle,
+		backgroundImage,
+		backgroundIntro,
+		genre,
+		memory,
+		messages,
+		narrationVoice,
+		persistStory,
+		readingFrame,
+		segments,
+	]);
+
 	const backToMenu = useCallback(() => {
 		if (genre && activeSaveId) {
 			void persistStory(
@@ -1769,6 +1926,7 @@ export function useStorySession({
 		resumeStory,
 		readingPartIndex,
 		readingTotalParts: readingFrame?.totalParts ?? null,
+		restartReadingStory,
 		retryStoryRecap,
 		segments,
 		selectGenre,

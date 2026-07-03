@@ -47,6 +47,7 @@ interface ExerciseScreenProps {
 	onCompleteStoryRecap: () => void;
 	onRetryStoryRecap: () => void;
 	onSkipStoryRecap: () => void;
+	onRestartStory: () => void;
 	onTypingComplete: (stats: TypingStats) => void;
 	onSubmitContinuation: (text: string) => void;
 	onAutoContinue: () => void;
@@ -74,6 +75,7 @@ export default function ExerciseScreen({
 	onCompleteStoryRecap,
 	onRetryStoryRecap,
 	onSkipStoryRecap,
+	onRestartStory,
 	onTypingComplete,
 	onSubmitContinuation,
 	onAutoContinue,
@@ -231,10 +233,10 @@ export default function ExerciseScreen({
 					storyId={storyId}
 					currentImageUrl={currentImageUrl}
 					readingTotalParts={readingTotalParts}
-					segments={segments}
 					canShowGallery={canShowGallery}
 					onOpenGallery={() => setGalleryOpen(true)}
 					onSubmitStoryFeedback={onSubmitStoryFeedback}
+					onRestartStory={onRestartStory}
 				/>
 			)}
 

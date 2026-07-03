@@ -1,5 +1,6 @@
 export {
 	backgroundFromOpening,
+	buildSectionImageMap,
 	fallbackBackgroundImage,
 	type StoryBackgroundFields,
 	shouldGenerateNextBackground,

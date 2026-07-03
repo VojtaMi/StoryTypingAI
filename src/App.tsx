@@ -278,6 +278,7 @@ export default function App() {
 		phase,
 		readingPartIndex,
 		readingTotalParts,
+		restartReadingStory,
 		retryStoryRecap,
 		resumeStory,
 		segments,
@@ -620,6 +621,7 @@ export default function App() {
 					onCompleteStoryRecap={completeStoryRecap}
 					onRetryStoryRecap={retryStoryRecap}
 					onSkipStoryRecap={skipStoryRecap}
+					onRestartStory={restartReadingStory}
 					onTypingComplete={handleTypingComplete}
 					onSubmitContinuation={submitContinuation}
 					onAutoContinue={autoContinueStory}
