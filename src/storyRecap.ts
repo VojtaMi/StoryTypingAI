@@ -51,3 +51,173 @@ export interface StoryRecapExerciseResult {
 	label: string;
 	attempts: number;
 }
+
+/**
+ * Each exercise type owns the slice of the generation prompt it needs (its
+ * JSON shape and authoring rules) and how to parse its own response, so
+ * adding a new recap exercise type means adding one spec here rather than
+ * editing a shared prompt string and a shared parser.
+ */
+interface RecapExerciseSpec<T> {
+	shape: string;
+	instructions: string;
+	parse(value: unknown): T;
+}
+
+const wordConnectSpec: RecapExerciseSpec<StoryRecapWordConnectExercise> = {
+	shape: '{"pairs":[{"term":"Esperanto word","meaning":"English meaning"}]}',
+	instructions:
+		"Use exactly three word-connect pairs, using only words and facts from the story. Keep English meanings short.",
+	parse(value) {
+		if (
+			!isObject(value) ||
+			!Array.isArray(value.pairs) ||
+			value.pairs.length !== 3
+		) {
+			throw new Error("Recap word-connect exercise needs three pairs.");
+		}
+		return {
+			id: "word-connect",
+			type: "word-connect",
+			title: "Connect the words",
+			hint: "Select a word, then its meaning.",
+			pairs: value.pairs.map((pair) => {
+				if (!isObject(pair)) throw new Error("Recap word pair is invalid.");
+				return {
+					term: requiredString(pair.term, "word term"),
+					meaning: requiredString(pair.meaning, "word meaning"),
+				};
+			}),
+		};
+	},
+};
+
+const fillMissingWordSpec: RecapExerciseSpec<StoryRecapFillMissingWordExercise> =
+	{
+		shape:
+			'{"sentence":"A complete, natural Esperanto sentence that contains the answer word","answer":"correct Esperanto word, exactly as it appears in sentence","choices":["correct","wrong","wrong"]}',
+		instructions:
+			"Use exactly three fill choices, using only words and facts from the story. " +
+			"The fill sentence must be one complete, natural Esperanto sentence containing the answer word written exactly as in `answer` — the app carves the blank out of it itself, so write a normal sentence and do not pre-split it or omit the word.",
+		parse(value) {
+			if (!isObject(value)) throw new Error("Recap fill exercise is invalid.");
+			const answer = requiredString(value.answer, "fill answer");
+			const sentence = requiredString(value.sentence, "fill sentence");
+			const { before, after } = splitOnWord(sentence, answer);
+			return {
+				id: "fill-missing-word",
+				type: "fill-missing-word",
+				title: "Fill the missing word",
+				hint: "Choose the word that completes the sentence.",
+				sentenceBeforeBlank: before,
+				sentenceAfterBlank: after,
+				answer,
+				choices: parseChoices(value.choices, answer, 3, 3),
+			};
+		},
+	};
+
+const storyQuestionSpec: RecapExerciseSpec<StoryRecapQuestionExercise> = {
+	shape:
+		'{"question":"Simple English question about the story","answer":"correct answer","choices":["correct","wrong"]}',
+	instructions:
+		"Use two or three story-question choices, using only facts from the story.",
+	parse(value) {
+		if (!isObject(value)) throw new Error("Recap story question is invalid.");
+		const answer = requiredString(value.answer, "story question answer");
+		return {
+			id: "story-question",
+			type: "story-question",
+			title: "Story question",
+			hint: "Choose the answer that fits the story.",
+			question: requiredString(value.question, "story question"),
+			answer,
+			choices: parseChoices(value.choices, answer, 2, 3),
+		};
+	},
+};
+
+const RECAP_EXERCISE_SPECS = [
+	wordConnectSpec,
+	fillMissingWordSpec,
+	storyQuestionSpec,
+];
+
+/** Composes the recap generation prompt from each exercise type's own shape and rules. */
+export function buildStoryRecapPrompt(): string {
+	const shape = `{"exercises":[${RECAP_EXERCISE_SPECS.map((spec) => spec.shape).join(",")}]}`;
+	const instructions = RECAP_EXERCISE_SPECS.map(
+		(spec) => spec.instructions,
+	).join(" ");
+	return (
+		"Create a tiny end-of-story Esperanto recap lesson for a beginner. " +
+		"Return only valid JSON with this exact shape: " +
+		`${shape} ` +
+		`${instructions} ` +
+		"Do not include markdown, comments, explanations, trailing commas, or extra fields."
+	);
+}
+
+export function parseStoryRecapLesson(text: string): StoryRecapLesson {
+	const parsed = JSON.parse(text) as unknown;
+	if (!isObject(parsed)) throw new Error("Recap JSON was not an object.");
+	if (!Array.isArray(parsed.exercises)) {
+		throw new Error("Recap JSON is missing exercises.");
+	}
+	return {
+		id: `story-recap-${Date.now()}`,
+		title: "Eta praktiko",
+		exercises: [
+			wordConnectSpec.parse(parsed.exercises[0]),
+			fillMissingWordSpec.parse(parsed.exercises[1]),
+			storyQuestionSpec.parse(parsed.exercises[2]),
+		],
+	};
+}
+
+/** Deterministically carves the blank out of a sentence around the answer word, rather than trusting the LLM to pre-split it correctly. */
+function splitOnWord(
+	sentence: string,
+	word: string,
+): { before: string; after: string } {
+	const target = word.toLowerCase();
+	const tokenRegex = /\p{L}+/gu;
+	for (const match of sentence.matchAll(tokenRegex)) {
+		if (match[0].toLowerCase() === target) {
+			return {
+				before: sentence.slice(0, match.index),
+				after: sentence.slice(match.index + match[0].length),
+			};
+		}
+	}
+	throw new Error("Recap fill sentence does not contain the answer word.");
+}
+
+function parseChoices(
+	value: unknown,
+	answer: string,
+	min: number,
+	max: number,
+): string[] {
+	if (!Array.isArray(value)) throw new Error("Recap choices are invalid.");
+	const choices = value.map((choice) => requiredString(choice, "choice"));
+	if (
+		choices.length < min ||
+		choices.length > max ||
+		!choices.includes(answer)
+	) {
+		throw new Error("Recap choices do not include the answer.");
+	}
+	return choices;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+function requiredString(value: unknown, label: string): string {
+	if (typeof value !== "string" || !value.trim()) {
+		throw new Error(`Recap JSON is missing ${label}.`);
+	}
+	return value.trim();
+}

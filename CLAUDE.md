@@ -28,6 +28,12 @@ The commit hook runs Biome on staged files, so keep changes passing:
 npm run lint:staged
 ```
 
+## LLM Generation Code
+
+When a single LLM call generates multiple distinct structured items (e.g. a lesson made of several exercise types), give each item type a self-contained spec — its own prompt-shape fragment, its own authoring instructions, and its own parser — instead of one hardcoded monolithic prompt string plus one big parser. The orchestrator should just compose specs and dispatch parsing per item. See `src/storyRecap.ts` (`RecapExerciseSpec`) for the pattern.
+
+When part of an LLM's output must satisfy a structural invariant (e.g. "this sentence must not contain this word" so the app can render a blank), don't rely on a prompt instruction the model might ignore, and don't just validate-and-reject after the fact either — shrink what you ask the LLM for and derive the invariant deterministically in code. Example: ask for one natural sentence containing the word, then split on it client-side, rather than asking the LLM to pre-split the sentence around the word itself.
+
 ## Deployment
 
 Deployment to Rosti (rosti.cz) is documented in [`rosti/README.md`](./rosti/README.md). Consult it only when working on deployment tasks — it's not part of the general workflow.
