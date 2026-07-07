@@ -108,7 +108,6 @@ export const CURRICULUM: CurriculumStep[] = [
 		stageId: "esperanto-keyboard",
 		render: (ctx) => (
 			<WordMatchExercise
-				lessonId="keyboard-intro"
 				words={KEYBOARD_PRACTICE_WORDS}
 				completeLabel="Continue →"
 				onComplete={ctx.onComplete}

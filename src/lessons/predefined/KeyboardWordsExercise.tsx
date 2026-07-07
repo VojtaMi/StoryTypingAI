@@ -8,77 +8,14 @@ import {
 } from "react";
 import { ESPERANTO_KEY_MAP } from "../../esperantoKeyboard";
 import "../lesson.css";
-import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
+import { useWordAudio, useWordAudioPlayer } from "../lessonAudio";
 import { KEYBOARD_PRACTICE_WORDS } from "./keyboardPracticeWords";
 
-const LESSON_ID = "keyboard-intro";
+const KEYBOARD_PRACTICE_TERMS = KEYBOARD_PRACTICE_WORDS.map(({ term }) => term);
 
 interface KeyboardWordsExerciseProps {
 	onComplete: () => void;
 	onBack: () => void;
-}
-
-function useWordAudio() {
-	const [ready, setReady] = useState<Set<string>>(
-		() =>
-			new Set(
-				KEYBOARD_PRACTICE_WORDS.map((c) => c.term).filter((w) =>
-					audioUrlCache.has(w),
-				),
-			),
-	);
-	const [playing, setPlaying] = useState<string | null>(null);
-	const audioRef = useRef<HTMLAudioElement | null>(null);
-
-	useEffect(() => {
-		let cancelled = false;
-		for (const { term } of KEYBOARD_PRACTICE_WORDS) {
-			if (audioUrlCache.has(term)) continue;
-			ensureLessonAudioUrl(LESSON_ID, term)
-				.then(() => {
-					if (cancelled) return;
-					setReady((prev) => new Set([...prev, term]));
-				})
-				.catch((err) => {
-					console.warn("Could not prefetch audio for:", term, err);
-				});
-		}
-		return () => {
-			cancelled = true;
-			audioRef.current?.pause();
-		};
-	}, []);
-
-	const play = useCallback((word: string) => {
-		if (audioRef.current) {
-			audioRef.current.pause();
-			audioRef.current = null;
-		}
-
-		const run = (url: string) => {
-			setPlaying(word);
-			const audio = new Audio(url);
-			audioRef.current = audio;
-			audio.addEventListener("ended", () => setPlaying(null));
-			audio.addEventListener("error", () => setPlaying(null));
-			audio.play().catch(() => setPlaying(null));
-		};
-
-		const cached = audioUrlCache.get(word);
-		if (cached) {
-			run(cached);
-			return;
-		}
-
-		ensureLessonAudioUrl(LESSON_ID, word)
-			.then((url) => {
-				setReady((prev) => new Set([...prev, word]));
-				run(url);
-			})
-			.catch(() => {});
-	}, []);
-
-	return { ready, playing, play };
 }
 
 export default function KeyboardWordsExercise({
@@ -91,7 +28,8 @@ export default function KeyboardWordsExercise({
 	const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 	const continueButtonRef = useRef<HTMLButtonElement | null>(null);
 	const skipNextFocusPlaybackRef = useRef(false);
-	const { ready, playing, play } = useWordAudio();
+	const ready = useWordAudio(KEYBOARD_PRACTICE_TERMS);
+	const { playing, play } = useWordAudioPlayer();
 
 	const allCorrect = KEYBOARD_PRACTICE_WORDS.every(
 		({ term }, i) => wordValues[i] === term,

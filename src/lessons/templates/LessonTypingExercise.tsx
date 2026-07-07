@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
 import { TypingPassage } from "../../exercise_screen/typing/TypingPassage";
 import { useTypingSession } from "../../exercise_screen/typing/useTypingSession";
 import "../lesson.css";
-import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
+import { useLessonTextAudioPlayer } from "../lessonAudio";
 
 interface LessonTypingExerciseProps {
 	lessonId: string;
@@ -28,38 +28,14 @@ export default function LessonTypingExercise({
 		requireAllCorrect: true,
 	});
 
-	const audioRef = useRef<HTMLAudioElement | null>(null);
+	const { play } = useLessonTextAudioPlayer(lessonId);
 
 	const playAudio = useCallback(() => {
-		if (audioRef.current) {
-			audioRef.current.pause();
-			audioRef.current = null;
-		}
-		const run = (url: string) => {
-			const audio = new Audio(url);
-			audioRef.current = audio;
-			audio.addEventListener("ended", () => {
-				audioRef.current = null;
-			});
-			audio.play().catch(() => {
-				audioRef.current = null;
-			});
-		};
-		const cached = audioUrlCache.get(text);
-		if (cached) {
-			run(cached);
-		} else {
-			ensureLessonAudioUrl(lessonId, text)
-				.then(run)
-				.catch(() => {});
-		}
-	}, [lessonId, text]);
+		play(text);
+	}, [play, text]);
 
 	useEffect(() => {
 		playAudio();
-		return () => {
-			audioRef.current?.pause();
-		};
 	}, [playAudio]);
 
 	return (

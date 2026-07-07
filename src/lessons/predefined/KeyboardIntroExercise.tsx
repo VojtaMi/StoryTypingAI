@@ -7,9 +7,7 @@ import {
 } from "react";
 import { ESPERANTO_KEY_MAP } from "../../esperantoKeyboard";
 import "../lesson.css";
-import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
-
-const LESSON_ID = "keyboard-intro";
+import { useWordAudio, useWordAudioPlayer } from "../lessonAudio";
 
 const KEYBOARD_CHARS = [
 	{ char: "ŝ", key: "q", word: "ŝipo" },
@@ -19,6 +17,8 @@ const KEYBOARD_CHARS = [
 	{ char: "ĥ", key: "]", word: "eĥo" },
 	{ char: "ĉ", key: "x", word: "ĉambro" },
 ] as const;
+
+const KEYBOARD_AUDIO_WORDS = KEYBOARD_CHARS.map(({ word }) => word);
 
 const MINI_KEYBOARD_ROWS = [
 	["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]"],
@@ -43,52 +43,6 @@ interface KeyboardIntroExerciseProps {
 	onBack: () => void;
 }
 
-function useCharAudio() {
-	const [ready, setReady] = useState<Set<string>>(
-		() =>
-			new Set(
-				KEYBOARD_CHARS.map((c) => c.word).filter((w) => audioUrlCache.has(w)),
-			),
-	);
-	const [playing, setPlaying] = useState<string | null>(null);
-	const audioRef = useRef<HTMLAudioElement | null>(null);
-
-	useEffect(() => {
-		let cancelled = false;
-		for (const { word } of KEYBOARD_CHARS) {
-			if (audioUrlCache.has(word)) continue;
-			ensureLessonAudioUrl(LESSON_ID, word)
-				.then(() => {
-					if (cancelled) return;
-					setReady((prev) => new Set([...prev, word]));
-				})
-				.catch((err) => {
-					console.warn("Could not prefetch audio for:", word, err);
-				});
-		}
-		return () => {
-			cancelled = true;
-		};
-	}, []);
-
-	const play = useCallback((word: string) => {
-		if (audioRef.current) {
-			audioRef.current.pause();
-			audioRef.current = null;
-		}
-		const url = audioUrlCache.get(word);
-		if (!url) return;
-		setPlaying(word);
-		const audio = new Audio(url);
-		audioRef.current = audio;
-		audio.addEventListener("ended", () => setPlaying(null));
-		audio.addEventListener("error", () => setPlaying(null));
-		audio.play().catch(() => setPlaying(null));
-	}, []);
-
-	return { ready, playing, play };
-}
-
 export default function KeyboardIntroExercise({
 	onComplete,
 	onBack,
@@ -96,7 +50,8 @@ export default function KeyboardIntroExercise({
 	const [values, setValues] = useState<string[]>(() =>
 		KEYBOARD_CHARS.map(() => ""),
 	);
-	const { ready, playing, play } = useCharAudio();
+	const ready = useWordAudio(KEYBOARD_AUDIO_WORDS);
+	const { playing, play } = useWordAudioPlayer();
 	const [demoText, setDemoText] = useState("");
 	const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 	const continueButtonRef = useRef<HTMLButtonElement | null>(null);

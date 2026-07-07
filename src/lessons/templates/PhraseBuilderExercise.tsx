@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
 import "../lesson.css";
-import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
+import { useWordAudioPlayer } from "../lessonAudio";
 import type { PhraseBuilderPrompt } from "../types";
 
 interface PhraseBuilderExerciseProps {
-	lessonId: string;
 	title: string;
 	hint: string;
 	prompts: PhraseBuilderPrompt[];
@@ -31,7 +30,6 @@ function sameAnswer(left: string[], right: string[]) {
 }
 
 export default function PhraseBuilderExercise({
-	lessonId,
 	title,
 	hint,
 	prompts,
@@ -44,7 +42,7 @@ export default function PhraseBuilderExercise({
 	const [chatOpen, setChatOpen] = useState(false);
 	const [selected, setSelected] = useState<string[]>([]);
 	const [wrong, setWrong] = useState(false);
-	const audioRef = useRef<HTMLAudioElement | null>(null);
+	const { play: playWord } = useWordAudioPlayer();
 
 	const prompt = prompts[promptIndex];
 	const isLast = promptIndex === prompts.length - 1;
@@ -53,43 +51,6 @@ export default function PhraseBuilderExercise({
 		[prompt],
 	);
 	const isCorrect = sameAnswer(selected, prompt.answer);
-
-	const playWord = useCallback(
-		(word: string) => {
-			if (audioRef.current) {
-				audioRef.current.pause();
-				audioRef.current = null;
-			}
-
-			const run = (url: string) => {
-				const audio = new Audio(url);
-				audioRef.current = audio;
-				audio.addEventListener("ended", () => {
-					audioRef.current = null;
-				});
-				audio.play().catch(() => {
-					audioRef.current = null;
-				});
-			};
-
-			const cached = audioUrlCache.get(word);
-			if (cached) {
-				run(cached);
-				return;
-			}
-
-			ensureLessonAudioUrl(lessonId, word)
-				.then(run)
-				.catch(() => {});
-		},
-		[lessonId],
-	);
-
-	useEffect(() => {
-		return () => {
-			audioRef.current?.pause();
-		};
-	}, []);
 
 	function chooseTile(tile: string) {
 		if (selected.length >= prompt.answer.length || wrong || isCorrect) return;

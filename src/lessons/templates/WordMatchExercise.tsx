@@ -1,12 +1,11 @@
-import { useCallback, useRef, useState } from "react";
+import { useState } from "react";
 import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
 import "../lesson.css";
-import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
+import { useWordAudioPlayer } from "../lessonAudio";
 import type { IntroducedWord } from "../types";
 import { useWordMatching } from "../useWordMatching";
 
 interface WordMatchExerciseProps {
-	lessonId: string;
 	words: IntroducedWord[];
 	backgroundIntro?: string;
 	title?: string;
@@ -17,7 +16,6 @@ interface WordMatchExerciseProps {
 }
 
 export default function WordMatchExercise({
-	lessonId,
 	words,
 	backgroundIntro,
 	title = "Connect the words",
@@ -39,41 +37,7 @@ export default function WordMatchExercise({
 		chooseTerm,
 		chooseMeaning,
 	} = useWordMatching(words);
-	const audioRef = useRef<HTMLAudioElement | null>(null);
-
-	const playTerm = useCallback(
-		(term: string) => {
-			if (audioRef.current) {
-				audioRef.current.pause();
-				audioRef.current = null;
-			}
-			const url = audioUrlCache.get(term);
-			if (url) {
-				const audio = new Audio(url);
-				audioRef.current = audio;
-				audio.addEventListener("ended", () => {
-					audioRef.current = null;
-				});
-				audio.play().catch(() => {
-					audioRef.current = null;
-				});
-			} else {
-				ensureLessonAudioUrl(lessonId, term)
-					.then((fetchedUrl) => {
-						const audio = new Audio(fetchedUrl);
-						audioRef.current = audio;
-						audio.addEventListener("ended", () => {
-							audioRef.current = null;
-						});
-						audio.play().catch(() => {
-							audioRef.current = null;
-						});
-					})
-					.catch(() => {});
-			}
-		},
-		[lessonId],
-	);
+	const { play: playTerm } = useWordAudioPlayer();
 
 	function handleLeftClick(term: string) {
 		if (matched.has(term) || wrongPair) return;

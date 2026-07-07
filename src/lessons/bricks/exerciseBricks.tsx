@@ -70,7 +70,6 @@ const wordMatchBrick: ExerciseBrickSpec<WordMatchLessonExercise> = {
 	},
 	render: (exercise, ctx) => (
 		<WordMatchExercise
-			lessonId={ctx.lessonId}
 			words={wordsForWordMatch(ctx.lesson, exercise)}
 			backgroundIntro={ctx.backgroundIntro}
 			title={exercise.title}
@@ -95,7 +94,6 @@ const wordMatchBrick: ExerciseBrickSpec<WordMatchLessonExercise> = {
 const phraseBuilderBrick: ExerciseBrickSpec<PhraseBuilderLessonExercise> = {
 	render: (exercise, ctx) => (
 		<PhraseBuilderExercise
-			lessonId={ctx.lessonId}
 			title={exercise.title}
 			hint={exercise.hint}
 			prompts={exercise.prompts}

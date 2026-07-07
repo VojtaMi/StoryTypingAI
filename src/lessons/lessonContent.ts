@@ -19,10 +19,7 @@ export function lessonStoryText(lesson: Lesson): string {
 	return lesson.story.join(" ");
 }
 
-/** Every string a lesson intro prefetches audio for: each vocabulary term, then the story. */
+/** Lesson-scoped narration text; vocabulary audio is handled by the shared word cache. */
 export function lessonNarratableTexts(lesson: Lesson): string[] {
-	return [
-		...lessonVocab(lesson).map((word) => word.term),
-		lessonStoryText(lesson),
-	];
+	return [lessonStoryText(lesson)].filter(Boolean);
 }

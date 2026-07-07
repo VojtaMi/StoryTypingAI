@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
 import {
 	type LessonBodyBlock,
@@ -6,7 +6,13 @@ import {
 	renderLessonBodyBlock,
 } from "../bricks/lessonBodyBricks";
 import "../lesson.css";
-import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
+import {
+	lessonAudioUrlCache,
+	useAudioPlayer,
+	useLessonTextAudio,
+	useWordAudio,
+	wordAudioUrlCache,
+} from "../lessonAudio";
 import { buildLessonBotContext } from "../lessonBotContext";
 import { lessonNarratableTexts, lessonVocab } from "../lessonContent";
 import type { Lesson } from "../types";
@@ -19,48 +25,26 @@ interface LessonIntroProps {
 }
 
 function useLessonAudio(lesson: Lesson) {
-	const allTexts = lessonNarratableTexts(lesson);
-
-	const [ready, setReady] = useState<Set<string>>(
-		() => new Set(allTexts.filter((t) => audioUrlCache.has(t))),
+	const words = useMemo(
+		() => lessonVocab(lesson).map((word) => word.term),
+		[lesson],
 	);
-	const [playing, setPlaying] = useState<string | null>(null);
-	const audioRef = useRef<HTMLAudioElement | null>(null);
+	const storyTexts = useMemo(() => lessonNarratableTexts(lesson), [lesson]);
+	const wordReady = useWordAudio(words);
+	const storyReady = useLessonTextAudio(lesson.id, storyTexts);
+	const ready = useMemo(
+		() => new Set([...wordReady, ...storyReady]),
+		[wordReady, storyReady],
+	);
+	const { playing, playUrl } = useAudioPlayer();
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: allTexts is derived from the lesson which is stable for the component's lifetime
-	useEffect(() => {
-		let cancelled = false;
-		for (const text of allTexts) {
-			if (audioUrlCache.has(text)) continue;
-			ensureLessonAudioUrl(lesson.id, text)
-				.then(() => {
-					if (cancelled) return;
-					setReady((prev) => new Set([...prev, text]));
-				})
-				.catch((err) => {
-					console.warn("Could not prefetch lesson audio for:", text, err);
-				});
-		}
-		return () => {
-			cancelled = true;
-		};
-	}, []);
-
-	const play = useCallback((key: string, text: string) => {
-		if (audioRef.current) {
-			audioRef.current.pause();
-			audioRef.current = null;
-		}
-		const url = audioUrlCache.get(text);
-		if (!url) return;
-
-		setPlaying(key);
-		const audio = new Audio(url);
-		audioRef.current = audio;
-		audio.addEventListener("ended", () => setPlaying(null));
-		audio.addEventListener("error", () => setPlaying(null));
-		audio.play().catch(() => setPlaying(null));
-	}, []);
+	const play = useCallback(
+		(key: string, text: string) => {
+			const url = wordAudioUrlCache.get(text) ?? lessonAudioUrlCache.get(text);
+			if (url) playUrl(url, key);
+		},
+		[playUrl],
+	);
 
 	return { ready, playing, play };
 }
