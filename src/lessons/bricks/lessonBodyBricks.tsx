@@ -1,4 +1,9 @@
 import type { ReactNode } from "react";
+import {
+	type GenerationSpec,
+	isObject,
+	requiredString,
+} from "../../structuredGeneration";
 import { lessonStoryText, lessonVocab } from "../lessonContent";
 import type {
 	GrammarConcept,
@@ -58,6 +63,7 @@ export interface LessonBodyRenderCtx {
 interface LessonBodyBrickSpec<T extends LessonBodyBlock> {
 	render(block: T, ctx: LessonBodyRenderCtx): ReactNode;
 	toBotContext(block: T): string;
+	generation?: GenerationSpec<LessonBodyBlock>;
 }
 
 function SpeakButton({
@@ -137,6 +143,42 @@ export function lessonBodyBlocks(lesson: Lesson): LessonBodyBlock[] {
 }
 
 const vocabularyBrick: LessonBodyBrickSpec<LessonVocabularyBlock> = {
+	generation: {
+		shape:
+			'{"words":[{"term":"Esperanto word","meaning":"English meaning","partOfSpeech":"noun | verb | adjective | adverb | pronoun | phrase","example":"Short Esperanto example using the word"}]}',
+		instructions:
+			"Introduce three to six canonical vocabulary items for the lesson. " +
+			"Use target words when provided. Each example must be simple Esperanto that a learner at this level can understand.",
+		parse(value) {
+			if (
+				!isObject(value) ||
+				!Array.isArray(value.words) ||
+				value.words.length < 3 ||
+				value.words.length > 6
+			) {
+				throw new Error("Generated vocabulary needs three to six words.");
+			}
+			return {
+				id: "vocabulary",
+				type: "vocabulary",
+				title: "New words",
+				words: value.words.map((word) => {
+					if (!isObject(word)) {
+						throw new Error("Generated vocabulary word is invalid.");
+					}
+					return {
+						term: requiredString(word.term, "vocabulary term"),
+						meaning: requiredString(word.meaning, "vocabulary meaning"),
+						partOfSpeech: requiredString(
+							word.partOfSpeech,
+							"vocabulary part of speech",
+						),
+						example: requiredString(word.example, "vocabulary example"),
+					};
+				}),
+			};
+		},
+	},
 	render: (block, ctx) => (
 		<dl className="lesson-doc__words">
 			{block.words.map((word) => (
@@ -166,6 +208,42 @@ const vocabularyBrick: LessonBodyBrickSpec<LessonVocabularyBlock> = {
 };
 
 const grammarBrick: LessonBodyBrickSpec<LessonGrammarBlock> = {
+	generation: {
+		shape:
+			'{"title":"Grammar point title","explanation":"Plain-English explanation","examples":["Short Esperanto example"]}',
+		instructions:
+			"Teach one compact grammar or usage point that helps with the introduced words and story. " +
+			"Use one short English explanation. Include one to three short Esperanto examples. Put Esperanto forms in backticks when naming them.",
+		parse(value) {
+			if (
+				!isObject(value) ||
+				!Array.isArray(value.examples) ||
+				value.examples.length < 1 ||
+				value.examples.length > 3
+			) {
+				throw new Error("Generated grammar needs one to three examples.");
+			}
+			const title = requiredString(value.title, "grammar title");
+			return {
+				id: "grammar",
+				type: "grammar",
+				title: "Grammar",
+				concepts: [
+					{
+						id: slugify(title),
+						title,
+						explanation: requiredString(
+							value.explanation,
+							"grammar explanation",
+						),
+						examples: value.examples.map((example) =>
+							requiredString(example, "grammar example"),
+						),
+					},
+				],
+			};
+		},
+	},
 	render: (block) =>
 		block.concepts.map((concept) => (
 			<div key={concept.id} className="lesson-doc__grammar">
@@ -218,6 +296,33 @@ const patternsBrick: LessonBodyBrickSpec<LessonPatternsBlock> = {
 };
 
 const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
+	generation: {
+		shape:
+			'{"sentences":["Short Esperanto sentence using introduced words","Another short Esperanto sentence"]}',
+		instructions:
+			"Write a tiny two to five sentence Esperanto practice story. " +
+			"Use mostly the introduced words and very basic known words. Do not include English in the story.",
+		parse(value) {
+			if (
+				!isObject(value) ||
+				!Array.isArray(value.sentences) ||
+				value.sentences.length < 2 ||
+				value.sentences.length > 5
+			) {
+				throw new Error("Generated story needs two to five sentences.");
+			}
+			const sentences = value.sentences.map((sentence) =>
+				requiredString(sentence, "story sentence"),
+			);
+			return {
+				id: "story",
+				type: "story",
+				title: "Your story",
+				intro: "Read it aloud, then type it from memory on the next screen.",
+				text: sentences.join(" "),
+			};
+		},
+	},
 	render: (block, ctx) => (
 		<>
 			<p className="lesson-doc__paragraph">{block.intro}</p>
@@ -237,6 +342,33 @@ const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
 };
 
 const teachingBrick: LessonBodyBrickSpec<LessonTeachingSection> = {
+	generation: {
+		shape:
+			'{"title":"Teaching point title","body":["Plain-English explanation paragraph","Optional second paragraph"]}',
+		instructions:
+			"Teach one compact grammar or usage point that helps with the introduced words and story. " +
+			"Use one or two short English paragraphs. Put Esperanto forms in backticks when naming them.",
+		parse(value) {
+			if (
+				!isObject(value) ||
+				!Array.isArray(value.body) ||
+				value.body.length < 1 ||
+				value.body.length > 2
+			) {
+				throw new Error(
+					"Generated teaching overview needs one or two paragraphs.",
+				);
+			}
+			return {
+				id: "teaching",
+				type: "overview",
+				title: requiredString(value.title, "teaching title"),
+				body: value.body.map((paragraph) =>
+					requiredString(paragraph, "teaching paragraph"),
+				),
+			};
+		},
+	},
 	render: (block) => renderTeachingSection(block),
 	toBotContext: (block) => describeTeachingSection(block),
 };
@@ -273,4 +405,28 @@ export function renderLessonBodyBlock(
 
 export function describeLessonBodyBlock(block: LessonBodyBlock): string {
 	return brickFor(block).toBotContext(block);
+}
+
+export type LessonGeneratableBodyBrickType =
+	| "vocabulary"
+	| "grammar"
+	| "overview"
+	| "story";
+
+export function lessonBodyGenerationSpec(
+	type: LessonGeneratableBodyBrickType,
+): GenerationSpec<LessonBodyBlock> {
+	const generation = LESSON_BODY_BRICKS[type].generation;
+	if (!generation) throw new Error(`${type} cannot generate lesson content.`);
+	return generation as GenerationSpec<LessonBodyBlock>;
+}
+
+function slugify(value: string): string {
+	const slug = value
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-|-$/g, "");
+	return slug || "grammar";
 }

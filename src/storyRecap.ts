@@ -1,3 +1,11 @@
+import {
+	type GenerationSpec,
+	isObject,
+	parseChoices,
+	requiredString,
+	splitOnWord,
+} from "./structuredGeneration";
+
 export interface StoryRecapWordConnectExercise {
 	id: string;
 	type: "word-connect";
@@ -58,11 +66,7 @@ export interface StoryRecapExerciseResult {
  * adding a new recap exercise type means adding one spec here rather than
  * editing a shared prompt string and a shared parser.
  */
-interface RecapExerciseSpec<T> {
-	shape: string;
-	instructions: string;
-	parse(value: unknown): T;
-}
+type RecapExerciseSpec<T> = GenerationSpec<T>;
 
 const wordConnectSpec: RecapExerciseSpec<StoryRecapWordConnectExercise> = {
 	shape: '{"pairs":[{"term":"Esperanto word","meaning":"English meaning"}]}',
@@ -103,7 +107,11 @@ const fillMissingWordSpec: RecapExerciseSpec<StoryRecapFillMissingWordExercise> 
 			if (!isObject(value)) throw new Error("Recap fill exercise is invalid.");
 			const answer = requiredString(value.answer, "fill answer");
 			const sentence = requiredString(value.sentence, "fill sentence");
-			const { before, after } = splitOnWord(sentence, answer);
+			const { before, after } = splitOnWord(
+				sentence,
+				answer,
+				"Recap fill sentence does not contain the answer word.",
+			);
 			return {
 				id: "fill-missing-word",
 				type: "fill-missing-word",
@@ -112,7 +120,13 @@ const fillMissingWordSpec: RecapExerciseSpec<StoryRecapFillMissingWordExercise> 
 				sentenceBeforeBlank: before,
 				sentenceAfterBlank: after,
 				answer,
-				choices: parseChoices(value.choices, answer, 3, 3),
+				choices: parseChoices(
+					value.choices,
+					answer,
+					3,
+					3,
+					"Recap choices do not include the answer.",
+				),
 			};
 		},
 	};
@@ -132,7 +146,13 @@ const storyQuestionSpec: RecapExerciseSpec<StoryRecapQuestionExercise> = {
 			hint: "Choose the answer that fits the story.",
 			question: requiredString(value.question, "story question"),
 			answer,
-			choices: parseChoices(value.choices, answer, 2, 3),
+			choices: parseChoices(
+				value.choices,
+				answer,
+				2,
+				3,
+				"Recap choices do not include the answer.",
+			),
 		};
 	},
 };
@@ -173,51 +193,4 @@ export function parseStoryRecapLesson(text: string): StoryRecapLesson {
 			storyQuestionSpec.parse(parsed.exercises[2]),
 		],
 	};
-}
-
-/** Deterministically carves the blank out of a sentence around the answer word, rather than trusting the LLM to pre-split it correctly. */
-function splitOnWord(
-	sentence: string,
-	word: string,
-): { before: string; after: string } {
-	const target = word.toLowerCase();
-	const tokenRegex = /\p{L}+/gu;
-	for (const match of sentence.matchAll(tokenRegex)) {
-		if (match[0].toLowerCase() === target) {
-			return {
-				before: sentence.slice(0, match.index),
-				after: sentence.slice(match.index + match[0].length),
-			};
-		}
-	}
-	throw new Error("Recap fill sentence does not contain the answer word.");
-}
-
-function parseChoices(
-	value: unknown,
-	answer: string,
-	min: number,
-	max: number,
-): string[] {
-	if (!Array.isArray(value)) throw new Error("Recap choices are invalid.");
-	const choices = value.map((choice) => requiredString(choice, "choice"));
-	if (
-		choices.length < min ||
-		choices.length > max ||
-		!choices.includes(answer)
-	) {
-		throw new Error("Recap choices do not include the answer.");
-	}
-	return choices;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null;
-}
-
-function requiredString(value: unknown, label: string): string {
-	if (typeof value !== "string" || !value.trim()) {
-		throw new Error(`Recap JSON is missing ${label}.`);
-	}
-	return value.trim();
 }

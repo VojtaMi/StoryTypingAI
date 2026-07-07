@@ -1,6 +1,13 @@
 import type { Genre, GenreId } from "./genres";
 import type { LearnerContext } from "./learnerContext";
 import {
+	buildLessonPrompt,
+	DEFAULT_LESSON_GENERATION_SELECTION,
+	type LessonGenerationSelection,
+	parseGeneratedLesson,
+} from "./lessons/lessonGeneration";
+import type { Lesson, LessonLevel } from "./lessons/types";
+import {
 	DEFAULT_TEXT_MODEL,
 	STORY_SEGMENT_MAX_TOKENS,
 	type TextModelId,
@@ -30,6 +37,7 @@ export type { ChatMessage, ReadingStoryFrame, StoryMemory };
 
 const READING_STORY_PART_MAX_TOKENS = 700;
 const STORY_RECAP_MAX_TOKENS = 900;
+const LESSON_GENERATION_MAX_TOKENS = 1600;
 
 export type EsperantoTutorChatMessage = {
 	role: "user" | "assistant";
@@ -292,6 +300,13 @@ interface GenerateStoryRecapLessonInput {
 	wordTranslations: Record<string, string>;
 }
 
+export interface GenerateLessonInput {
+	level: LessonLevel;
+	topic: string;
+	targetWords?: string[];
+	selection?: Omit<LessonGenerationSelection, "level">;
+}
+
 export async function generateStoryRecapLesson(
 	input: GenerateStoryRecapLessonInput,
 	model: TextModelId = DEFAULT_TEXT_MODEL,
@@ -323,6 +338,43 @@ export async function generateStoryRecapLesson(
 		STORY_RECAP_MAX_TOKENS,
 	);
 	return parseStoryRecapLesson(text);
+}
+
+export async function generateLesson(
+	input: GenerateLessonInput,
+	model: TextModelId = DEFAULT_TEXT_MODEL,
+): Promise<Lesson> {
+	const learnerProfile = await fetchLearnerProfile();
+	const selection: LessonGenerationSelection = {
+		level: input.level,
+		body: input.selection?.body ?? DEFAULT_LESSON_GENERATION_SELECTION.body,
+		exercises:
+			input.selection?.exercises ??
+			DEFAULT_LESSON_GENERATION_SELECTION.exercises,
+	};
+	const text = await complete(
+		[
+			{ role: "system", content: buildLessonPrompt(selection) },
+			{
+				role: "user",
+				content: [
+					`Topic: ${input.topic}`,
+					`Level: ${input.level}`,
+					"",
+					"Target words:",
+					input.targetWords?.length
+						? input.targetWords.join(", ")
+						: "(choose appropriate beginner words)",
+					"",
+					"Learner profile:",
+					learnerProfile || "(none)",
+				].join("\n"),
+			},
+		],
+		model,
+		LESSON_GENERATION_MAX_TOKENS,
+	);
+	return parseGeneratedLesson(text, selection);
 }
 
 export async function continueStoryStream(

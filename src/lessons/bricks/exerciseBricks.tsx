@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { type GenerationSpec, isObject } from "../../structuredGeneration";
 import { lessonStoryText, lessonVocab } from "../lessonContent";
 import LessonTypingExercise from "../templates/LessonTypingExercise";
 import PhraseBuilderExercise from "../templates/PhraseBuilderExercise";
@@ -35,6 +36,7 @@ export interface ExerciseBrickCtx {
 interface ExerciseBrickSpec<T extends LessonExercise> {
 	render(exercise: T, ctx: ExerciseBrickCtx): ReactNode;
 	toBotContext(exercise: T, lesson: Lesson): string;
+	generation?: GenerationSpec<LessonExercise>;
 }
 
 /** A word-match brick shows either its named subset of the lesson's words, or all of them. */
@@ -49,6 +51,23 @@ export function wordsForWordMatch(
 }
 
 const wordMatchBrick: ExerciseBrickSpec<WordMatchLessonExercise> = {
+	generation: {
+		shape: "{}",
+		instructions:
+			"Do not generate word-match card data. The app derives the word-match exercise from the lesson's canonical introducedWords.",
+		parse(value) {
+			if (!isObject(value)) {
+				throw new Error("Generated word-match exercise must be an object.");
+			}
+			return {
+				id: "word-match",
+				type: "word-match",
+				title: "Connect the new words",
+				hint: "Match each Esperanto word to its meaning.",
+				completeLabel: "Continue to Story",
+			};
+		},
+	},
 	render: (exercise, ctx) => (
 		<WordMatchExercise
 			lessonId={ctx.lessonId}
@@ -97,6 +116,20 @@ const phraseBuilderBrick: ExerciseBrickSpec<PhraseBuilderLessonExercise> = {
 };
 
 const typingStoryBrick: ExerciseBrickSpec<TypingStoryLessonExercise> = {
+	generation: {
+		shape: "{}",
+		instructions:
+			"Do not generate typing text. The app derives the typing exercise from the lesson's canonical story.",
+		parse(value) {
+			if (!isObject(value)) {
+				throw new Error("Generated typing exercise must be an object.");
+			}
+			return {
+				id: "typing",
+				type: "typing-story",
+			};
+		},
+	},
 	render: (exercise, ctx) => (
 		<LessonTypingExercise
 			lessonId={ctx.lessonId}
@@ -151,4 +184,14 @@ export function exerciseOfType<T extends LessonExercise["type"]>(
 		throw new Error(`Lesson ${lesson.id} is missing a ${type} exercise.`);
 	}
 	return found as Extract<LessonExercise, { type: T }>;
+}
+
+export type LessonGeneratableExerciseBrickType = "word-match" | "typing-story";
+
+export function exerciseGenerationSpec(
+	type: LessonGeneratableExerciseBrickType,
+): GenerationSpec<LessonExercise> {
+	const generation = EXERCISE_BRICKS[type].generation;
+	if (!generation) throw new Error(`${type} cannot generate lesson content.`);
+	return generation as GenerationSpec<LessonExercise>;
 }
