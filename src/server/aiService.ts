@@ -6,6 +6,7 @@ import {
 	STORY_SEGMENT_MAX_TOKENS,
 	TRANSLATION_MODEL,
 } from "../models";
+import { traceAiCall } from "./aiTrace";
 import { normalizeStoryText } from "./http";
 
 type AnthropicMessages = {
@@ -68,18 +69,33 @@ export async function translateWords(
 	words: string[],
 ): Promise<Record<string, string>> {
 	if (words.length === 0) return {};
-	const response = await openai.chat.completions.create({
-		model: TRANSLATION_MODEL,
-		max_completion_tokens: 4000,
-		messages: [
-			{
-				role: "system",
-				content:
-					"You are an Esperanto-English dictionary. Given a JSON array of Esperanto words, return a JSON object where each key is the word and the value is its most common English translation. Return only the JSON object, no other text.",
+	const messages: ChatMessage[] = [
+		{
+			role: "system",
+			content:
+				"You are an Esperanto-English dictionary. Given a JSON array of Esperanto words, return a JSON object where each key is the word and the value is its most common English translation. Return only the JSON object, no other text.",
+		},
+		{ role: "user", content: JSON.stringify(words) },
+	];
+	const response = await traceAiCall(
+		{
+			kind: "text.translation",
+			provider: "openai",
+			model: TRANSLATION_MODEL,
+			input: messages,
+			metadata: {
+				maxTokens: 4000,
+				words: words.length,
 			},
-			{ role: "user", content: JSON.stringify(words) },
-		],
-	});
+		},
+		() =>
+			openai.chat.completions.create({
+				model: TRANSLATION_MODEL,
+				max_completion_tokens: 4000,
+				messages,
+			}),
+		(value) => value.choices[0]?.message?.content ?? "",
+	);
 	const raw = response.choices[0]?.message?.content?.trim() ?? "";
 	try {
 		return JSON.parse(raw) as Record<string, string>;
@@ -95,11 +111,22 @@ async function completeOpenAi(
 	maxTokens: number,
 	model: string,
 ): Promise<string> {
-	const response = await openai.chat.completions.create({
-		model,
-		max_completion_tokens: maxTokens,
-		messages,
-	});
+	const response = await traceAiCall(
+		{
+			kind: "text.complete",
+			provider: "openai",
+			model,
+			input: messages,
+			metadata: { maxTokens },
+		},
+		() =>
+			openai.chat.completions.create({
+				model,
+				max_completion_tokens: maxTokens,
+				messages,
+			}),
+		(value) => value.choices[0]?.message?.content ?? "",
+	);
 	const choice = response.choices[0];
 	const raw = choice?.message?.content?.trim();
 	if (!raw) throw new Error("The AI returned an empty response.");
@@ -116,27 +143,39 @@ async function streamOpenAi(
 	model: string,
 	onChunk: (chunk: string) => void,
 ): Promise<string> {
-	const stream = await openai.chat.completions.create({
-		model,
-		max_completion_tokens: maxTokens,
-		messages,
-		stream: true,
-	});
+	return traceAiCall(
+		{
+			kind: "text.stream",
+			provider: "openai",
+			model,
+			stream: true,
+			input: messages,
+			metadata: { maxTokens },
+		},
+		async () => {
+			const stream = await openai.chat.completions.create({
+				model,
+				max_completion_tokens: maxTokens,
+				messages,
+				stream: true,
+			});
 
-	let raw = "";
-	let truncated = false;
-	for await (const event of stream) {
-		const choice = event.choices[0];
-		if (choice?.finish_reason === "length") truncated = true;
-		const chunk = choice?.delta.content;
-		if (!chunk) continue;
-		raw += chunk;
-		onChunk(normalizeStoryText(chunk));
-	}
+			let raw = "";
+			let truncated = false;
+			for await (const event of stream) {
+				const choice = event.choices[0];
+				if (choice?.finish_reason === "length") truncated = true;
+				const chunk = choice?.delta.content;
+				if (!chunk) continue;
+				raw += chunk;
+				onChunk(normalizeStoryText(chunk));
+			}
 
-	const text = normalizeStoryText(raw).trim();
-	if (!text) throw new Error("The AI returned an empty response.");
-	return truncated ? trimToSentenceBoundary(text) : text;
+			const text = normalizeStoryText(raw).trim();
+			if (!text) throw new Error("The AI returned an empty response.");
+			return truncated ? trimToSentenceBoundary(text) : text;
+		},
+	);
 }
 
 async function completeAnthropic(
@@ -149,12 +188,26 @@ async function completeAnthropic(
 	const anthropic = new Anthropic({ apiKey });
 	const { systemContent, conversationMessages } = toAnthropicMessages(messages);
 
-	const response = await anthropic.messages.create({
-		model,
-		max_tokens: maxTokens,
-		...(systemContent ? { system: systemContent } : {}),
-		messages: conversationMessages,
-	});
+	const response = await traceAiCall(
+		{
+			kind: "text.complete",
+			provider: "anthropic",
+			model,
+			input: { system: systemContent, messages: conversationMessages },
+			metadata: { maxTokens },
+		},
+		() =>
+			anthropic.messages.create({
+				model,
+				max_tokens: maxTokens,
+				...(systemContent ? { system: systemContent } : {}),
+				messages: conversationMessages,
+			}),
+		(value) =>
+			value.content
+				.map((block) => (block.type === "text" ? block.text : ""))
+				.join(""),
+	);
 
 	const block = response.content[0];
 	if (block?.type !== "text")
@@ -176,34 +229,46 @@ async function streamAnthropic(
 	const anthropic = new Anthropic({ apiKey });
 	const { systemContent, conversationMessages } = toAnthropicMessages(messages);
 
-	const stream = await anthropic.messages.create({
-		model,
-		max_tokens: maxTokens,
-		...(systemContent ? { system: systemContent } : {}),
-		messages: conversationMessages,
-		stream: true,
-	});
+	return traceAiCall(
+		{
+			kind: "text.stream",
+			provider: "anthropic",
+			model,
+			stream: true,
+			input: { system: systemContent, messages: conversationMessages },
+			metadata: { maxTokens },
+		},
+		async () => {
+			const stream = await anthropic.messages.create({
+				model,
+				max_tokens: maxTokens,
+				...(systemContent ? { system: systemContent } : {}),
+				messages: conversationMessages,
+				stream: true,
+			});
 
-	let raw = "";
-	let stopReason: string | null = null;
-	for await (const event of stream) {
-		if (event.type === "message_delta") {
-			stopReason = event.delta.stop_reason ?? stopReason;
-			continue;
-		}
-		if (
-			event.type !== "content_block_delta" ||
-			event.delta.type !== "text_delta"
-		) {
-			continue;
-		}
-		raw += event.delta.text;
-		onChunk(normalizeStoryText(event.delta.text));
-	}
+			let raw = "";
+			let stopReason: string | null = null;
+			for await (const event of stream) {
+				if (event.type === "message_delta") {
+					stopReason = event.delta.stop_reason ?? stopReason;
+					continue;
+				}
+				if (
+					event.type !== "content_block_delta" ||
+					event.delta.type !== "text_delta"
+				) {
+					continue;
+				}
+				raw += event.delta.text;
+				onChunk(normalizeStoryText(event.delta.text));
+			}
 
-	const text = normalizeStoryText(raw).trim();
-	if (!text) throw new Error("The AI returned an empty response.");
-	return stopReason === "max_tokens" ? trimToSentenceBoundary(text) : text;
+			const text = normalizeStoryText(raw).trim();
+			if (!text) throw new Error("The AI returned an empty response.");
+			return stopReason === "max_tokens" ? trimToSentenceBoundary(text) : text;
+		},
+	);
 }
 
 async function completeGemini(
@@ -244,37 +309,53 @@ async function requestGemini(
 	if (!apiKey) throw new Error("Gemini API key is not configured.");
 	const { systemContent, conversationMessages } = toGeminiMessages(messages);
 
-	const response = await fetch(
-		`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-		{
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"x-goog-api-key": apiKey,
-			},
-			body: JSON.stringify({
-				contents: conversationMessages,
-				generationConfig: {
-					maxOutputTokens: maxTokens,
-				},
-				...(systemContent
-					? {
-							systemInstruction: {
-								parts: [{ text: systemContent }],
-							},
-						}
-					: {}),
-			}),
+	const body = {
+		contents: conversationMessages,
+		generationConfig: {
+			maxOutputTokens: maxTokens,
 		},
+		...(systemContent
+			? {
+					systemInstruction: {
+						parts: [{ text: systemContent }],
+					},
+				}
+			: {}),
+	};
+	return traceAiCall(
+		{
+			kind: "text.complete",
+			provider: "gemini",
+			model,
+			input: body,
+			metadata: { maxTokens },
+		},
+		async () => {
+			const response = await fetch(
+				`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"x-goog-api-key": apiKey,
+					},
+					body: JSON.stringify(body),
+				},
+			);
+
+			if (!response.ok) {
+				throw new Error(
+					`Gemini request failed: ${response.status} ${response.statusText}`,
+				);
+			}
+
+			return (await response.json()) as GeminiGenerateContentResponse;
+		},
+		(value) =>
+			value.candidates?.[0]?.content?.parts
+				?.map((part) => part.text ?? "")
+				.join("") ?? "",
 	);
-
-	if (!response.ok) {
-		throw new Error(
-			`Gemini request failed: ${response.status} ${response.statusText}`,
-		);
-	}
-
-	return (await response.json()) as GeminiGenerateContentResponse;
 }
 
 /**

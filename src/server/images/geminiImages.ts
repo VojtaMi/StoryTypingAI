@@ -1,3 +1,4 @@
+import { traceAiCall } from "../aiTrace";
 import type {
 	GeminiImageModel,
 	GeneratedStoryImage,
@@ -31,27 +32,43 @@ export async function generateGeminiImage({
 	const apiKey = process.env.GEMINI_API_KEY ?? "";
 	if (!apiKey) throw new Error("Gemini API key is not configured.");
 
-	const response = await fetch(
-		`https://generativelanguage.googleapis.com/v1/models/${geminiModel}:generateContent`,
+	const body = {
+		contents: [{ parts: [{ text: prompt }] }],
+	};
+	const json = await traceAiCall(
 		{
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"x-goog-api-key": apiKey,
-			},
-			body: JSON.stringify({
-				contents: [{ parts: [{ text: prompt }] }],
-			}),
+			kind: "image.generate",
+			provider: "gemini",
+			model: geminiModel,
+			input: body,
 		},
+		async () => {
+			const response = await fetch(
+				`https://generativelanguage.googleapis.com/v1/models/${geminiModel}:generateContent`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"x-goog-api-key": apiKey,
+					},
+					body: JSON.stringify(body),
+				},
+			);
+
+			if (!response.ok) {
+				throw new Error(
+					`Gemini image request failed: ${response.status} ${response.statusText}`,
+				);
+			}
+
+			return (await response.json()) as GeminiGenerateContentResponse;
+		},
+		(value) => ({
+			hasImageData: Boolean(
+				value.candidates?.[0]?.content?.parts?.some((part) => part.inlineData),
+			),
+		}),
 	);
-
-	if (!response.ok) {
-		throw new Error(
-			`Gemini image request failed: ${response.status} ${response.statusText}`,
-		);
-	}
-
-	const json = (await response.json()) as GeminiGenerateContentResponse;
 	const inlineData = json.candidates?.[0]?.content?.parts?.find(
 		(part) => part.inlineData,
 	)?.inlineData;

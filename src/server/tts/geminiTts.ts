@@ -1,3 +1,4 @@
+import { traceAiCall } from "../aiTrace";
 import { DEFAULT_GEMINI_TTS_MODEL } from "./constants";
 import type { ProviderTtsRequest, SynthesizedSpeech } from "./types";
 import { geminiVoice } from "./voices";
@@ -37,35 +38,52 @@ export async function synthesizeGeminiSpeech({
 	]
 		.filter(Boolean)
 		.join("\n");
-	const response = await fetch(
-		`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent`,
-		{
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"x-goog-api-key": apiKey,
-			},
-			body: JSON.stringify({
-				contents: [{ parts: [{ text: prompt }] }],
-				generationConfig: {
-					responseModalities: ["AUDIO"],
-					speechConfig: {
-						voiceConfig: {
-							prebuiltVoiceConfig: { voiceName: selectedVoice },
-						},
-					},
+	const body = {
+		contents: [{ parts: [{ text: prompt }] }],
+		generationConfig: {
+			responseModalities: ["AUDIO"],
+			speechConfig: {
+				voiceConfig: {
+					prebuiltVoiceConfig: { voiceName: selectedVoice },
 				},
-			}),
+			},
 		},
+	};
+	const json = await traceAiCall(
+		{
+			kind: "audio.speech",
+			provider: "gemini",
+			model: selectedModel,
+			input: body,
+			metadata: { voice: selectedVoice },
+		},
+		async () => {
+			const response = await fetch(
+				`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"x-goog-api-key": apiKey,
+					},
+					body: JSON.stringify(body),
+				},
+			);
+
+			if (!response.ok) {
+				throw new Error(
+					`Gemini TTS request failed: ${response.status} ${response.statusText}`,
+				);
+			}
+
+			return (await response.json()) as GeminiGenerateContentResponse;
+		},
+		(value) => ({
+			hasAudioData: Boolean(
+				value.candidates?.[0]?.content?.parts?.some((part) => part.inlineData),
+			),
+		}),
 	);
-
-	if (!response.ok) {
-		throw new Error(
-			`Gemini TTS request failed: ${response.status} ${response.statusText}`,
-		);
-	}
-
-	const json = (await response.json()) as GeminiGenerateContentResponse;
 	const inlineData = json.candidates?.[0]?.content?.parts?.find(
 		(part) => part.inlineData,
 	)?.inlineData;

@@ -1,5 +1,9 @@
 import { readFile } from "node:fs/promises";
-import { createServer } from "node:http";
+import {
+	createServer,
+	type IncomingMessage,
+	type ServerResponse,
+} from "node:http";
 import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import OpenAI from "openai";
@@ -19,6 +23,7 @@ import {
 	handleTranslateWordsRequest,
 	handleWordAudioRequest,
 } from "./aiEndpointHandlers";
+import { createAiTraceContext, withAiTraceContext } from "./aiTrace";
 import { readBody, sendBufferWithRangeSupport, sendJson } from "./http";
 import {
 	getOrCreateLessonAudio,
@@ -108,6 +113,15 @@ function imageMimeType(path: string) {
 
 const server = createServer(async (req, res) => {
 	const url = new URL(req.url ?? "/", "http://localhost");
+	const context = createAiTraceContext(req.method ?? "GET", url.pathname);
+	await withAiTraceContext(context, () => handleRequest(req, res, url));
+});
+
+async function handleRequest(
+	req: IncomingMessage,
+	res: ServerResponse,
+	url: URL,
+) {
 	const pathname = url.pathname;
 	const parts = pathname.split("/").filter(Boolean);
 
@@ -498,7 +512,7 @@ const server = createServer(async (req, res) => {
 		}
 		sendJson(res, 500, { error: message });
 	}
-});
+}
 
 server.listen(PORT, () => {
 	console.log(`Listening on port ${PORT}`);
