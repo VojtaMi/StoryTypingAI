@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
-import { appendFile, mkdir } from "node:fs/promises";
+import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 type AiTraceContext = {
@@ -59,6 +59,7 @@ export class AiTraceError extends Error {
 
 const traceContext = new AsyncLocalStorage<AiTraceContext>();
 const traceFilePath = join(process.cwd(), "logs", "ai-calls.ndjson");
+let traceLogInit: Promise<void> | null = null;
 
 export function createAiTraceContext(method: string, pathname: string) {
 	return {
@@ -122,11 +123,20 @@ function baseRecord(
 async function writeTraceRecord(record: AiTraceRecord) {
 	if (!aiTraceEnabled()) return;
 	try {
-		await mkdir(dirname(traceFilePath), { recursive: true });
+		await initializeTraceLog();
 		await appendFile(traceFilePath, `${JSON.stringify(record)}\n`, "utf8");
 	} catch (err) {
 		console.warn("Could not write AI trace log.", err);
 	}
+}
+
+function initializeTraceLog() {
+	traceLogInit ??= (async () => {
+		await mkdir(dirname(traceFilePath), { recursive: true });
+		if (process.env.AI_CALL_LOG_APPEND === "1") return;
+		await writeFile(traceFilePath, "", "utf8");
+	})();
+	return traceLogInit;
 }
 
 function aiTraceEnabled() {
