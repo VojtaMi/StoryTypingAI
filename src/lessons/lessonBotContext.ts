@@ -1,26 +1,5 @@
-import type { Lesson, LessonTeachingSection } from "./types";
-
-function sectionToText(section: LessonTeachingSection): string {
-	const lines: string[] = [`## ${section.title}`];
-	if (section.type === "overview") {
-		lines.push(...section.body);
-	} else if (section.type === "possessive-table") {
-		for (const row of section.rows) {
-			lines.push(
-				`${row.pronoun} (${row.pronounMeaning}) → ${row.possessive} (${row.possessiveMeaning})`,
-			);
-		}
-	} else if (section.type === "color-table") {
-		for (const row of section.rows) {
-			lines.push(`${row.term} — ${row.meaning}`);
-		}
-	} else if (section.type === "examples") {
-		for (const example of section.examples) {
-			lines.push(`${example.phrase} — ${example.meaning}`);
-		}
-	}
-	return lines.join("\n");
-}
+import { describeTeachingSection } from "./bricks/teachingBricks";
+import type { Lesson } from "./types";
 
 export function buildLessonBotContext(lesson: Lesson): string {
 	const parts: string[] = [`Lesson: ${lesson.title}`];
@@ -35,7 +14,7 @@ export function buildLessonBotContext(lesson: Lesson): string {
 	if ((lesson.teachingSections?.length ?? 0) > 0) {
 		parts.push("# Teaching");
 		for (const section of lesson.teachingSections ?? []) {
-			parts.push(sectionToText(section));
+			parts.push(describeTeachingSection(section));
 		}
 	} else {
 		if (lesson.grammarConcepts.length > 0) {

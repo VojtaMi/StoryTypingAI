@@ -1,5 +1,9 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
+import {
+	renderTeachingSection,
+	renderWithCode,
+} from "../bricks/teachingBricks";
 import "../lesson.css";
 import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
 import { buildLessonBotContext } from "../lessonBotContext";
@@ -10,21 +14,6 @@ interface LessonIntroProps {
 	lesson: Lesson;
 	onBeginPractice: (lesson: Lesson) => void;
 	onBack: () => void;
-}
-
-/** Renders text with inline `code` spans marked by backticks. */
-function renderWithCode(text: string) {
-	return text.split("`").map((part, index) =>
-		index % 2 === 1 ? (
-			// biome-ignore lint/suspicious/noArrayIndexKey: static, order-stable split
-			<code key={index} className="lesson-doc__code">
-				{part}
-			</code>
-		) : (
-			// biome-ignore lint/suspicious/noArrayIndexKey: static, order-stable split
-			<Fragment key={index}>{part}</Fragment>
-		),
-	);
 }
 
 function useLessonAudio(lesson: Lesson) {
@@ -118,73 +107,7 @@ function TeachingSection({
 					{section.title}
 				</h2>
 
-				{section.type === "overview" &&
-					section.body.map((paragraph) => (
-						<p key={paragraph} className="lesson-doc__paragraph">
-							{renderWithCode(paragraph)}
-						</p>
-					))}
-
-				{section.type === "possessive-table" && (
-					<table className="lesson-table">
-						<thead>
-							<tr className="lesson-table__row lesson-table__row--head">
-								<th scope="col">Pronoun</th>
-								<th scope="col">Meaning</th>
-								<th scope="col">Adjective</th>
-								<th scope="col">Meaning</th>
-							</tr>
-						</thead>
-						<tbody>
-							{section.rows.map((row) => (
-								<tr
-									key={`${row.pronoun}-${row.possessive}`}
-									className="lesson-table__row"
-								>
-									<td className="lesson-table__term">{row.pronoun}</td>
-									<td>{row.pronounMeaning}</td>
-									<td className="lesson-table__term">{row.possessive}</td>
-									<td>{row.possessiveMeaning}</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				)}
-
-				{section.type === "color-table" && (
-					<table className="lesson-color-table">
-						<tbody>
-							{section.rows.map((row) => (
-								<tr key={row.term} className="lesson-color-table__row">
-									<td className="lesson-color-table__swatch-cell">
-										<span
-											className="lesson-color-table__swatch"
-											style={{ backgroundColor: row.color }}
-											aria-hidden="true"
-										/>
-									</td>
-									<td className="lesson-table__term">{row.term}</td>
-									<td>{row.meaning}</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				)}
-
-				{section.type === "examples" && (
-					<div className="lesson-examples">
-						{section.examples.map((example) => (
-							<div key={example.phrase} className="lesson-examples__row">
-								<span className="lesson-examples__phrase">
-									{example.phrase}
-								</span>
-								<span className="lesson-examples__meaning">
-									{example.meaning}
-								</span>
-							</div>
-						))}
-					</div>
-				)}
+				{renderTeachingSection(section)}
 			</section>
 		</>
 	);
