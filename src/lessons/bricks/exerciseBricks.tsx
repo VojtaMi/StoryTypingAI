@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { lessonStoryText, lessonVocab } from "../lessonContent";
 import LessonTypingExercise from "../templates/LessonTypingExercise";
 import PhraseBuilderExercise from "../templates/PhraseBuilderExercise";
 import WordMatchExercise from "../templates/WordMatchExercise";
@@ -21,6 +22,7 @@ const DEFAULT_TYPING_IMAGE = "/images/lesson-typing-bg.webp";
 export interface ExerciseBrickCtx {
 	lesson: Lesson;
 	lessonId: string;
+	backgroundIntro: string;
 	onComplete: () => void;
 	onBack: () => void;
 }
@@ -32,13 +34,18 @@ export interface ExerciseBrickCtx {
  */
 interface ExerciseBrickSpec<T extends LessonExercise> {
 	render(exercise: T, ctx: ExerciseBrickCtx): ReactNode;
+	toBotContext(exercise: T, lesson: Lesson): string;
 }
 
 /** A word-match brick shows either its named subset of the lesson's words, or all of them. */
-function wordsForWordMatch(lesson: Lesson, exercise: WordMatchLessonExercise) {
-	if (!exercise.wordTerms) return lesson.introducedWords;
+export function wordsForWordMatch(
+	lesson: Lesson,
+	exercise: WordMatchLessonExercise,
+) {
+	const vocab = lessonVocab(lesson);
+	if (!exercise.wordTerms) return vocab;
 	const requested = new Set(exercise.wordTerms);
-	return lesson.introducedWords.filter((word) => requested.has(word.term));
+	return vocab.filter((word) => requested.has(word.term));
 }
 
 const wordMatchBrick: ExerciseBrickSpec<WordMatchLessonExercise> = {
@@ -46,7 +53,7 @@ const wordMatchBrick: ExerciseBrickSpec<WordMatchLessonExercise> = {
 		<WordMatchExercise
 			lessonId={ctx.lessonId}
 			words={wordsForWordMatch(ctx.lesson, exercise)}
-			lesson={ctx.lesson}
+			backgroundIntro={ctx.backgroundIntro}
 			title={exercise.title}
 			hint={exercise.hint}
 			completeLabel={exercise.completeLabel}
@@ -54,6 +61,16 @@ const wordMatchBrick: ExerciseBrickSpec<WordMatchLessonExercise> = {
 			onBack={ctx.onBack}
 		/>
 	),
+	toBotContext: (exercise, lesson) => {
+		const words = wordsForWordMatch(lesson, exercise);
+		return [
+			`## ${exercise.title ?? "Word matching"}`,
+			exercise.hint,
+			`Practice matching: ${words.map((word) => `${word.term} — ${word.meaning}`).join("; ")}`,
+		]
+			.filter(Boolean)
+			.join("\n");
+	},
 };
 
 const phraseBuilderBrick: ExerciseBrickSpec<PhraseBuilderLessonExercise> = {
@@ -63,25 +80,35 @@ const phraseBuilderBrick: ExerciseBrickSpec<PhraseBuilderLessonExercise> = {
 			title={exercise.title}
 			hint={exercise.hint}
 			prompts={exercise.prompts}
-			lesson={ctx.lesson}
+			backgroundIntro={ctx.backgroundIntro}
 			completeLabel={exercise.completeLabel}
 			onComplete={ctx.onComplete}
 			onBack={ctx.onBack}
 		/>
 	),
+	toBotContext: (exercise) =>
+		[
+			`## ${exercise.title}`,
+			exercise.hint,
+			...exercise.prompts.map(
+				(prompt) => `${prompt.meaning} → ${prompt.answer.join(" ")}`,
+			),
+		].join("\n"),
 };
 
 const typingStoryBrick: ExerciseBrickSpec<TypingStoryLessonExercise> = {
 	render: (exercise, ctx) => (
 		<LessonTypingExercise
 			lessonId={ctx.lessonId}
-			text={ctx.lesson.story.join(" ")}
+			text={lessonStoryText(ctx.lesson)}
 			imageUrl={exercise.imageUrl ?? DEFAULT_TYPING_IMAGE}
-			lesson={ctx.lesson}
+			backgroundIntro={ctx.backgroundIntro}
 			onComplete={ctx.onComplete}
 			onBack={ctx.onBack}
 		/>
 	),
+	toBotContext: (_exercise, lesson) =>
+		[`## Story typing`, lessonStoryText(lesson)].join("\n"),
 };
 
 type ExerciseBrickRegistry = {
@@ -100,9 +127,18 @@ export function renderExerciseBrick(
 	exercise: LessonExercise,
 	ctx: ExerciseBrickCtx,
 ): ReactNode {
-	return (
-		EXERCISE_BRICKS[exercise.type] as ExerciseBrickSpec<LessonExercise>
-	).render(exercise, ctx);
+	return brickFor(exercise).render(exercise, ctx);
+}
+
+function brickFor(exercise: LessonExercise): ExerciseBrickSpec<LessonExercise> {
+	return EXERCISE_BRICKS[exercise.type] as ExerciseBrickSpec<LessonExercise>;
+}
+
+export function describeExerciseBrick(
+	exercise: LessonExercise,
+	lesson: Lesson,
+): string {
+	return brickFor(exercise).toBotContext(exercise, lesson);
 }
 
 /** Finds a lesson's exercise of a given type, so a host can render it as a brick. */

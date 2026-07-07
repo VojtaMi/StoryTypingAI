@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { exerciseOfType, renderExerciseBrick } from "./bricks/exerciseBricks";
+import { buildLessonBotContext } from "./lessonBotContext";
 import { completeLessonStage } from "./lessonProgress";
 import EsperantoIntro from "./predefined/EsperantoIntro";
 import KeyboardIntroExercise from "./predefined/KeyboardIntroExercise";
@@ -49,6 +50,7 @@ function renderExerciseStep(
 	return renderExerciseBrick(exerciseOfType(lesson, type), {
 		lesson,
 		lessonId: lesson.id,
+		backgroundIntro: buildLessonBotContext(lesson),
 		onComplete: ctx.onComplete,
 		onBack: ctx.onExit,
 	});

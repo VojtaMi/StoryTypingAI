@@ -7,6 +7,11 @@ import {
 import "../lesson.css";
 import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
 import { buildLessonBotContext } from "../lessonBotContext";
+import {
+	lessonNarratableTexts,
+	lessonStoryText,
+	lessonVocab,
+} from "../lessonContent";
 import type { Lesson, LessonTeachingSection } from "../types";
 import { LESSON_LEVEL_LABELS } from "../types";
 
@@ -17,8 +22,7 @@ interface LessonIntroProps {
 }
 
 function useLessonAudio(lesson: Lesson) {
-	const storyText = lesson.story.join(" ");
-	const allTexts = [...lesson.introducedWords.map((w) => w.term), storyText];
+	const allTexts = lessonNarratableTexts(lesson);
 
 	const [ready, setReady] = useState<Set<string>>(
 		() => new Set(allTexts.filter((t) => audioUrlCache.has(t))),
@@ -118,8 +122,8 @@ export default function LessonIntro({
 	onBeginPractice,
 	onBack,
 }: LessonIntroProps) {
-	const storyText = lesson.story.join(" ");
-	const wordCount = lesson.introducedWords.length;
+	const storyText = lessonStoryText(lesson);
+	const wordCount = lessonVocab(lesson).length;
 	const hasTeachingSections = (lesson.teachingSections?.length ?? 0) > 0;
 	const hasGrammar = !hasTeachingSections && lesson.grammarConcepts.length > 0;
 	const hasPatterns =
@@ -172,7 +176,7 @@ export default function LessonIntro({
 								words
 							</h2>
 							<dl className="lesson-doc__words">
-								{lesson.introducedWords.map((word) => (
+								{lessonVocab(lesson).map((word) => (
 									<div key={word.term} className="lesson-doc__word">
 										<dt className="lesson-doc__word-term">
 											{word.term}

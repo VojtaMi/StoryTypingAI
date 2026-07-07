@@ -1,12 +1,15 @@
+import { describeExerciseBrick } from "./bricks/exerciseBricks";
 import { describeTeachingSection } from "./bricks/teachingBricks";
+import { lessonStoryText, lessonVocab } from "./lessonContent";
 import type { Lesson } from "./types";
 
 export function buildLessonBotContext(lesson: Lesson): string {
 	const parts: string[] = [`Lesson: ${lesson.title}`];
 
-	if (lesson.introducedWords.length > 0) {
+	const vocab = lessonVocab(lesson);
+	if (vocab.length > 0) {
 		parts.push("# Vocabulary");
-		for (const word of lesson.introducedWords) {
+		for (const word of vocab) {
 			parts.push(`${word.term} (${word.partOfSpeech}) — ${word.meaning}`);
 		}
 	}
@@ -36,9 +39,17 @@ export function buildLessonBotContext(lesson: Lesson): string {
 		}
 	}
 
-	if (lesson.story.length > 0) {
+	const storyText = lessonStoryText(lesson);
+	if (storyText) {
 		parts.push("# Practice story");
-		parts.push(lesson.story.join(" "));
+		parts.push(storyText);
+	}
+
+	if (lesson.exercises.length > 0) {
+		parts.push("# Practice blocks");
+		for (const exercise of lesson.exercises) {
+			parts.push(describeExerciseBrick(exercise, lesson));
+		}
 	}
 
 	return parts.join("\n");

@@ -2,15 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
 import "../lesson.css";
 import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
-import { buildLessonBotContext } from "../lessonBotContext";
-import type { Lesson, PhraseBuilderPrompt } from "../types";
+import type { PhraseBuilderPrompt } from "../types";
 
 interface PhraseBuilderExerciseProps {
 	lessonId: string;
 	title: string;
 	hint: string;
 	prompts: PhraseBuilderPrompt[];
-	lesson?: Lesson;
+	backgroundIntro?: string;
 	completeLabel?: string;
 	onComplete: () => void;
 	onBack: () => void;
@@ -36,7 +35,7 @@ export default function PhraseBuilderExercise({
 	title,
 	hint,
 	prompts,
-	lesson,
+	backgroundIntro,
 	completeLabel = "Continue →",
 	onComplete,
 	onBack,
@@ -207,13 +206,13 @@ export default function PhraseBuilderExercise({
 				</div>
 			</div>
 
-			{lesson && (
+			{backgroundIntro && (
 				<EsperantoChatModal
 					isOpen={chatOpen}
 					onOpen={() => setChatOpen(true)}
 					segments={[]}
 					currentTarget={null}
-					backgroundIntro={buildLessonBotContext(lesson)}
+					backgroundIntro={backgroundIntro}
 					onClose={() => setChatOpen(false)}
 				/>
 			)}

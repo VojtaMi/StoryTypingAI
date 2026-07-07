@@ -4,14 +4,12 @@ import { TypingPassage } from "../../exercise_screen/typing/TypingPassage";
 import { useTypingSession } from "../../exercise_screen/typing/useTypingSession";
 import "../lesson.css";
 import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
-import { buildLessonBotContext } from "../lessonBotContext";
-import type { Lesson } from "../types";
 
 interface LessonTypingExerciseProps {
 	lessonId: string;
 	text: string;
 	imageUrl: string;
-	lesson?: Lesson;
+	backgroundIntro?: string;
 	onComplete: () => void;
 	onBack: () => void;
 }
@@ -20,7 +18,7 @@ export default function LessonTypingExercise({
 	lessonId,
 	text,
 	imageUrl,
-	lesson,
+	backgroundIntro,
 	onComplete,
 	onBack,
 }: LessonTypingExerciseProps) {
@@ -120,13 +118,13 @@ export default function LessonTypingExercise({
 				)}
 			</div>
 
-			{lesson && (
+			{backgroundIntro && (
 				<EsperantoChatModal
 					isOpen={chatOpen}
 					onOpen={() => setChatOpen(true)}
 					segments={[]}
 					currentTarget={text}
-					backgroundIntro={buildLessonBotContext(lesson)}
+					backgroundIntro={backgroundIntro}
 					onClose={() => setChatOpen(false)}
 				/>
 			)}

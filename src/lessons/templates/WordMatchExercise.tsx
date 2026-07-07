@@ -2,14 +2,13 @@ import { useCallback, useRef, useState } from "react";
 import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
 import "../lesson.css";
 import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
-import { buildLessonBotContext } from "../lessonBotContext";
-import type { IntroducedWord, Lesson } from "../types";
+import type { IntroducedWord } from "../types";
 import { useWordMatching } from "../useWordMatching";
 
 interface WordMatchExerciseProps {
 	lessonId: string;
 	words: IntroducedWord[];
-	lesson?: Lesson;
+	backgroundIntro?: string;
 	title?: string;
 	hint?: string;
 	completeLabel?: string;
@@ -20,7 +19,7 @@ interface WordMatchExerciseProps {
 export default function WordMatchExercise({
 	lessonId,
 	words,
-	lesson,
+	backgroundIntro,
 	title = "Connect the words",
 	hint = "Select a word on the left, then its meaning on the right.",
 	completeLabel = "Continue to Practice →",
@@ -165,13 +164,13 @@ export default function WordMatchExercise({
 				)}
 			</div>
 
-			{lesson && (
+			{backgroundIntro && (
 				<EsperantoChatModal
 					isOpen={chatOpen}
 					onOpen={() => setChatOpen(true)}
 					segments={[]}
 					currentTarget={null}
-					backgroundIntro={buildLessonBotContext(lesson)}
+					backgroundIntro={backgroundIntro}
 					onClose={() => setChatOpen(false)}
 				/>
 			)}
