@@ -5,9 +5,9 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { ESPERANTO_KEY_MAP } from "../../esperantoKeyboard";
-import "../lesson.css";
-import { useWordAudio, useWordAudioPlayer } from "../lessonAudio";
+import { ESPERANTO_KEY_MAP } from "../../../esperantoKeyboard";
+import "../../lesson.css";
+import { useWordAudio, useWordAudioPlayer } from "../../lessonAudio";
 
 const KEYBOARD_CHARS = [
 	{ char: "ŝ", key: "q", word: "ŝipo" },

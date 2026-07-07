@@ -6,9 +6,9 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { ESPERANTO_KEY_MAP } from "../../esperantoKeyboard";
-import "../lesson.css";
-import { useWordAudio, useWordAudioPlayer } from "../lessonAudio";
+import { ESPERANTO_KEY_MAP } from "../../../esperantoKeyboard";
+import "../../lesson.css";
+import { useWordAudio, useWordAudioPlayer } from "../../lessonAudio";
 import { KEYBOARD_PRACTICE_WORDS } from "./keyboardPracticeWords";
 
 const KEYBOARD_PRACTICE_TERMS = KEYBOARD_PRACTICE_WORDS.map(({ term }) => term);

@@ -3,9 +3,9 @@ import { exerciseOfType, renderExerciseBrick } from "./bricks/exerciseBricks";
 import { buildLessonBotContext } from "./lessonBotContext";
 import { completeLessonStage } from "./lessonProgress";
 import EsperantoIntro from "./predefined/EsperantoIntro";
-import KeyboardIntroExercise from "./predefined/KeyboardIntroExercise";
-import KeyboardWordsExercise from "./predefined/KeyboardWordsExercise";
-import { KEYBOARD_PRACTICE_WORDS } from "./predefined/keyboardPracticeWords";
+import KeyboardIntroExercise from "./predefined/keyboard/KeyboardIntroExercise";
+import KeyboardWordsExercise from "./predefined/keyboard/KeyboardWordsExercise";
+import { KEYBOARD_PRACTICE_WORDS } from "./predefined/keyboard/keyboardPracticeWords";
 import {
 	firstLesson,
 	gardenLesson,

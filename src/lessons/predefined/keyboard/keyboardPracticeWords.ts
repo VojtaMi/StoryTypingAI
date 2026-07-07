@@ -1,4 +1,4 @@
-import type { IntroducedWord } from "../types";
+import type { IntroducedWord } from "../../types";
 
 export const KEYBOARD_PRACTICE_WORDS: IntroducedWord[] = [
 	{
