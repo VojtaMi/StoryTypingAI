@@ -1,7 +1,7 @@
 commit_msg_file="$1"
-codex_trailer="Co-authored-by: codex <codex@openai.com>"
+codex_trailer="Co-Authored-By: Codex <noreply@openai.com>"
 
-if [ "${CODEX_COAUTHOR:-}" != "1" ]; then
+if [ "${CODEX_COAUTHOR:-}" != "1" ] && [ "${CODEX_CI:-}" != "1" ]; then
 	exit 0
 fi
 
