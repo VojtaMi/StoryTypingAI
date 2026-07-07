@@ -36,6 +36,7 @@ type AiTraceRecord = {
 	error?: {
 		name: string;
 		message: string;
+		details?: AiTracePayloadSummary;
 	};
 };
 
@@ -45,6 +46,16 @@ type AiTracePayloadSummary = {
 	preview?: string;
 	value?: unknown;
 };
+
+export class AiTraceError extends Error {
+	constructor(
+		message: string,
+		readonly details: unknown,
+	) {
+		super(message);
+		this.name = "AiTraceError";
+	}
+}
 
 const traceContext = new AsyncLocalStorage<AiTraceContext>();
 const traceFilePath = join(process.cwd(), "logs", "ai-calls.ndjson");
@@ -152,9 +163,12 @@ function summarizePayload(value: unknown): AiTracePayloadSummary | undefined {
 
 function errorSummary(err: unknown) {
 	if (err instanceof Error) {
+		const details =
+			err instanceof AiTraceError ? summarizePayload(err.details) : undefined;
 		return {
 			name: err.name,
 			message: err.message,
+			details,
 		};
 	}
 	return {

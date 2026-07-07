@@ -1,4 +1,5 @@
-import { traceAiCall } from "../aiTrace";
+import { AiTraceError, traceAiCall } from "../aiTrace";
+import { summarizeGeminiResponse } from "../geminiTrace";
 import type {
 	GeminiImageModel,
 	GeneratedStoryImage,
@@ -22,7 +23,11 @@ type GeminiGenerateContentResponse = {
 				text?: string;
 			}>;
 		};
+		finishReason?: string;
+		safetyRatings?: unknown;
 	}>;
+	promptFeedback?: unknown;
+	usageMetadata?: unknown;
 };
 
 export async function generateGeminiImage({
@@ -66,7 +71,10 @@ export async function generateGeminiImage({
 				(part) => part.inlineData,
 			)?.inlineData;
 			if (!inlineData?.data) {
-				throw new Error("Gemini image response did not include image data.");
+				throw new AiTraceError(
+					"Gemini image response did not include image data.",
+					summarizeGeminiResponse(json),
+				);
 			}
 
 			return {

@@ -1,4 +1,5 @@
-import { traceAiCall } from "../aiTrace";
+import { AiTraceError, traceAiCall } from "../aiTrace";
+import { summarizeGeminiResponse } from "../geminiTrace";
 import { DEFAULT_GEMINI_TTS_MODEL } from "./constants";
 import type { ProviderTtsRequest, SynthesizedSpeech } from "./types";
 import { geminiVoice } from "./voices";
@@ -12,9 +13,14 @@ type GeminiGenerateContentResponse = {
 					data?: string;
 					mimeType?: string;
 				};
+				text?: string;
 			}>;
 		};
+		finishReason?: string;
+		safetyRatings?: unknown;
 	}>;
+	promptFeedback?: unknown;
+	usageMetadata?: unknown;
 };
 
 export async function synthesizeGeminiSpeech({
@@ -81,7 +87,10 @@ export async function synthesizeGeminiSpeech({
 				(part) => part.inlineData,
 			)?.inlineData;
 			if (!inlineData?.data) {
-				throw new Error("Gemini TTS response did not include audio data.");
+				throw new AiTraceError(
+					"Gemini TTS response did not include audio data.",
+					summarizeGeminiResponse(json),
+				);
 			}
 
 			return {
