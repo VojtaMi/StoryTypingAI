@@ -3,6 +3,7 @@ import {
 	type GenerationSpec,
 	isObject,
 	requiredString,
+	slugify,
 } from "../../structuredGeneration";
 import { lessonStoryText, lessonVocab } from "../lessonContent";
 import type {
@@ -45,6 +46,7 @@ interface LessonStoryBlock {
 	title: string;
 	intro: string;
 	text: string;
+	sentences?: string[];
 }
 
 export type LessonBodyBlock =
@@ -230,7 +232,7 @@ const grammarBrick: LessonBodyBrickSpec<LessonGrammarBlock> = {
 				title: "Grammar",
 				concepts: [
 					{
-						id: slugify(title),
+						id: slugify(title, "grammar"),
 						title,
 						explanation: requiredString(
 							value.explanation,
@@ -320,6 +322,7 @@ const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
 				title: "Your story",
 				intro: "Read it aloud, then type it from memory on the next screen.",
 				text: sentences.join(" "),
+				sentences,
 			};
 		},
 	},
@@ -346,8 +349,8 @@ const teachingBrick: LessonBodyBrickSpec<LessonTeachingSection> = {
 		shape:
 			'{"title":"Teaching point title","body":["Plain-English explanation paragraph","Optional second paragraph"]}',
 		instructions:
-			"Teach one compact grammar or usage point that helps with the introduced words and story. " +
-			"Use one or two short English paragraphs. Put Esperanto forms in backticks when naming them.",
+			"Give a short learner-facing overview of the lesson theme, context, or communication goal. " +
+			"Use one or two short English paragraphs. Do not introduce a second standalone grammar rule; leave grammar mechanics to the grammar brick.",
 		parse(value) {
 			if (
 				!isObject(value) ||
@@ -419,14 +422,4 @@ export function lessonBodyGenerationSpec(
 	const generation = LESSON_BODY_BRICKS[type].generation;
 	if (!generation) throw new Error(`${type} cannot generate lesson content.`);
 	return generation as GenerationSpec<LessonBodyBlock>;
-}
-
-function slugify(value: string): string {
-	const slug = value
-		.toLowerCase()
-		.normalize("NFD")
-		.replace(/[\u0300-\u036f]/g, "")
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-|-$/g, "");
-	return slug || "grammar";
 }

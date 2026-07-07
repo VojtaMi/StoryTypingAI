@@ -1,4 +1,4 @@
-import { isObject, requiredString } from "../structuredGeneration";
+import { isObject, requiredString, slugify } from "../structuredGeneration";
 import {
 	exerciseGenerationSpec,
 	type LessonGeneratableExerciseBrickType,
@@ -76,14 +76,18 @@ export function parseGeneratedLesson(
 	const exercises = parsed.exercises.map((value, index) =>
 		exerciseGenerationSpec(selection.exercises[index]).parse(value),
 	);
-	const introducedWords = requiredVocabulary(bodyBlocks);
-	const story = requiredStory(bodyBlocks);
+	const introducedWords = selectionRequiresVocabulary(selection)
+		? requiredVocabulary(bodyBlocks)
+		: [];
+	const story = selectionRequiresStory(selection)
+		? requiredStory(bodyBlocks)
+		: [];
 	const grammarConcepts = bodyBlocks.flatMap((block) =>
 		block.type === "grammar" ? block.concepts : [],
 	);
 	const teachingSections = bodyBlocks.filter(isTeachingSection);
 	const title = requiredString(parsed.title, "lesson title", "Lesson JSON");
-	const lessonId = `generated-${slugify(title)}-${Date.now()}`;
+	const lessonId = `generated-${slugify(title, "lesson")}-${Date.now()}`;
 
 	return {
 		id: lessonId,
@@ -116,7 +120,21 @@ function requiredStory(blocks: LessonBodyBlock[]): string[] {
 	if (storyBlock?.type !== "story") {
 		throw new Error("Generated lesson is missing a story.");
 	}
-	return [storyBlock.text];
+	return storyBlock.sentences ?? [storyBlock.text];
+}
+
+function selectionRequiresVocabulary(selection: LessonGenerationSelection) {
+	return (
+		selection.body.includes("vocabulary") ||
+		selection.exercises.includes("word-match")
+	);
+}
+
+function selectionRequiresStory(selection: LessonGenerationSelection) {
+	return (
+		selection.body.includes("story") ||
+		selection.exercises.includes("typing-story")
+	);
 }
 
 function isTeachingSection(
@@ -128,14 +146,4 @@ function isTeachingSection(
 		block.type === "color-table" ||
 		block.type === "examples"
 	);
-}
-
-function slugify(value: string): string {
-	const slug = value
-		.toLowerCase()
-		.normalize("NFD")
-		.replace(/[\u0300-\u036f]/g, "")
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-|-$/g, "");
-	return slug || "lesson";
 }

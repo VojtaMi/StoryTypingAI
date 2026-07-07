@@ -28,9 +28,13 @@ export function parseChoices(
 	min: number,
 	max: number,
 	errorMessage = "Generated choices do not include the answer.",
+	errorPrefix = "Generated JSON",
 ): string[] {
-	if (!Array.isArray(value)) throw new Error("Generated choices are invalid.");
-	const choices = value.map((choice) => requiredString(choice, "choice"));
+	if (!Array.isArray(value))
+		throw new Error(`${errorPrefix} choices are invalid.`);
+	const choices = value.map((choice) =>
+		requiredString(choice, "choice", errorPrefix),
+	);
 	if (
 		choices.length < min ||
 		choices.length > max ||
@@ -54,4 +58,14 @@ export function requiredString(
 		throw new Error(`${errorPrefix} is missing ${label}.`);
 	}
 	return value.trim();
+}
+
+export function slugify(value: string, fallback: string): string {
+	const slug = value
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-|-$/g, "");
+	return slug || fallback;
 }

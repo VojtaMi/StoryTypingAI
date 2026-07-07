@@ -88,8 +88,8 @@ const wordConnectSpec: RecapExerciseSpec<StoryRecapWordConnectExercise> = {
 			pairs: value.pairs.map((pair) => {
 				if (!isObject(pair)) throw new Error("Recap word pair is invalid.");
 				return {
-					term: requiredString(pair.term, "word term"),
-					meaning: requiredString(pair.meaning, "word meaning"),
+					term: requiredString(pair.term, "word term", "Recap JSON"),
+					meaning: requiredString(pair.meaning, "word meaning", "Recap JSON"),
 				};
 			}),
 		};
@@ -105,8 +105,12 @@ const fillMissingWordSpec: RecapExerciseSpec<StoryRecapFillMissingWordExercise> 
 			"The fill sentence must be one complete, natural Esperanto sentence containing the answer word written exactly as in `answer` — the app carves the blank out of it itself, so write a normal sentence and do not pre-split it or omit the word.",
 		parse(value) {
 			if (!isObject(value)) throw new Error("Recap fill exercise is invalid.");
-			const answer = requiredString(value.answer, "fill answer");
-			const sentence = requiredString(value.sentence, "fill sentence");
+			const answer = requiredString(value.answer, "fill answer", "Recap JSON");
+			const sentence = requiredString(
+				value.sentence,
+				"fill sentence",
+				"Recap JSON",
+			);
 			const { before, after } = splitOnWord(
 				sentence,
 				answer,
@@ -126,6 +130,7 @@ const fillMissingWordSpec: RecapExerciseSpec<StoryRecapFillMissingWordExercise> 
 					3,
 					3,
 					"Recap choices do not include the answer.",
+					"Recap JSON",
 				),
 			};
 		},
@@ -138,13 +143,17 @@ const storyQuestionSpec: RecapExerciseSpec<StoryRecapQuestionExercise> = {
 		"Use two or three story-question choices, using only facts from the story.",
 	parse(value) {
 		if (!isObject(value)) throw new Error("Recap story question is invalid.");
-		const answer = requiredString(value.answer, "story question answer");
+		const answer = requiredString(
+			value.answer,
+			"story question answer",
+			"Recap JSON",
+		);
 		return {
 			id: "story-question",
 			type: "story-question",
 			title: "Story question",
 			hint: "Choose the answer that fits the story.",
-			question: requiredString(value.question, "story question"),
+			question: requiredString(value.question, "story question", "Recap JSON"),
 			answer,
 			choices: parseChoices(
 				value.choices,
@@ -152,6 +161,7 @@ const storyQuestionSpec: RecapExerciseSpec<StoryRecapQuestionExercise> = {
 				2,
 				3,
 				"Recap choices do not include the answer.",
+				"Recap JSON",
 			),
 		};
 	},
