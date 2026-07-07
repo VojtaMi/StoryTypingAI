@@ -49,7 +49,7 @@ export async function synthesizeGeminiSpeech({
 			},
 		},
 	};
-	const json = await traceAiCall(
+	const inlineData = await traceAiCall(
 		{
 			kind: "audio.speech",
 			provider: "gemini",
@@ -76,20 +76,24 @@ export async function synthesizeGeminiSpeech({
 				);
 			}
 
-			return (await response.json()) as GeminiGenerateContentResponse;
+			const json = (await response.json()) as GeminiGenerateContentResponse;
+			const inlineData = json.candidates?.[0]?.content?.parts?.find(
+				(part) => part.inlineData,
+			)?.inlineData;
+			if (!inlineData?.data) {
+				throw new Error("Gemini TTS response did not include audio data.");
+			}
+
+			return {
+				data: inlineData.data,
+				mimeType: inlineData.mimeType,
+			};
 		},
 		(value) => ({
-			hasAudioData: Boolean(
-				value.candidates?.[0]?.content?.parts?.some((part) => part.inlineData),
-			),
+			audioChars: value.data?.length ?? 0,
+			mimeType: value.mimeType,
 		}),
 	);
-	const inlineData = json.candidates?.[0]?.content?.parts?.find(
-		(part) => part.inlineData,
-	)?.inlineData;
-	if (!inlineData?.data) {
-		throw new Error("Gemini TTS response did not include audio data.");
-	}
 
 	return {
 		audio: pcmToWav(Buffer.from(inlineData.data, "base64")),

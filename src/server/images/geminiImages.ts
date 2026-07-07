@@ -35,7 +35,7 @@ export async function generateGeminiImage({
 	const body = {
 		contents: [{ parts: [{ text: prompt }] }],
 	};
-	const json = await traceAiCall(
+	const inlineData = await traceAiCall(
 		{
 			kind: "image.generate",
 			provider: "gemini",
@@ -61,20 +61,24 @@ export async function generateGeminiImage({
 				);
 			}
 
-			return (await response.json()) as GeminiGenerateContentResponse;
+			const json = (await response.json()) as GeminiGenerateContentResponse;
+			const inlineData = json.candidates?.[0]?.content?.parts?.find(
+				(part) => part.inlineData,
+			)?.inlineData;
+			if (!inlineData?.data) {
+				throw new Error("Gemini image response did not include image data.");
+			}
+
+			return {
+				data: inlineData.data,
+				mimeType: inlineData.mimeType,
+			};
 		},
 		(value) => ({
-			hasImageData: Boolean(
-				value.candidates?.[0]?.content?.parts?.some((part) => part.inlineData),
-			),
+			imageChars: value.data?.length ?? 0,
+			mimeType: value.mimeType,
 		}),
 	);
-	const inlineData = json.candidates?.[0]?.content?.parts?.find(
-		(part) => part.inlineData,
-	)?.inlineData;
-	if (!inlineData?.data) {
-		throw new Error("Gemini image response did not include image data.");
-	}
 	const mimeType = imageMimeType(inlineData.mimeType);
 
 	return {
