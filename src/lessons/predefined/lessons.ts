@@ -35,7 +35,16 @@ export const lessons: Lesson[] = [
 			},
 		],
 		story: ["Hundo estas besto."],
-		exercises: [],
+		exercises: [
+			{
+				id: "hundo-estas-besto.word-match",
+				type: "word-match",
+			},
+			{
+				id: "hundo-estas-besto.typing",
+				type: "typing-story",
+			},
+		],
 		resources: [
 			{
 				type: "link",

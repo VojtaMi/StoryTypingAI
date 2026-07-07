@@ -2,24 +2,18 @@ import { useCallback, useEffect, useState } from "react";
 import ExerciseScreen from "./exercise_screen/ExerciseScreen";
 import MainMenu from "./home_menu/MainMenu";
 import {
-	exerciseOfType,
-	renderExerciseBrick,
-} from "./lessons/bricks/exerciseBricks";
+	CURRICULUM,
+	CURRICULUM_PATHS,
+	CurriculumView,
+	canonicalCurriculumPath,
+	FIRST_STEP_PATH,
+} from "./lessons/curriculum";
 import LessonsMenu from "./lessons/LessonsMenu";
 import {
-	completeLessonStage,
 	readLessonProgress,
 	rememberLessonPath,
 } from "./lessons/lessonProgress";
-import EsperantoIntro from "./lessons/predefined/EsperantoIntro";
-import KeyboardIntroExercise from "./lessons/predefined/KeyboardIntroExercise";
-import KeyboardWordsExercise from "./lessons/predefined/KeyboardWordsExercise";
-import { KEYBOARD_PRACTICE_WORDS } from "./lessons/predefined/keyboardPracticeWords";
 import { firstLesson, gardenLesson } from "./lessons/predefined/lessons";
-import LessonIntro from "./lessons/templates/LessonIntro";
-import LessonTypingExercise from "./lessons/templates/LessonTypingExercise";
-import WordMatchExercise from "./lessons/templates/WordMatchExercise";
-import type { Lesson } from "./lessons/types";
 import {
 	readSelectedTextModel,
 	saveSelectedTextModel,
@@ -36,149 +30,22 @@ import {
 } from "./story_session/background";
 import { useStorySession } from "./story_session/useStorySession";
 
-type View =
-	| "menu"
-	| "lessons-menu"
-	| "esperanto-intro"
-	| "lesson"
-	| "word-match"
-	| "lesson-typing"
-	| "keyboard-intro"
-	| "keyboard-words"
-	| "keyboard-word-match"
-	| "garden-lesson"
-	| "garden-word-match"
-	| "garden-phrase-builder"
-	| "garden-typing"
-	| "story";
-
-const ROUTES = {
-	menu: "/",
-	lessons: "/lessons",
-	intro: "/lessons/intro",
-	hundo: "/lessons/hundo-estas-besto",
-	hundoWordMatch: "/lessons/hundo-estas-besto/word-match",
-	hundoTyping: "/lessons/hundo-estas-besto/typing",
-	keyboard: "/lessons/esperanto-keyboard",
-	keyboardWords: "/lessons/esperanto-keyboard/words",
-	keyboardWordMatch: "/lessons/esperanto-keyboard/word-match",
-	garden: "/lessons/nia-gardeno",
-	gardenWordMatch: "/lessons/nia-gardeno/word-match",
-	gardenPhraseBuilder: "/lessons/nia-gardeno/phrase-builder",
-	gardenTyping: "/lessons/nia-gardeno/typing",
-} as const;
-
-const LESSON_PATHS = new Set<string>([
-	ROUTES.intro,
-	ROUTES.hundo,
-	ROUTES.hundoWordMatch,
-	ROUTES.hundoTyping,
-	ROUTES.keyboard,
-	ROUTES.keyboardWords,
-	ROUTES.keyboardWordMatch,
-	ROUTES.garden,
-	ROUTES.gardenWordMatch,
-	ROUTES.gardenPhraseBuilder,
-	ROUTES.gardenTyping,
-]);
-
-const NUMBERED_LESSON_PATHS: Record<string, string> = {
-	"/lessons/0": ROUTES.intro,
-	"/lessons/1": ROUTES.hundo,
-	"/lessons/2": ROUTES.hundoWordMatch,
-	"/lessons/3": ROUTES.hundoTyping,
-	"/lessons/4": ROUTES.keyboard,
-	"/lessons/5": ROUTES.keyboardWords,
-	"/lessons/6": ROUTES.keyboardWordMatch,
-	"/lessons/7": ROUTES.garden,
-	"/lessons/8": ROUTES.gardenWordMatch,
-	"/lessons/9": ROUTES.gardenPhraseBuilder,
-	"/lessons/10": ROUTES.gardenTyping,
-};
-
-function canonicalLessonPath(pathname: string) {
-	return NUMBERED_LESSON_PATHS[pathname] ?? pathname;
-}
-
-function viewFromPath(pathname: string): View {
-	switch (canonicalLessonPath(pathname)) {
-		case ROUTES.lessons:
-			return "lessons-menu";
-		case ROUTES.intro:
-			return "esperanto-intro";
-		case ROUTES.hundo:
-			return "lesson";
-		case ROUTES.hundoWordMatch:
-			return "word-match";
-		case ROUTES.hundoTyping:
-			return "lesson-typing";
-		case ROUTES.keyboard:
-			return "keyboard-intro";
-		case ROUTES.keyboardWords:
-			return "keyboard-words";
-		case ROUTES.keyboardWordMatch:
-			return "keyboard-word-match";
-		case ROUTES.garden:
-			return "garden-lesson";
-		case ROUTES.gardenWordMatch:
-			return "garden-word-match";
-		case ROUTES.gardenPhraseBuilder:
-			return "garden-phrase-builder";
-		case ROUTES.gardenTyping:
-			return "garden-typing";
-		default:
-			return "menu";
-	}
-}
-
-function pathForView(view: View) {
-	switch (view) {
-		case "lessons-menu":
-			return ROUTES.lessons;
-		case "esperanto-intro":
-			return ROUTES.intro;
-		case "lesson":
-			return ROUTES.hundo;
-		case "word-match":
-			return ROUTES.hundoWordMatch;
-		case "lesson-typing":
-			return ROUTES.hundoTyping;
-		case "keyboard-intro":
-			return ROUTES.keyboard;
-		case "keyboard-words":
-			return ROUTES.keyboardWords;
-		case "keyboard-word-match":
-			return ROUTES.keyboardWordMatch;
-		case "garden-lesson":
-			return ROUTES.garden;
-		case "garden-word-match":
-			return ROUTES.gardenWordMatch;
-		case "garden-phrase-builder":
-			return ROUTES.gardenPhraseBuilder;
-		case "garden-typing":
-			return ROUTES.gardenTyping;
-		default:
-			return ROUTES.menu;
-	}
-}
-
-function lessonForPath(path: string) {
-	return path.startsWith(ROUTES.garden) ? gardenLesson : firstLesson;
-}
+const MAIN_MENU_PATH = "/";
+const LESSONS_MENU_PATH = "/lessons";
 
 const LESSON_MENU_ITEMS = [
 	{
 		id: "intro",
 		title: "Intro",
 		description: "Meet the course and the tiny-story format.",
-		path: ROUTES.intro,
+		path: "/lessons/intro",
 		completedStageIds: ["intro"],
 	},
 	{
 		id: "hundo-estas-besto",
 		title: firstLesson.title,
 		description: "Learn hundo, estas, and besto through your first sentence.",
-		path: ROUTES.hundo,
+		path: "/lessons/hundo-estas-besto",
 		completedStageIds: [
 			"hundo-estas-besto.word-match",
 			"hundo-estas-besto.typing",
@@ -188,7 +55,7 @@ const LESSON_MENU_ITEMS = [
 		id: "keyboard",
 		title: "Keyboard",
 		description: "Practise Esperanto characters, then type beginner words.",
-		path: ROUTES.keyboard,
+		path: "/lessons/esperanto-keyboard",
 		completedStageIds: ["esperanto-keyboard"],
 	},
 	{
@@ -196,40 +63,48 @@ const LESSON_MENU_ITEMS = [
 		title: gardenLesson.title,
 		description:
 			"Combine colors, ownership, and known nouns into a tiny scene.",
-		path: ROUTES.garden,
+		path: "/lessons/nia-gardeno",
 		completedStageIds: ["nia-gardeno.typing"],
 	},
 ];
 
 export default function App() {
-	const [view, setView] = useState<View>(() =>
-		viewFromPath(window.location.pathname),
+	// `location` (the canonical path) plus `inStory` fully determine what shows:
+	// the main menu ("/"), the lessons menu ("/lessons"), a curriculum step, or
+	// the story overlay. There is no longer a per-screen `View` enum.
+	const [location, setLocation] = useState<string>(() =>
+		canonicalCurriculumPath(window.location.pathname),
 	);
-	const [activeLesson, setActiveLesson] = useState<Lesson>(() =>
-		lessonForPath(canonicalLessonPath(window.location.pathname)),
-	);
+	const [inStory, setInStory] = useState(false);
 	const [savedStories, setSavedStories] = useState<SavedStorySummary[]>([]);
 	const [savesError, setSavesError] = useState<string | null>(null);
 	const [model, setModel] = useState<TextModelId>(readSelectedTextModel);
+
 	const lessonProgress = readLessonProgress();
 	const hasLessonProgress =
-		lessonProgress.lastPath !== ROUTES.intro ||
+		lessonProgress.lastPath !== FIRST_STEP_PATH ||
 		lessonProgress.completedStages.length > 0;
 
-	const navigateToView = useCallback(
-		(nextView: View, options?: { replace?: boolean }) => {
-			const path = pathForView(nextView);
-			setView(nextView);
-			if (window.location.pathname !== path) {
-				const method = options?.replace ? "replaceState" : "pushState";
-				window.history[method](null, "", path);
-			}
-			if (LESSON_PATHS.has(path)) {
-				rememberLessonPath(path);
-			}
-		},
-		[],
-	);
+	const goto = useCallback((path: string, options?: { replace?: boolean }) => {
+		const canonical = canonicalCurriculumPath(path);
+		setInStory(false);
+		setLocation(canonical);
+		if (window.location.pathname !== canonical) {
+			const method = options?.replace ? "replaceState" : "pushState";
+			window.history[method](null, "", canonical);
+		}
+		if (CURRICULUM_PATHS.has(canonical)) {
+			rememberLessonPath(canonical);
+		}
+	}, []);
+
+	const enterStory = useCallback(() => {
+		setInStory(true);
+		setLocation(MAIN_MENU_PATH);
+		if (window.location.pathname !== MAIN_MENU_PATH) {
+			window.history.pushState(null, "", MAIN_MENU_PATH);
+		}
+	}, []);
 
 	const refreshSavedStories = useCallback(async () => {
 		try {
@@ -240,6 +115,12 @@ export default function App() {
 			setSavesError(`Could not read local saves: ${message}`);
 		}
 	}, []);
+
+	const sessionView: "menu" | "story" | "lesson" = inStory
+		? "story"
+		: location === MAIN_MENU_PATH
+			? "menu"
+			: "lesson";
 
 	const {
 		activeSaveId,
@@ -275,25 +156,22 @@ export default function App() {
 		wordTranslations,
 	} = useStorySession({
 		model,
-		view,
-		onViewChange: (nextView) => navigateToView(nextView),
+		view: sessionView,
+		onViewChange: (nextView) => {
+			if (nextView === "story") enterStory();
+			else if (nextView === "menu") goto(MAIN_MENU_PATH);
+		},
 		onSavedStoriesChanged: refreshSavedStories,
 		onSavesError: setSavesError,
 	});
-	const gardenWordMatchExercise = exerciseOfType(gardenLesson, "word-match");
-	const gardenPhraseBuilderExercise = exerciseOfType(
-		gardenLesson,
-		"phrase-builder",
-	);
-	const gardenTypingExercise = exerciseOfType(gardenLesson, "typing-story");
 
 	useEffect(() => {
 		function handlePopState() {
-			const path = canonicalLessonPath(window.location.pathname);
-			setView(viewFromPath(path));
-			setActiveLesson(lessonForPath(path));
-			if (path !== window.location.pathname) {
-				window.history.replaceState(null, "", path);
+			const canonical = canonicalCurriculumPath(window.location.pathname);
+			setInStory(false);
+			setLocation(canonical);
+			if (canonical !== window.location.pathname) {
+				window.history.replaceState(null, "", canonical);
 			}
 		}
 
@@ -302,17 +180,30 @@ export default function App() {
 	}, []);
 
 	useEffect(() => {
-		const path = canonicalLessonPath(window.location.pathname);
-		if (path === window.location.pathname) return;
-		window.history.replaceState(null, "", path);
-		rememberLessonPath(path);
+		const canonical = canonicalCurriculumPath(window.location.pathname);
+		if (canonical === window.location.pathname) return;
+		window.history.replaceState(null, "", canonical);
+		if (CURRICULUM_PATHS.has(canonical)) {
+			rememberLessonPath(canonical);
+		}
 	}, []);
 
 	const { visibleBackgroundUrl, previousBackgroundUrl, isBackgroundFading } =
-		useBackgroundLayers(view, backgroundImage);
+		useBackgroundLayers(sessionView, backgroundImage);
+
+	// The step at the current path (undefined on the menus / in the story). Its
+	// `cssView` reproduces the historical per-screen class so styling is unchanged.
+	const currentStep = CURRICULUM.find((step) => step.path === location);
+	const cssView = inStory
+		? "story"
+		: location === MAIN_MENU_PATH
+			? "menu"
+			: location === LESSONS_MENU_PATH
+				? "lessons-menu"
+				: (currentStep?.cssView ?? "menu");
 
 	useEffect(() => {
-		document.body.dataset.view = view;
+		document.body.dataset.view = cssView;
 		if (genre) {
 			document.body.dataset.genre = genre.id;
 		} else {
@@ -322,83 +213,22 @@ export default function App() {
 			delete document.body.dataset.view;
 			delete document.body.dataset.genre;
 		};
-	}, [view, genre]);
+	}, [cssView, genre]);
 
 	function handleModelChange(id: TextModelId) {
 		saveSelectedTextModel(id);
 		setModel(id);
 	}
 
-	function openLessonPath(path: string) {
-		const canonicalPath = canonicalLessonPath(path);
-		setActiveLesson(lessonForPath(canonicalPath));
-		const nextView = viewFromPath(canonicalPath);
-		navigateToView(nextView === "menu" ? "esperanto-intro" : nextView);
-	}
+	const openLessonsMenu = useCallback(() => goto(LESSONS_MENU_PATH), [goto]);
+	const returnToMenu = useCallback(() => goto(MAIN_MENU_PATH), [goto]);
 
 	function openLesson() {
 		const { lastPath } = readLessonProgress();
-		openLessonPath(LESSON_PATHS.has(lastPath) ? lastPath : ROUTES.intro);
+		goto(CURRICULUM_PATHS.has(lastPath) ? lastPath : FIRST_STEP_PATH);
 	}
 
-	function openLessonsMenu() {
-		navigateToView("lessons-menu");
-	}
-
-	function returnToMenu() {
-		navigateToView("menu");
-	}
-
-	function beginFirstExercise() {
-		completeLessonStage("intro", ROUTES.hundo);
-		openLessonPath(ROUTES.hundo);
-	}
-
-	function beginLessonPractice(lesson: Lesson) {
-		setActiveLesson(lesson);
-		navigateToView(
-			lesson.id === gardenLesson.id ? "garden-word-match" : "word-match",
-		);
-	}
-
-	function handleWordMatchComplete() {
-		completeLessonStage("hundo-estas-besto.word-match", ROUTES.hundoTyping);
-		navigateToView("lesson-typing");
-	}
-
-	function handleLessonTypingComplete() {
-		completeLessonStage("hundo-estas-besto.typing", ROUTES.keyboard);
-		navigateToView("keyboard-intro");
-	}
-
-	function handleKeyboardIntroComplete() {
-		completeLessonStage("esperanto-keyboard.chars", ROUTES.keyboardWords);
-		navigateToView("keyboard-words");
-	}
-
-	function handleKeyboardWordsComplete() {
-		completeLessonStage("esperanto-keyboard.words", ROUTES.keyboardWordMatch);
-		navigateToView("keyboard-word-match");
-	}
-
-	function handleKeyboardWordMatchComplete() {
-		completeLessonStage("esperanto-keyboard", ROUTES.garden);
-		setActiveLesson(gardenLesson);
-		navigateToView("garden-lesson");
-	}
-
-	function handleGardenWordMatchComplete() {
-		completeLessonStage("nia-gardeno.word-match", ROUTES.gardenPhraseBuilder);
-		navigateToView("garden-phrase-builder");
-	}
-
-	function handleGardenPhraseBuilderComplete() {
-		completeLessonStage("nia-gardeno.phrase-builder", ROUTES.gardenTyping);
-		navigateToView("garden-typing");
-	}
-
-	function handleGardenTypingComplete() {
-		completeLessonStage("nia-gardeno.typing", ROUTES.garden);
+	function finishCurriculum() {
 		startLessonStory({
 			title: gardenLesson.title,
 			storyText: gardenLesson.story.join(" "),
@@ -416,9 +246,13 @@ export default function App() {
 		}
 	}
 
+	const showMainMenu = !inStory && location === MAIN_MENU_PATH;
+	const showLessonsMenu = !inStory && location === LESSONS_MENU_PATH;
+	const showCurriculum = !inStory && !!currentStep;
+
 	return (
-		<div className={`app app--${view}`}>
-			{view === "story" && visibleBackgroundUrl && (
+		<div className={`app app--${cssView}`}>
+			{inStory && visibleBackgroundUrl && (
 				<>
 					{previousBackgroundUrl && (
 						<div
@@ -435,7 +269,7 @@ export default function App() {
 				</>
 			)}
 
-			{view === "story" && (
+			{inStory && (
 				<header className="header">
 					<h1>
 						{phase === "reading" || readingPartIndex !== null
@@ -448,7 +282,7 @@ export default function App() {
 				</header>
 			)}
 
-			{view === "menu" && (
+			{showMainMenu && (
 				<MainMenu
 					savedStories={savedStories}
 					savesError={savesError}
@@ -463,106 +297,26 @@ export default function App() {
 				/>
 			)}
 
-			{view === "lessons-menu" && (
+			{showLessonsMenu && (
 				<LessonsMenu
 					progress={lessonProgress}
 					items={LESSON_MENU_ITEMS}
 					onBack={returnToMenu}
 					onContinue={openLesson}
-					onOpenLessonPath={openLessonPath}
+					onOpenLessonPath={goto}
 				/>
 			)}
 
-			{view === "esperanto-intro" && (
-				<EsperantoIntro onStart={beginFirstExercise} onBack={openLessonsMenu} />
-			)}
-
-			{view === "lesson" && (
-				<LessonIntro
-					lesson={activeLesson}
-					onBeginPractice={beginLessonPractice}
-					onBack={openLessonsMenu}
+			{showCurriculum && (
+				<CurriculumView
+					path={location}
+					onNavigate={goto}
+					onExit={openLessonsMenu}
+					onFinish={finishCurriculum}
 				/>
 			)}
 
-			{view === "word-match" && (
-				<WordMatchExercise
-					lessonId={activeLesson.id}
-					words={activeLesson.introducedWords}
-					lesson={activeLesson}
-					onComplete={handleWordMatchComplete}
-					onBack={openLessonsMenu}
-				/>
-			)}
-
-			{view === "lesson-typing" && (
-				<LessonTypingExercise
-					lessonId={activeLesson.id}
-					text={activeLesson.story.join(" ")}
-					imageUrl="/images/lesson-typing-bg.webp"
-					lesson={activeLesson}
-					onComplete={handleLessonTypingComplete}
-					onBack={openLessonsMenu}
-				/>
-			)}
-
-			{view === "keyboard-intro" && (
-				<KeyboardIntroExercise
-					onComplete={handleKeyboardIntroComplete}
-					onBack={openLessonsMenu}
-				/>
-			)}
-
-			{view === "keyboard-words" && (
-				<KeyboardWordsExercise
-					onComplete={handleKeyboardWordsComplete}
-					onBack={openLessonsMenu}
-				/>
-			)}
-
-			{view === "keyboard-word-match" && (
-				<WordMatchExercise
-					lessonId="keyboard-intro"
-					words={KEYBOARD_PRACTICE_WORDS}
-					completeLabel="Continue →"
-					onComplete={handleKeyboardWordMatchComplete}
-					onBack={openLessonsMenu}
-				/>
-			)}
-
-			{view === "garden-lesson" && (
-				<LessonIntro
-					lesson={gardenLesson}
-					onBeginPractice={beginLessonPractice}
-					onBack={openLessonsMenu}
-				/>
-			)}
-
-			{view === "garden-word-match" &&
-				renderExerciseBrick(gardenWordMatchExercise, {
-					lesson: gardenLesson,
-					lessonId: gardenLesson.id,
-					onComplete: handleGardenWordMatchComplete,
-					onBack: openLessonsMenu,
-				})}
-
-			{view === "garden-phrase-builder" &&
-				renderExerciseBrick(gardenPhraseBuilderExercise, {
-					lesson: gardenLesson,
-					lessonId: gardenLesson.id,
-					onComplete: handleGardenPhraseBuilderComplete,
-					onBack: openLessonsMenu,
-				})}
-
-			{view === "garden-typing" &&
-				renderExerciseBrick(gardenTypingExercise, {
-					lesson: gardenLesson,
-					lessonId: gardenLesson.id,
-					onComplete: handleGardenTypingComplete,
-					onBack: openLessonsMenu,
-				})}
-
-			{view === "story" && genre && (
+			{inStory && genre && (
 				<ExerciseScreen
 					segments={segments}
 					currentTarget={currentTarget}

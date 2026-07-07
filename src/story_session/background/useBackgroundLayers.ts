@@ -8,21 +8,7 @@ export function backgroundLayerStyle(url: string): CSSProperties {
 }
 
 export function useBackgroundLayers(
-	view:
-		| "menu"
-		| "lessons-menu"
-		| "esperanto-intro"
-		| "lesson"
-		| "word-match"
-		| "lesson-typing"
-		| "keyboard-intro"
-		| "keyboard-words"
-		| "keyboard-word-match"
-		| "garden-lesson"
-		| "garden-word-match"
-		| "garden-phrase-builder"
-		| "garden-typing"
-		| "story",
+	view: "menu" | "story" | "lesson",
 	backgroundImage: StoryBackgroundImage | null,
 ) {
 	const [visibleBackgroundUrl, setVisibleBackgroundUrl] = useState<

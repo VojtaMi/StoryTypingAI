@@ -58,21 +58,9 @@ import {
 	fallbackTitle,
 } from "./storySnapshot";
 
-type View =
-	| "menu"
-	| "lessons-menu"
-	| "esperanto-intro"
-	| "lesson"
-	| "word-match"
-	| "lesson-typing"
-	| "keyboard-intro"
-	| "keyboard-words"
-	| "keyboard-word-match"
-	| "garden-lesson"
-	| "garden-word-match"
-	| "garden-phrase-builder"
-	| "garden-typing"
-	| "story";
+// The session only distinguishes "am I on the main menu" from "in a story" from
+// "somewhere in the lesson flow" — it never branches on individual lesson views.
+type View = "menu" | "story" | "lesson";
 
 const PREPARED_READING_WAIT_MS = 1500;
 const PREPARED_READING_POLL_MS = 75;
