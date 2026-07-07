@@ -202,29 +202,7 @@ export default function App() {
 	const { visibleBackgroundUrl, previousBackgroundUrl, isBackgroundFading } =
 		useBackgroundLayers(sessionView, backgroundImage);
 
-	// The step at the current path (undefined on the menus / in the story). Its
-	// `cssView` reproduces the historical per-screen class so styling is unchanged.
 	const currentStep = CURRICULUM.find((step) => step.path === location);
-	const cssView = inStory
-		? "story"
-		: location === MAIN_MENU_PATH
-			? "menu"
-			: location === LESSONS_MENU_PATH
-				? "lessons-menu"
-				: (currentStep?.cssView ?? "menu");
-
-	useEffect(() => {
-		document.body.dataset.view = cssView;
-		if (genre) {
-			document.body.dataset.genre = genre.id;
-		} else {
-			delete document.body.dataset.genre;
-		}
-		return () => {
-			delete document.body.dataset.view;
-			delete document.body.dataset.genre;
-		};
-	}, [cssView, genre]);
 
 	function handleModelChange(id: TextModelId) {
 		saveSelectedTextModel(id);
@@ -262,7 +240,7 @@ export default function App() {
 	const showCurriculum = !inStory && !!currentStep;
 
 	return (
-		<div className={`app app--${cssView}`}>
+		<div className="app">
 			{inStory && visibleBackgroundUrl && (
 				<>
 					{previousBackgroundUrl && (
@@ -281,7 +259,7 @@ export default function App() {
 			)}
 
 			{inStory && (
-				<header className="header">
+				<header className="story-header">
 					<h1>
 						{phase === "reading" || readingPartIndex !== null
 							? "Story Reading"

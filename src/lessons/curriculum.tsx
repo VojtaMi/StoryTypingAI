@@ -27,15 +27,9 @@ export interface StepRenderCtx {
  * One position in the linear course. The curriculum used to live as a hardcoded
  * state machine in App.tsx (a route + a `View` case + a completion handler per
  * step); it is now this ordered data array. Order *is* the "what's next" logic.
- *
- * `cssView` is a pure presentation hook — it carries each step's historical view
- * name so `body[data-view]` / `.app--*` styling stays byte-identical. It is data,
- * not control flow; normalizing the (intentionally irregular) CSS is a separate
- * pass.
  */
 export interface CurriculumStep {
 	path: string;
-	cssView: string;
 	/** Progress stage recorded when the learner completes this step (intro/practice steps that record nothing omit it). */
 	stageId?: string;
 	/** The last step leaves the curriculum (into the story) instead of advancing. */
@@ -63,7 +57,6 @@ function renderExerciseStep(
 export const CURRICULUM: CurriculumStep[] = [
 	{
 		path: "/lessons/intro",
-		cssView: "esperanto-intro",
 		stageId: "intro",
 		render: (ctx) => (
 			<EsperantoIntro onStart={ctx.onComplete} onBack={ctx.onExit} />
@@ -71,24 +64,20 @@ export const CURRICULUM: CurriculumStep[] = [
 	},
 	{
 		path: "/lessons/hundo-estas-besto",
-		cssView: "lesson",
 		render: (ctx) => <LessonIntroStep lesson={firstLesson} ctx={ctx} />,
 	},
 	{
 		path: "/lessons/hundo-estas-besto/word-match",
-		cssView: "word-match",
 		stageId: "hundo-estas-besto.word-match",
 		render: (ctx) => renderExerciseStep(firstLesson, "word-match", ctx),
 	},
 	{
 		path: "/lessons/hundo-estas-besto/typing",
-		cssView: "lesson-typing",
 		stageId: "hundo-estas-besto.typing",
 		render: (ctx) => renderExerciseStep(firstLesson, "typing-story", ctx),
 	},
 	{
 		path: "/lessons/esperanto-keyboard",
-		cssView: "keyboard-intro",
 		stageId: "esperanto-keyboard.chars",
 		render: (ctx) => (
 			<KeyboardIntroExercise onComplete={ctx.onComplete} onBack={ctx.onExit} />
@@ -96,7 +85,6 @@ export const CURRICULUM: CurriculumStep[] = [
 	},
 	{
 		path: "/lessons/esperanto-keyboard/words",
-		cssView: "keyboard-words",
 		stageId: "esperanto-keyboard.words",
 		render: (ctx) => (
 			<KeyboardWordsExercise onComplete={ctx.onComplete} onBack={ctx.onExit} />
@@ -104,7 +92,6 @@ export const CURRICULUM: CurriculumStep[] = [
 	},
 	{
 		path: "/lessons/esperanto-keyboard/word-match",
-		cssView: "keyboard-word-match",
 		stageId: "esperanto-keyboard",
 		render: (ctx) => (
 			<WordMatchExercise
@@ -117,41 +104,34 @@ export const CURRICULUM: CurriculumStep[] = [
 	},
 	{
 		path: "/lessons/nia-gardeno",
-		cssView: "garden-lesson",
 		render: (ctx) => <LessonIntroStep lesson={gardenLesson} ctx={ctx} />,
 	},
 	{
 		path: "/lessons/nia-gardeno/word-match",
-		cssView: "garden-word-match",
 		stageId: "nia-gardeno.word-match",
 		render: (ctx) => renderExerciseStep(gardenLesson, "word-match", ctx),
 	},
 	{
 		path: "/lessons/nia-gardeno/phrase-builder",
-		cssView: "garden-phrase-builder",
 		stageId: "nia-gardeno.phrase-builder",
 		render: (ctx) => renderExerciseStep(gardenLesson, "phrase-builder", ctx),
 	},
 	{
 		path: "/lessons/nia-gardeno/typing",
-		cssView: "garden-typing",
 		stageId: "nia-gardeno.typing",
 		render: (ctx) => renderExerciseStep(gardenLesson, "typing-story", ctx),
 	},
 	{
 		path: "/lessons/mi-estas-homo",
-		cssView: "mi-estas-homo-lesson",
 		render: (ctx) => <LessonIntroStep lesson={miEstasHomoLesson} ctx={ctx} />,
 	},
 	{
 		path: "/lessons/mi-estas-homo/word-match",
-		cssView: "mi-estas-homo-word-match",
 		stageId: "mi-estas-homo.word-match",
 		render: (ctx) => renderExerciseStep(miEstasHomoLesson, "word-match", ctx),
 	},
 	{
 		path: "/lessons/mi-estas-homo/typing",
-		cssView: "mi-estas-homo-typing",
 		stageId: "mi-estas-homo.typing",
 		isFinal: true,
 		finalStagePath: "/lessons/mi-estas-homo",

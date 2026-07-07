@@ -10,6 +10,7 @@
 	display: flex;
 	justify-content: center;
 	padding: clamp(2.5rem, 7vh, 6rem) 1.5rem clamp(3rem, 10vh, 7rem);
+	background: #faf8f2;
 	color: var(--lesson-ink);
 	font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
 }
@@ -659,6 +660,7 @@
 	align-items: center;
 	justify-content: center;
 	padding: 2rem 1.5rem;
+	background: #1a1510;
 	font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
 }
 

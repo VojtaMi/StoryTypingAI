@@ -22,75 +22,29 @@
 body {
 	margin: 0;
 	min-height: 100vh;
-	display: flex;
-	justify-content: center;
-	align-items: flex-start;
 	background: #faf8f2;
 	color: #221c14;
-}
-
-body[data-view="menu"],
-body[data-view="lesson-typing"],
-body[data-view="story"] {
-	background: var(--bg);
-	background-attachment: fixed;
-	background-position: center;
-	background-size: cover;
-	color: var(--text);
-}
-
-body[data-view="menu"] {
-	background-image:
-		linear-gradient(
-			rgba(10, 12, 18, 0.42),
-			rgba(10, 12, 18, 0.62) 54%,
-			rgba(10, 12, 18, 0.9)
-		),
-		url("/images/esperanto-lesson-hero.png");
-}
-
-body[data-view="lesson-typing"] {
-	background-color: #1a1510;
 }
 
 .app {
 	position: relative;
 	z-index: 1;
 	width: 100%;
-	max-width: 760px;
-	padding: 3rem 1.5rem;
-}
-
-.app--menu {
-	max-width: 1080px;
 	min-height: 100vh;
-	display: flex;
-	flex-direction: column;
-}
-
-.app--story {
-	max-width: 920px;
-	min-height: 100vh;
-	padding-top: 2rem;
-}
-
-.app--lessons-menu,
-.app--lesson,
-.app--word-match,
-.app--lesson-typing,
-.app--esperanto-intro,
-.app--keyboard-intro,
-.app--keyboard-words,
-.app--keyboard-word-match {
-	max-width: none;
 	padding: 0;
 }
 
-.header {
-	margin-bottom: 1.5rem;
+.story-header {
+	position: relative;
+	z-index: 1;
+	width: min(100%, 920px);
+	margin: 0 auto 1.5rem;
+	padding: 2rem 1.5rem 0;
+	color: var(--text);
+	text-shadow: 0 2px 18px rgba(0, 0, 0, 0.85);
 }
 
-.header h1 {
+.story-header h1 {
 	margin: 0;
 	font-size: 1.5rem;
 	font-weight: 600;
@@ -102,12 +56,7 @@ body[data-view="lesson-typing"] {
 	font-size: 1rem;
 }
 
-.app--story .header {
-	text-shadow: 0 2px 18px rgba(0, 0, 0, 0.85);
-}
-
-.header,
-.menu,
+.story-header,
 .story {
 	position: relative;
 	z-index: 1;
@@ -612,6 +561,19 @@ body[data-view="lesson-typing"] {
 	--story-panel: rgba(20, 23, 34, 0.74);
 	--story-panel-strong: rgba(20, 23, 34, 0.86);
 	--story-border: rgba(192, 202, 245, 0.16);
+
+	width: min(100%, 920px);
+	margin: 0 auto;
+	padding: 0 1.5rem 3rem;
+	color: var(--text);
+}
+
+.story::before {
+	content: "";
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	background: var(--bg);
 }
 
 .story__log {
@@ -1198,12 +1160,12 @@ body[data-view="lesson-typing"] {
 }
 
 @media (max-width: 620px) {
-	.app {
-		padding-inline: 0.5rem;
+	.story-header {
+		padding: 1.6rem 0.5rem 0;
 	}
 
-	.app--story {
-		padding-top: 1.6rem;
+	.story {
+		padding-inline: 0.5rem;
 	}
 
 	.story__current,
