@@ -1,24 +1,13 @@
 import { describeExerciseBrick } from "./bricks/exerciseBricks";
 import {
 	describeLessonBodyBlock,
-	type LessonBodyBlock,
 	lessonBodyBlocks,
 } from "./bricks/lessonBodyBricks";
 import { lessonStoryText, lessonVocab } from "./lessonContent";
 import type { Lesson } from "./types";
 
-function blockOfType<T extends LessonBodyBlock["type"]>(
-	blocks: LessonBodyBlock[],
-	type: T,
-): Extract<LessonBodyBlock, { type: T }> | undefined {
-	return blocks.find((block) => block.type === type) as
-		| Extract<LessonBodyBlock, { type: T }>
-		| undefined;
-}
-
 export function buildLessonBotContext(lesson: Lesson): string {
 	const parts: string[] = [`Lesson: ${lesson.title}`];
-	const bodyBlocks = lessonBodyBlocks(lesson);
 
 	const vocab = lessonVocab(lesson);
 	if (vocab.length > 0) {
@@ -28,22 +17,17 @@ export function buildLessonBotContext(lesson: Lesson): string {
 		}
 	}
 
-	if ((lesson.teachingSections?.length ?? 0) > 0) {
+	// Vocabulary and story are surfaced from the canonical fields (above and
+	// below); every other body block describes itself through its own
+	// capability, so garden's tables and hundo's grammar/patterns flow through
+	// one loop instead of a per-shape branch.
+	const teachingBlocks = lessonBodyBlocks(lesson).filter(
+		(block) => block.type !== "vocabulary" && block.type !== "story",
+	);
+	if (teachingBlocks.length > 0) {
 		parts.push("# Teaching");
-		for (const block of bodyBlocks) {
+		for (const block of teachingBlocks) {
 			parts.push(describeLessonBodyBlock(block));
-		}
-	} else {
-		const grammarBlock = blockOfType(bodyBlocks, "grammar");
-		if (grammarBlock) {
-			parts.push("# Grammar");
-			parts.push(describeLessonBodyBlock(grammarBlock));
-		}
-
-		const patternsBlock = blockOfType(bodyBlocks, "patterns");
-		if (patternsBlock) {
-			parts.push("# Patterns");
-			parts.push(describeLessonBodyBlock(patternsBlock));
 		}
 	}
 
