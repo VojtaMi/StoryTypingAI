@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
 import {
-	renderTeachingSection,
-	renderWithCode,
-} from "../bricks/teachingBricks";
+	type LessonBodyBlock,
+	lessonBodyBlocks,
+	renderLessonBodyBlock,
+} from "../bricks/lessonBodyBricks";
 import "../lesson.css";
 import { audioUrlCache, ensureLessonAudioUrl } from "../lessonAudio";
 import { buildLessonBotContext } from "../lessonBotContext";
-import {
-	lessonNarratableTexts,
-	lessonStoryText,
-	lessonVocab,
-} from "../lessonContent";
-import type { Lesson, LessonTeachingSection } from "../types";
+import { lessonNarratableTexts, lessonVocab } from "../lessonContent";
+import type { Lesson } from "../types";
 import { LESSON_LEVEL_LABELS } from "../types";
 
 interface LessonIntroProps {
@@ -68,39 +65,14 @@ function useLessonAudio(lesson: Lesson) {
 	return { ready, playing, play };
 }
 
-function SpeakButton({
-	id,
-	text,
-	ready,
-	playing,
-	onPlay,
-}: {
-	id: string;
-	text: string;
-	ready: boolean;
-	playing: string | null;
-	onPlay: (id: string, text: string) => void;
-}) {
-	const isPlaying = playing === id;
-	return (
-		<button
-			type="button"
-			className={`lesson-speak${isPlaying ? " lesson-speak--active" : ""}${!ready ? " lesson-speak--loading" : ""}`}
-			aria-label={isPlaying ? "Playing…" : `Listen to "${text}"`}
-			onClick={() => onPlay(id, text)}
-			disabled={!ready || (playing !== null && !isPlaying)}
-		>
-			🔊
-		</button>
-	);
-}
-
-function TeachingSection({
-	section,
+function BodySection({
+	block,
 	sectionNumber,
+	audio,
 }: {
-	section: LessonTeachingSection;
+	block: LessonBodyBlock;
 	sectionNumber: number;
+	audio: ReturnType<typeof useLessonAudio>;
 }) {
 	return (
 		<>
@@ -108,10 +80,14 @@ function TeachingSection({
 			<section className="lesson-doc__section">
 				<h2 className="lesson-doc__heading">
 					<span className="lesson-doc__num">{sectionNumber}.</span>{" "}
-					{section.title}
+					{block.title}
 				</h2>
 
-				{renderTeachingSection(section)}
+				{renderLessonBodyBlock(block, {
+					ready: audio.ready,
+					playing: audio.playing,
+					onPlay: audio.play,
+				})}
 			</section>
 		</>
 	);
@@ -122,13 +98,9 @@ export default function LessonIntro({
 	onBeginPractice,
 	onBack,
 }: LessonIntroProps) {
-	const storyText = lessonStoryText(lesson);
 	const wordCount = lessonVocab(lesson).length;
-	const hasTeachingSections = (lesson.teachingSections?.length ?? 0) > 0;
-	const hasGrammar = !hasTeachingSections && lesson.grammarConcepts.length > 0;
-	const hasPatterns =
-		!hasTeachingSections && (lesson.patterns?.length ?? 0) > 0;
-	const { ready, playing, play } = useLessonAudio(lesson);
+	const bodyBlocks = lessonBodyBlocks(lesson);
+	const audio = useLessonAudio(lesson);
 	const [chatOpen, setChatOpen] = useState(false);
 
 	// Number the sections that are actually shown.
@@ -158,126 +130,14 @@ export default function LessonIntro({
 						} and one tiny sentence you'll be able to read, understand, and type by the end.`}
 				</p>
 
-				{hasTeachingSections ? (
-					lesson.teachingSections?.map((section) => (
-						<TeachingSection
-							key={section.id}
-							section={section}
-							sectionNumber={nextSection()}
-						/>
-					))
-				) : (
-					<>
-						<hr className="lesson-doc__rule" />
-
-						<section className="lesson-doc__section">
-							<h2 className="lesson-doc__heading">
-								<span className="lesson-doc__num">{nextSection()}.</span> New
-								words
-							</h2>
-							<dl className="lesson-doc__words">
-								{lessonVocab(lesson).map((word) => (
-									<div key={word.term} className="lesson-doc__word">
-										<dt className="lesson-doc__word-term">
-											{word.term}
-											<span className="lesson-doc__word-pos">
-												{word.partOfSpeech}
-											</span>
-											<SpeakButton
-												id={`word-${word.term}`}
-												text={word.term}
-												ready={ready.has(word.term)}
-												playing={playing}
-												onPlay={play}
-											/>
-										</dt>
-										<dd className="lesson-doc__word-body">
-											<span className="lesson-doc__word-meaning">
-												{word.meaning}
-											</span>
-										</dd>
-									</div>
-								))}
-							</dl>
-						</section>
-					</>
-				)}
-
-				{hasGrammar && (
-					<>
-						<hr className="lesson-doc__rule" />
-						<section className="lesson-doc__section">
-							<h2 className="lesson-doc__heading">
-								<span className="lesson-doc__num">{nextSection()}.</span>{" "}
-								Grammar
-							</h2>
-							{lesson.grammarConcepts.map((concept) => (
-								<div key={concept.id} className="lesson-doc__grammar">
-									<h3 className="lesson-doc__subheading">{concept.title}</h3>
-									<p className="lesson-doc__paragraph">
-										{renderWithCode(concept.explanation)}
-									</p>
-									{concept.examples.map((example) => (
-										<p key={example} className="lesson-doc__example">
-											{example}
-										</p>
-									))}
-								</div>
-							))}
-						</section>
-					</>
-				)}
-
-				{hasPatterns && (
-					<>
-						<hr className="lesson-doc__rule" />
-						<section className="lesson-doc__section">
-							<h2 className="lesson-doc__heading">
-								<span className="lesson-doc__num">{nextSection()}.</span>{" "}
-								Patterns
-							</h2>
-							{lesson.patterns?.map((pattern) => (
-								<div key={pattern.id} className="lesson-doc__grammar">
-									<h3 className="lesson-doc__subheading">{pattern.title}</h3>
-									<p className="lesson-doc__paragraph">
-										{pattern.slots.join(" + ")}
-									</p>
-									{pattern.examples.map((example) => (
-										<p key={example} className="lesson-doc__example">
-											{example}
-										</p>
-									))}
-								</div>
-							))}
-						</section>
-					</>
-				)}
-
-				{!hasTeachingSections && (
-					<>
-						<hr className="lesson-doc__rule" />
-
-						<section className="lesson-doc__section">
-							<h2 className="lesson-doc__heading">
-								<span className="lesson-doc__num">{nextSection()}.</span> Your
-								story
-							</h2>
-							<p className="lesson-doc__paragraph">
-								Read it aloud, then type it from memory on the next screen.
-							</p>
-							<blockquote className="lesson-doc__story">
-								{storyText}
-								<SpeakButton
-									id="story"
-									text={storyText}
-									ready={ready.has(storyText)}
-									playing={playing}
-									onPlay={play}
-								/>
-							</blockquote>
-						</section>
-					</>
-				)}
+				{bodyBlocks.map((block) => (
+					<BodySection
+						key={block.id}
+						block={block}
+						sectionNumber={nextSection()}
+						audio={audio}
+					/>
+				))}
 
 				<div className="lesson-doc__actions">
 					<button

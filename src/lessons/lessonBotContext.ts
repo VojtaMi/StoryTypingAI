@@ -1,10 +1,24 @@
 import { describeExerciseBrick } from "./bricks/exerciseBricks";
-import { describeTeachingSection } from "./bricks/teachingBricks";
+import {
+	describeLessonBodyBlock,
+	type LessonBodyBlock,
+	lessonBodyBlocks,
+} from "./bricks/lessonBodyBricks";
 import { lessonStoryText, lessonVocab } from "./lessonContent";
 import type { Lesson } from "./types";
 
+function blockOfType<T extends LessonBodyBlock["type"]>(
+	blocks: LessonBodyBlock[],
+	type: T,
+): Extract<LessonBodyBlock, { type: T }> | undefined {
+	return blocks.find((block) => block.type === type) as
+		| Extract<LessonBodyBlock, { type: T }>
+		| undefined;
+}
+
 export function buildLessonBotContext(lesson: Lesson): string {
 	const parts: string[] = [`Lesson: ${lesson.title}`];
+	const bodyBlocks = lessonBodyBlocks(lesson);
 
 	const vocab = lessonVocab(lesson);
 	if (vocab.length > 0) {
@@ -16,26 +30,20 @@ export function buildLessonBotContext(lesson: Lesson): string {
 
 	if ((lesson.teachingSections?.length ?? 0) > 0) {
 		parts.push("# Teaching");
-		for (const section of lesson.teachingSections ?? []) {
-			parts.push(describeTeachingSection(section));
+		for (const block of bodyBlocks) {
+			parts.push(describeLessonBodyBlock(block));
 		}
 	} else {
-		if (lesson.grammarConcepts.length > 0) {
+		const grammarBlock = blockOfType(bodyBlocks, "grammar");
+		if (grammarBlock) {
 			parts.push("# Grammar");
-			for (const concept of lesson.grammarConcepts) {
-				parts.push(`${concept.title}: ${concept.explanation}`);
-				if (concept.examples.length > 0) {
-					parts.push(`Examples: ${concept.examples.join("; ")}`);
-				}
-			}
+			parts.push(describeLessonBodyBlock(grammarBlock));
 		}
-		if ((lesson.patterns?.length ?? 0) > 0) {
+
+		const patternsBlock = blockOfType(bodyBlocks, "patterns");
+		if (patternsBlock) {
 			parts.push("# Patterns");
-			for (const pattern of lesson.patterns ?? []) {
-				parts.push(
-					`${pattern.title}: ${pattern.slots.join(" + ")}. Examples: ${pattern.examples.join("; ")}`,
-				);
-			}
+			parts.push(describeLessonBodyBlock(patternsBlock));
 		}
 	}
 
