@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import ExerciseScreen from "./exercise_screen/ExerciseScreen";
 import MainMenu from "./home_menu/MainMenu";
+import {
+	exerciseOfType,
+	renderExerciseBrick,
+} from "./lessons/bricks/exerciseBricks";
 import LessonsMenu from "./lessons/LessonsMenu";
 import {
 	completeLessonStage,
@@ -14,14 +18,8 @@ import { KEYBOARD_PRACTICE_WORDS } from "./lessons/predefined/keyboardPracticeWo
 import { firstLesson, gardenLesson } from "./lessons/predefined/lessons";
 import LessonIntro from "./lessons/templates/LessonIntro";
 import LessonTypingExercise from "./lessons/templates/LessonTypingExercise";
-import PhraseBuilderExercise from "./lessons/templates/PhraseBuilderExercise";
 import WordMatchExercise from "./lessons/templates/WordMatchExercise";
-import type {
-	Lesson,
-	LessonExercise,
-	PhraseBuilderLessonExercise,
-	WordMatchLessonExercise,
-} from "./lessons/types";
+import type { Lesson } from "./lessons/types";
 import {
 	readSelectedTextModel,
 	saveSelectedTextModel,
@@ -168,25 +166,6 @@ function lessonForPath(path: string) {
 	return path.startsWith(ROUTES.garden) ? gardenLesson : firstLesson;
 }
 
-function findExercise<T extends LessonExercise["type"]>(
-	lesson: Lesson,
-	type: T,
-): Extract<LessonExercise, { type: T }> {
-	const exercise = lesson.exercises.find(
-		(candidate) => candidate.type === type,
-	);
-	if (!exercise) {
-		throw new Error(`Lesson ${lesson.id} is missing a ${type} exercise.`);
-	}
-	return exercise as Extract<LessonExercise, { type: T }>;
-}
-
-function wordsForWordMatch(lesson: Lesson, exercise: WordMatchLessonExercise) {
-	if (!exercise.wordTerms) return lesson.introducedWords;
-	const requested = new Set(exercise.wordTerms);
-	return lesson.introducedWords.filter((word) => requested.has(word.term));
-}
-
 const LESSON_MENU_ITEMS = [
 	{
 		id: "intro",
@@ -301,14 +280,12 @@ export default function App() {
 		onSavedStoriesChanged: refreshSavedStories,
 		onSavesError: setSavesError,
 	});
-	const gardenWordMatchExercise = findExercise(
-		gardenLesson,
-		"word-match",
-	) as WordMatchLessonExercise;
-	const gardenPhraseBuilderExercise = findExercise(
+	const gardenWordMatchExercise = exerciseOfType(gardenLesson, "word-match");
+	const gardenPhraseBuilderExercise = exerciseOfType(
 		gardenLesson,
 		"phrase-builder",
-	) as PhraseBuilderLessonExercise;
+	);
+	const gardenTypingExercise = exerciseOfType(gardenLesson, "typing-story");
 
 	useEffect(() => {
 		function handlePopState() {
@@ -561,45 +538,29 @@ export default function App() {
 				/>
 			)}
 
-			{view === "garden-word-match" && (
-				<WordMatchExercise
-					lessonId={gardenLesson.id}
-					words={wordsForWordMatch(gardenLesson, gardenWordMatchExercise)}
-					lesson={gardenLesson}
-					title={gardenWordMatchExercise.title}
-					hint={gardenWordMatchExercise.hint}
-					completeLabel={gardenWordMatchExercise.completeLabel}
-					onComplete={handleGardenWordMatchComplete}
-					onBack={openLessonsMenu}
-				/>
-			)}
+			{view === "garden-word-match" &&
+				renderExerciseBrick(gardenWordMatchExercise, {
+					lesson: gardenLesson,
+					lessonId: gardenLesson.id,
+					onComplete: handleGardenWordMatchComplete,
+					onBack: openLessonsMenu,
+				})}
 
-			{view === "garden-phrase-builder" && (
-				<PhraseBuilderExercise
-					lessonId={gardenLesson.id}
-					title={gardenPhraseBuilderExercise.title}
-					hint={gardenPhraseBuilderExercise.hint}
-					prompts={gardenPhraseBuilderExercise.prompts}
-					lesson={gardenLesson}
-					completeLabel={gardenPhraseBuilderExercise.completeLabel}
-					onComplete={handleGardenPhraseBuilderComplete}
-					onBack={openLessonsMenu}
-				/>
-			)}
+			{view === "garden-phrase-builder" &&
+				renderExerciseBrick(gardenPhraseBuilderExercise, {
+					lesson: gardenLesson,
+					lessonId: gardenLesson.id,
+					onComplete: handleGardenPhraseBuilderComplete,
+					onBack: openLessonsMenu,
+				})}
 
-			{view === "garden-typing" && (
-				<LessonTypingExercise
-					lessonId={gardenLesson.id}
-					text={gardenLesson.story.join(" ")}
-					imageUrl={
-						findExercise(gardenLesson, "typing-story").imageUrl ??
-						"/images/lesson-typing-bg.webp"
-					}
-					lesson={gardenLesson}
-					onComplete={handleGardenTypingComplete}
-					onBack={openLessonsMenu}
-				/>
-			)}
+			{view === "garden-typing" &&
+				renderExerciseBrick(gardenTypingExercise, {
+					lesson: gardenLesson,
+					lessonId: gardenLesson.id,
+					onComplete: handleGardenTypingComplete,
+					onBack: openLessonsMenu,
+				})}
 
 			{view === "story" && genre && (
 				<ExerciseScreen
