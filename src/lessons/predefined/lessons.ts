@@ -272,8 +272,106 @@ export const lessons: Lesson[] = [
 			},
 		],
 	},
+	{
+		id: "mi-estas-homo",
+		title: "Mi estas homo",
+		level: "absolute-beginner",
+		lede: "Meet people, names, and one cat while practicing simple sentences with estas.",
+		introducedWords: [
+			{
+				term: "homo",
+				meaning: "person / human",
+				partOfSpeech: "noun",
+				example: "Mi estas homo.",
+			},
+			{
+				term: "kato",
+				meaning: "cat",
+				partOfSpeech: "noun",
+				example: "La kato estas besto.",
+			},
+			{
+				term: "nomo",
+				meaning: "name",
+				partOfSpeech: "noun",
+				example: "Mia nomo estas Ana.",
+			},
+		],
+		grammarConcepts: [
+			{
+				id: "la-the",
+				title: "Using la",
+				explanation:
+					"`la` means the. Esperanto has no separate word for a or an, so `homo` can mean a person and `la homo` means the person.",
+				examples: ["la homo", "la kato", "La kato estas besto."],
+			},
+			{
+				id: "li-si",
+				title: "li and ŝi",
+				explanation:
+					"`li` means he and `ŝi` means she. Each can be the subject before `estas`.",
+				examples: ["Li estas homo.", "Ŝi estas homo."],
+			},
+			{
+				id: "names-with-estas",
+				title: "Names with estas",
+				explanation:
+					"`nomo` means name. Use the same `estas` pattern to say a name: `Mia nomo estas Ana.`",
+				examples: ["Mia nomo estas Ana.", "Mia nomo estas Leo."],
+			},
+		],
+		patterns: [
+			{
+				id: "la-noun",
+				title: "la + noun",
+				slots: ["la", "noun"],
+				examples: ["la homo", "la kato", "la nomo"],
+			},
+			{
+				id: "pronoun-estas-noun",
+				title: "Pronoun + estas + noun",
+				slots: ["pronoun", "estas", "noun"],
+				examples: ["Mi estas homo.", "Li estas homo.", "Ŝi estas homo."],
+			},
+			{
+				id: "nomo-estas-name",
+				title: "Name sentences",
+				slots: ["possessive", "nomo", "estas", "name"],
+				examples: ["Mia nomo estas Ana.", "Mia nomo estas Leo."],
+			},
+		],
+		story: [
+			"Mi estas homo.",
+			"Mia nomo estas Leo.",
+			"Li estas homo.",
+			"Ŝi estas homo.",
+			"La kato estas besto.",
+		],
+		exercises: [
+			{
+				id: "mi-estas-homo.word-match",
+				type: "word-match",
+				title: "Connect the new words",
+				hint: "Match the new people, cat, and name words.",
+				completeLabel: "Continue to Story",
+			},
+			{
+				id: "mi-estas-homo.typing",
+				type: "typing-story",
+			},
+		],
+		resources: [
+			{
+				type: "note",
+				title: "Names and articles",
+				content:
+					"This lesson introduces `la` and subject pronouns through the same `estas` pattern learners already know.",
+			},
+		],
+	},
 ];
 
 /** The lesson the curriculum-guided path starts with in V1. */
 export const firstLesson = lessons[0];
 export const gardenLesson = lessons[1];
+export const miEstasHomoLesson = lessons[2];

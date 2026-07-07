@@ -13,7 +13,11 @@ import {
 	readLessonProgress,
 	rememberLessonPath,
 } from "./lessons/lessonProgress";
-import { firstLesson, gardenLesson } from "./lessons/predefined/lessons";
+import {
+	firstLesson,
+	gardenLesson,
+	miEstasHomoLesson,
+} from "./lessons/predefined/lessons";
 import {
 	readSelectedTextModel,
 	saveSelectedTextModel,
@@ -65,6 +69,13 @@ const LESSON_MENU_ITEMS = [
 			"Combine colors, ownership, and known nouns into a tiny scene.",
 		path: "/lessons/nia-gardeno",
 		completedStageIds: ["nia-gardeno.typing"],
+	},
+	{
+		id: "mi-estas-homo",
+		title: miEstasHomoLesson.title,
+		description: "Meet people, names, and one cat with simple estas sentences.",
+		path: "/lessons/mi-estas-homo",
+		completedStageIds: ["mi-estas-homo.typing"],
 	},
 ];
 

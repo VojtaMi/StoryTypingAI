@@ -6,7 +6,11 @@ import EsperantoIntro from "./predefined/EsperantoIntro";
 import KeyboardIntroExercise from "./predefined/KeyboardIntroExercise";
 import KeyboardWordsExercise from "./predefined/KeyboardWordsExercise";
 import { KEYBOARD_PRACTICE_WORDS } from "./predefined/keyboardPracticeWords";
-import { firstLesson, gardenLesson } from "./predefined/lessons";
+import {
+	firstLesson,
+	gardenLesson,
+	miEstasHomoLesson,
+} from "./predefined/lessons";
 import LessonIntro from "./templates/LessonIntro";
 import WordMatchExercise from "./templates/WordMatchExercise";
 import type { Lesson, LessonExercise } from "./types";
@@ -133,9 +137,26 @@ export const CURRICULUM: CurriculumStep[] = [
 		path: "/lessons/nia-gardeno/typing",
 		cssView: "garden-typing",
 		stageId: "nia-gardeno.typing",
-		isFinal: true,
-		finalStagePath: "/lessons/nia-gardeno",
 		render: (ctx) => renderExerciseStep(gardenLesson, "typing-story", ctx),
+	},
+	{
+		path: "/lessons/mi-estas-homo",
+		cssView: "mi-estas-homo-lesson",
+		render: (ctx) => <LessonIntroStep lesson={miEstasHomoLesson} ctx={ctx} />,
+	},
+	{
+		path: "/lessons/mi-estas-homo/word-match",
+		cssView: "mi-estas-homo-word-match",
+		stageId: "mi-estas-homo.word-match",
+		render: (ctx) => renderExerciseStep(miEstasHomoLesson, "word-match", ctx),
+	},
+	{
+		path: "/lessons/mi-estas-homo/typing",
+		cssView: "mi-estas-homo-typing",
+		stageId: "mi-estas-homo.typing",
+		isFinal: true,
+		finalStagePath: "/lessons/mi-estas-homo",
+		render: (ctx) => renderExerciseStep(miEstasHomoLesson, "typing-story", ctx),
 	},
 ];
 
