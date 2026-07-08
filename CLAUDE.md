@@ -34,6 +34,17 @@ When a single LLM call generates multiple distinct structured items (e.g. a less
 
 When part of an LLM's output must satisfy a structural invariant (e.g. "this sentence must not contain this word" so the app can render a blank), don't rely on a prompt instruction the model might ignore, and don't just validate-and-reject after the fact either — shrink what you ask the LLM for and derive the invariant deterministically in code. Example: ask for one natural sentence containing the word, then split on it client-side, rather than asking the LLM to pre-split the sentence around the word itself.
 
+## Delegating Implementation to Codex
+
+`codex exec --full-auto` is a viable implementer for scoped, well-specified work. Two limits, both verified against `codex-cli 0.125.0` — do not re-derive them:
+
+- **Codex cannot verify anything in a browser.** In `codex exec`, every MCP tool call is auto-cancelled (`user cancelled MCP tool call`), because the `exec_permission_approvals` feature is still under development. This holds regardless of `--full-auto`, `approval_policy`, or `--headless`. The `browser_use` / `computer_use` feature flags are enabled but surface no tool in `exec`.
+- **Codex cannot bind a port** under the default `workspace-write` sandbox — `npm run dev:vite` fails with `listen EPERM`. Adding `-c sandbox_workspace_write.network_access=true` unblocks it, but that *also* grants model-run shell commands arbitrary outbound network access. Do not enable it casually.
+
+Consequence: **Codex writes code; a browser-capable agent verifies UI.** Codex will report a page as done without ever having rendered it (it says so, but only in a trailing "Blocked" note). Never accept "it should render" — drive the page yourself.
+
+When writing a delegation brief, **state the invariant, not the check.** A brief that says "remove the `as` cast" gets a removed cast; if nothing typechecks that directory, the unsoundness just moves. A brief that says "this must fail to compile if the value isn't validated" gets the real fix. Every defect that survived delegation in this repo landed exactly where a brief named a symptom instead of the property it protects.
+
 ## Deployment
 
 Deployment to Rosti (rosti.cz) is documented in [`rosti/README.md`](./rosti/README.md). Consult it only when working on deployment tasks — it's not part of the general workflow.
