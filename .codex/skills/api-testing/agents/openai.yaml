@@ -1,0 +1,6 @@
+interface:
+  display_name: "API Testing"
+  short_description: "Test prompts across OpenAI, Anthropic, Gemini"
+  default_prompt: "Use $api-testing to run local OpenAI, Anthropic, or Gemini prompt tests in this repo."
+policy:
+  allow_implicit_invocation: false

@@ -20,8 +20,12 @@ learner/
 translation-cache.json
 
 # Editor directories and files
-.codex
-.claude/
+# Agent skills are tracked; agent-local settings are not.
+# `.claude/skills/*` are symlinks into `.codex/skills/`, so the skill text lives once.
+.codex/*
+!.codex/skills/
+.claude/*
+!.claude/skills/
 .vscode/*
 !.vscode/extensions.json
 .idea

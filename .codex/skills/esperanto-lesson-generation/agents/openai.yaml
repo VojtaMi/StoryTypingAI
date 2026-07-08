@@ -1,0 +1,6 @@
+interface:
+  display_name: "Esperanto Lesson Generation"
+  short_description: "Author AI-shaped Esperanto lessons"
+  default_prompt: "Use $esperanto-lesson-generation to add or refine an Esperanto lesson in this repo."
+policy:
+  allow_implicit_invocation: true
