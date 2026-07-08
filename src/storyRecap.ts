@@ -69,7 +69,9 @@ export interface StoryRecapExerciseResult {
 type RecapExerciseSpec<T> = GenerationSpec<T>;
 
 const wordConnectSpec: RecapExerciseSpec<StoryRecapWordConnectExercise> = {
-	shape: '{"pairs":[{"term":"Esperanto word","meaning":"English meaning"}]}',
+	shape: {
+		pairs: [{ term: "Esperanto word", meaning: "English meaning" }],
+	},
 	instructions:
 		"Use exactly three word-connect pairs, using only words and facts from the story. Keep English meanings short.",
 	parse(value) {
@@ -98,8 +100,12 @@ const wordConnectSpec: RecapExerciseSpec<StoryRecapWordConnectExercise> = {
 
 const fillMissingWordSpec: RecapExerciseSpec<StoryRecapFillMissingWordExercise> =
 	{
-		shape:
-			'{"sentence":"A complete, natural Esperanto sentence that contains the answer word","answer":"correct Esperanto word, exactly as it appears in sentence","choices":["correct","wrong","wrong"]}',
+		shape: {
+			sentence:
+				"A complete, natural Esperanto sentence that contains the answer word",
+			answer: "correct Esperanto word, exactly as it appears in sentence",
+			choices: ["correct", "wrong", "wrong"],
+		},
 		instructions:
 			"Use exactly three fill choices, using only words and facts from the story. " +
 			"The fill sentence must be one complete, natural Esperanto sentence containing the answer word written exactly as in `answer` — the app carves the blank out of it itself, so write a normal sentence and do not pre-split it or omit the word.",
@@ -137,8 +143,11 @@ const fillMissingWordSpec: RecapExerciseSpec<StoryRecapFillMissingWordExercise> 
 	};
 
 const storyQuestionSpec: RecapExerciseSpec<StoryRecapQuestionExercise> = {
-	shape:
-		'{"question":"Simple English question about the story","answer":"correct answer","choices":["correct","wrong"]}',
+	shape: {
+		question: "Simple English question about the story",
+		answer: "correct answer",
+		choices: ["correct", "wrong"],
+	},
 	instructions:
 		"Use two or three story-question choices, using only facts from the story.",
 	parse(value) {
@@ -175,7 +184,9 @@ const RECAP_EXERCISE_SPECS = [
 
 /** Composes the recap generation prompt from each exercise type's own shape and rules. */
 export function buildStoryRecapPrompt(): string {
-	const shape = `{"exercises":[${RECAP_EXERCISE_SPECS.map((spec) => spec.shape).join(",")}]}`;
+	const shape = JSON.stringify({
+		exercises: RECAP_EXERCISE_SPECS.map((spec) => spec.shape),
+	});
 	const instructions = RECAP_EXERCISE_SPECS.map(
 		(spec) => spec.instructions,
 	).join(" ");

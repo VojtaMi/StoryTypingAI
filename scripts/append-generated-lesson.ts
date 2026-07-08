@@ -1,11 +1,18 @@
+import { execFile } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
+import { promisify } from "node:util";
 import {
 	getLessonBricks,
-	parseGeneratedLessonFromBricks,
+	parseGeneratedLesson,
 } from "../src/lessons/lessonGeneration.ts";
+import { generatedLessons } from "../src/lessons/predefined/generatedLessons.ts";
+import { lessons } from "../src/lessons/predefined/lessons.ts";
+import type { Lesson } from "../src/lessons/types.ts";
+import { slugify } from "../src/structuredGeneration.ts";
 import { lessonSelectionFromArgs, readArg } from "./lesson-generation-cli.ts";
 
 const GENERATED_LESSONS_PATH = "src/lessons/predefined/generatedLessons.ts";
+const execFileAsync = promisify(execFile);
 
 const args = process.argv.slice(2);
 const selection = lessonSelectionFromArgs(args);
@@ -13,9 +20,10 @@ const inputPath = readArg(args, "--input");
 const jsonText = inputPath
 	? await readFile(inputPath, "utf8")
 	: await readStdin();
-const lesson = parseGeneratedLessonFromBricks(
+const lesson = parseGeneratedLesson(
 	jsonText,
 	getLessonBricks(selection),
+	(title) => `generated-${slugify(title, "lesson")}`,
 );
 
 await appendLesson(lesson);
@@ -35,35 +43,36 @@ async function readStdin(): Promise<string> {
 	return text;
 }
 
-async function appendLesson(lesson: unknown): Promise<void> {
-	const content = await readFile(GENERATED_LESSONS_PATH, "utf8");
-	const lessonLiteral = indent(JSON.stringify(lesson, null, "\t"), "\t");
-
-	if (/export const generatedLessons: Lesson\[\] = \[\s*\];/.test(content)) {
-		await writeFile(
-			GENERATED_LESSONS_PATH,
-			content.replace(
-				/export const generatedLessons: Lesson\[\] = \[\s*\];/,
-				`export const generatedLessons: Lesson[] = [\n${lessonLiteral}\n];`,
-			),
-			"utf8",
+async function appendLesson(lesson: Lesson): Promise<void> {
+	const generatedIds = new Set(generatedLessons.map((item) => item.id));
+	if (generatedIds.has(lesson.id)) {
+		throw new Error(
+			`Generated lesson id already exists in ${GENERATED_LESSONS_PATH}: ${lesson.id}`,
 		);
-		return;
 	}
 
-	const marker = "\n];";
-	const markerIndex = content.lastIndexOf(marker);
-	if (markerIndex < 0) {
-		throw new Error(`${GENERATED_LESSONS_PATH} has an unexpected shape.`);
+	// `lessons` is predefined + generated, and generated ids already threw above.
+	if (lessons.some((item) => item.id === lesson.id)) {
+		throw new Error(
+			`Generated lesson id conflicts with a predefined lesson: ${lesson.id}`,
+		);
 	}
 
-	const nextContent = `${content.slice(0, markerIndex)},\n${lessonLiteral}${content.slice(markerIndex)}`;
-	await writeFile(GENERATED_LESSONS_PATH, nextContent, "utf8");
-}
-
-function indent(value: string, prefix: string): string {
-	return value
-		.split("\n")
-		.map((line) => `${prefix}${line}`)
-		.join("\n");
+	const allLessons = [...generatedLessons, lesson];
+	await writeFile(
+		GENERATED_LESSONS_PATH,
+		[
+			'import type { Lesson } from "../types";',
+			"",
+			`export const generatedLessons: Lesson[] = ${JSON.stringify(allLessons, null, "\t")};`,
+			"",
+		].join("\n"),
+		"utf8",
+	);
+	await execFileAsync("npx", [
+		"biome",
+		"check",
+		"--write",
+		GENERATED_LESSONS_PATH,
+	]);
 }

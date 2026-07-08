@@ -147,6 +147,6 @@ function geminiImageModel(value: string): GeminiImageModel {
 	process.exit(1);
 }
 
-function modelSlug(model: GeminiImageModel) {
+function modelSlug(model: string) {
 	return model === "gemini-3.1-flash-lite-image" ? "gemini_lite" : "gemini";
 }

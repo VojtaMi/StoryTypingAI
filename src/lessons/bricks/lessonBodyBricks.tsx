@@ -146,8 +146,16 @@ export function lessonBodyBlocks(lesson: Lesson): LessonBodyBlock[] {
 
 const vocabularyBrick: LessonBodyBrickSpec<LessonVocabularyBlock> = {
 	generation: {
-		shape:
-			'{"words":[{"term":"Esperanto word","meaning":"English meaning","partOfSpeech":"noun | verb | adjective | adverb | pronoun | phrase","example":"Short Esperanto example using the word"}]}',
+		shape: {
+			words: [
+				{
+					term: "Esperanto word",
+					meaning: "English meaning",
+					partOfSpeech: "noun | verb | adjective | adverb | pronoun | phrase",
+					example: "Short Esperanto example using the word",
+				},
+			],
+		},
 		instructions:
 			"Introduce three to six canonical vocabulary items for the lesson. " +
 			"Use target words when provided. Each example must be simple Esperanto that a learner at this level can understand.",
@@ -211,8 +219,11 @@ const vocabularyBrick: LessonBodyBrickSpec<LessonVocabularyBlock> = {
 
 const grammarBrick: LessonBodyBrickSpec<LessonGrammarBlock> = {
 	generation: {
-		shape:
-			'{"title":"Grammar point title","explanation":"Plain-English explanation","examples":["Short Esperanto example"]}',
+		shape: {
+			title: "Grammar point title",
+			explanation: "Plain-English explanation",
+			examples: ["Short Esperanto example"],
+		},
 		instructions:
 			"Teach one compact grammar or usage point that helps with the introduced words and story. " +
 			"Use one short English explanation. Include one to three short Esperanto examples. Put Esperanto forms in backticks when naming them.",
@@ -299,8 +310,12 @@ const patternsBrick: LessonBodyBrickSpec<LessonPatternsBlock> = {
 
 const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
 	generation: {
-		shape:
-			'{"sentences":["Short Esperanto sentence using introduced words","Another short Esperanto sentence"]}',
+		shape: {
+			sentences: [
+				"Short Esperanto sentence using introduced words",
+				"Another short Esperanto sentence",
+			],
+		},
 		instructions:
 			"Write a tiny two to five sentence Esperanto practice story. " +
 			"Use mostly the introduced words and very basic known words. Do not include English in the story.",
@@ -346,8 +361,13 @@ const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
 
 const teachingBrick: LessonBodyBrickSpec<LessonTeachingSection> = {
 	generation: {
-		shape:
-			'{"title":"Teaching point title","body":["Plain-English explanation paragraph","Optional second paragraph"]}',
+		shape: {
+			title: "Teaching point title",
+			body: [
+				"Plain-English explanation paragraph",
+				"Optional second paragraph",
+			],
+		},
 		instructions:
 			"Give a short learner-facing overview of the lesson theme, context, or communication goal. " +
 			"Use one or two short English paragraphs. Do not introduce a second standalone grammar rule; leave grammar mechanics to the grammar brick.",
@@ -410,11 +430,15 @@ export function describeLessonBodyBlock(block: LessonBodyBlock): string {
 	return brickFor(block).toBotContext(block);
 }
 
+export const LESSON_GENERATABLE_BODY_BRICK_TYPES = [
+	"vocabulary",
+	"grammar",
+	"overview",
+	"story",
+] as const;
+
 export type LessonGeneratableBodyBrickType =
-	| "vocabulary"
-	| "grammar"
-	| "overview"
-	| "story";
+	(typeof LESSON_GENERATABLE_BODY_BRICK_TYPES)[number];
 
 export function lessonBodyGenerationSpec(
 	type: LessonGeneratableBodyBrickType,

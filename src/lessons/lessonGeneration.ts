@@ -1,4 +1,8 @@
-import { isObject, requiredString, slugify } from "../structuredGeneration";
+import {
+	type GenerationSpec,
+	isObject,
+	requiredString,
+} from "../structuredGeneration";
 import {
 	exerciseGenerationSpec,
 	type LessonGeneratableExerciseBrickType,
@@ -11,29 +15,25 @@ import {
 import type {
 	IntroducedWord,
 	Lesson,
+	LessonExercise,
 	LessonLevel,
 	LessonTeachingSection,
 } from "./types";
 
-type LessonGenerationBrickKind = "body" | "exercise";
-
-export interface LessonGenerationBrick<
-	TType extends string = string,
-	TKind extends LessonGenerationBrickKind = LessonGenerationBrickKind,
-> {
-	kind: TKind;
+export interface LessonGenerationBrick<T, TType extends string = string>
+	extends GenerationSpec<T> {
 	type: TType;
-	description: string;
-	shape: unknown;
-	instructions: string;
 }
 
 export interface LessonGenerationBricks {
 	level: LessonLevel;
-	body: LessonGenerationBrick<LessonGeneratableBodyBrickType, "body">[];
+	body: LessonGenerationBrick<
+		LessonBodyBlock,
+		LessonGeneratableBodyBrickType
+	>[];
 	exercises: LessonGenerationBrick<
-		LessonGeneratableExerciseBrickType,
-		"exercise"
+		LessonExercise,
+		LessonGeneratableExerciseBrickType
 	>[];
 }
 
@@ -57,36 +57,22 @@ export function getLessonBricks(
 		body: selection.body.map((type) => {
 			const spec = lessonBodyGenerationSpec(type);
 			return {
-				kind: "body",
 				type,
-				description: `Lesson body brick: ${type}`,
-				shape: parseSpecShape(spec.shape),
-				instructions: spec.instructions,
+				...spec,
 			};
 		}),
 		exercises: selection.exercises.map((type) => {
 			const spec = exerciseGenerationSpec(type);
 			return {
-				kind: "exercise",
 				type,
-				description: `Lesson exercise brick: ${type}`,
-				shape: parseSpecShape(spec.shape),
-				instructions: spec.instructions,
+				...spec,
 			};
 		}),
 	};
 }
 
 /** Composes the lesson generation prompt from each selected brick's own shape and rules. */
-export function buildLessonPrompt(
-	selection: LessonGenerationSelection,
-): string {
-	return buildLessonPromptFromBricks(getLessonBricks(selection));
-}
-
-export function buildLessonPromptFromBricks(
-	bricks: LessonGenerationBricks,
-): string {
+export function buildLessonPrompt(bricks: LessonGenerationBricks): string {
 	const shape = JSON.stringify({
 		title: "Short lesson title",
 		lede: "One-sentence learner-facing summary",
@@ -108,14 +94,8 @@ export function buildLessonPromptFromBricks(
 
 export function parseGeneratedLesson(
 	text: string,
-	selection: LessonGenerationSelection,
-): Lesson {
-	return parseGeneratedLessonFromBricks(text, getLessonBricks(selection));
-}
-
-export function parseGeneratedLessonFromBricks(
-	text: string,
 	bricks: LessonGenerationBricks,
+	lessonId: (title: string) => string,
 ): Lesson {
 	const parsed = JSON.parse(text) as unknown;
 	if (!isObject(parsed)) throw new Error("Lesson JSON was not an object.");
@@ -132,24 +112,24 @@ export function parseGeneratedLessonFromBricks(
 	}
 
 	const bodyBlocks = parsed.body.map((value, index) =>
-		lessonBodyGenerationSpec(bricks.body[index].type).parse(value),
+		bricks.body[index].parse(value),
 	);
 	const exercises = parsed.exercises.map((value, index) =>
-		exerciseGenerationSpec(bricks.exercises[index].type).parse(value),
+		bricks.exercises[index].parse(value),
 	);
-	const introducedWords = selectionRequiresVocabulary(bricks)
+	const introducedWords = bricksRequireVocabulary(bricks)
 		? requiredVocabulary(bodyBlocks)
 		: [];
-	const story = selectionRequiresStory(bricks) ? requiredStory(bodyBlocks) : [];
+	const story = bricksRequireStory(bricks) ? requiredStory(bodyBlocks) : [];
 	const grammarConcepts = bodyBlocks.flatMap((block) =>
 		block.type === "grammar" ? block.concepts : [],
 	);
 	const teachingSections = bodyBlocks.filter(isTeachingSection);
 	const title = requiredString(parsed.title, "lesson title", "Lesson JSON");
-	const lessonId = `generated-${slugify(title, "lesson")}-${Date.now()}`;
+	const id = lessonId(title);
 
 	return {
-		id: lessonId,
+		id,
 		title,
 		level: bricks.level,
 		lede: requiredString(parsed.lede, "lesson lede", "Lesson JSON"),
@@ -160,14 +140,10 @@ export function parseGeneratedLessonFromBricks(
 		story,
 		exercises: exercises.map((exercise) => ({
 			...exercise,
-			id: `${lessonId}.${exercise.id}`,
+			id: `${id}.${exercise.id}`,
 		})),
 		resources: [],
 	};
-}
-
-function parseSpecShape(shape: string): unknown {
-	return JSON.parse(shape) as unknown;
 }
 
 function requiredVocabulary(blocks: LessonBodyBlock[]): IntroducedWord[] {
@@ -186,14 +162,14 @@ function requiredStory(blocks: LessonBodyBlock[]): string[] {
 	return storyBlock.sentences ?? [storyBlock.text];
 }
 
-function selectionRequiresVocabulary(bricks: LessonGenerationBricks) {
+function bricksRequireVocabulary(bricks: LessonGenerationBricks) {
 	return (
 		bricks.body.some((brick) => brick.type === "vocabulary") ||
 		bricks.exercises.some((brick) => brick.type === "word-match")
 	);
 }
 
-function selectionRequiresStory(bricks: LessonGenerationBricks) {
+function bricksRequireStory(bricks: LessonGenerationBricks) {
 	return (
 		bricks.body.some((brick) => brick.type === "story") ||
 		bricks.exercises.some((brick) => brick.type === "typing-story")

@@ -1,8 +1,10 @@
 import {
 	buildLessonPrompt,
 	DEFAULT_LESSON_GENERATION_SELECTION,
+	getLessonBricks,
 	parseGeneratedLesson,
 } from "../src/lessons/lessonGeneration.ts";
+import { slugify } from "../src/structuredGeneration.ts";
 
 const sampleResponse = JSON.stringify({
 	title: "Kato en domo",
@@ -42,10 +44,12 @@ const sampleResponse = JSON.stringify({
 	exercises: [{}, {}],
 });
 
+const bricks = getLessonBricks(DEFAULT_LESSON_GENERATION_SELECTION);
 const lesson = parseGeneratedLesson(
 	sampleResponse,
-	DEFAULT_LESSON_GENERATION_SELECTION,
+	bricks,
+	(title) => `generated-${slugify(title, "lesson")}`,
 );
 
-console.log(buildLessonPrompt(DEFAULT_LESSON_GENERATION_SELECTION));
+console.log(buildLessonPrompt(bricks));
 console.log(JSON.stringify(lesson, null, 2));

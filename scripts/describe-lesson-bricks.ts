@@ -1,5 +1,5 @@
 import {
-	buildLessonPromptFromBricks,
+	buildLessonPrompt,
 	getLessonBricks,
 } from "../src/lessons/lessonGeneration.ts";
 import {
@@ -20,8 +20,7 @@ console.log(
 			selection,
 			goal,
 			curriculum,
-			bricks,
-			prompt: buildLessonPromptFromBricks(bricks),
+			prompt: buildLessonPrompt(bricks),
 		},
 		null,
 		2,

@@ -52,7 +52,7 @@ export function wordsForWordMatch(
 
 const wordMatchBrick: ExerciseBrickSpec<WordMatchLessonExercise> = {
 	generation: {
-		shape: "{}",
+		shape: {},
 		instructions:
 			"Do not generate word-match card data. The app derives the word-match exercise from the lesson's canonical introducedWords.",
 		parse(value) {
@@ -115,7 +115,7 @@ const phraseBuilderBrick: ExerciseBrickSpec<PhraseBuilderLessonExercise> = {
 
 const typingStoryBrick: ExerciseBrickSpec<TypingStoryLessonExercise> = {
 	generation: {
-		shape: "{}",
+		shape: {},
 		instructions:
 			"Do not generate typing text. The app derives the typing exercise from the lesson's canonical story.",
 		parse(value) {
@@ -184,7 +184,13 @@ export function exerciseOfType<T extends LessonExercise["type"]>(
 	return found as Extract<LessonExercise, { type: T }>;
 }
 
-export type LessonGeneratableExerciseBrickType = "word-match" | "typing-story";
+export const LESSON_GENERATABLE_EXERCISE_BRICK_TYPES = [
+	"word-match",
+	"typing-story",
+] as const;
+
+export type LessonGeneratableExerciseBrickType =
+	(typeof LESSON_GENERATABLE_EXERCISE_BRICK_TYPES)[number];
 
 export function exerciseGenerationSpec(
 	type: LessonGeneratableExerciseBrickType,

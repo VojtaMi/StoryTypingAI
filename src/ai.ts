@@ -1,11 +1,11 @@
 import type { Genre, GenreId } from "./genres";
 import type { LearnerContext } from "./learnerContext";
 import {
-	buildLessonPromptFromBricks,
+	buildLessonPrompt,
 	DEFAULT_LESSON_GENERATION_SELECTION,
 	getLessonBricks,
 	type LessonGenerationSelection,
-	parseGeneratedLessonFromBricks,
+	parseGeneratedLesson,
 } from "./lessons/lessonGeneration";
 import type { Lesson, LessonLevel } from "./lessons/types";
 import {
@@ -33,6 +33,7 @@ import {
 	type StoryRecapExerciseResult,
 	type StoryRecapLesson,
 } from "./storyRecap";
+import { slugify } from "./structuredGeneration";
 
 export type { ChatMessage, ReadingStoryFrame, StoryMemory };
 
@@ -356,7 +357,7 @@ export async function generateLesson(
 	const bricks = getLessonBricks(selection);
 	const text = await complete(
 		[
-			{ role: "system", content: buildLessonPromptFromBricks(bricks) },
+			{ role: "system", content: buildLessonPrompt(bricks) },
 			{
 				role: "user",
 				content: [
@@ -376,7 +377,11 @@ export async function generateLesson(
 		model,
 		LESSON_GENERATION_MAX_TOKENS,
 	);
-	return parseGeneratedLessonFromBricks(text, bricks);
+	return parseGeneratedLesson(
+		text,
+		bricks,
+		(title) => `generated-${slugify(title, "lesson")}-${Date.now()}`,
+	);
 }
 
 export async function continueStoryStream(
