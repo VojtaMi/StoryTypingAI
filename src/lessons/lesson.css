@@ -1,11 +1,14 @@
 /* ---- Lesson intro: full-page reading document ---- */
+.lesson-theme,
 .lesson-page {
 	--lesson-ink: #221c14;
 	--lesson-soft: #5a5147;
 	--lesson-faint: #8a8174;
 	--lesson-accent: #b04a32;
 	--lesson-rule: rgba(34, 28, 20, 0.14);
+}
 
+.lesson-page {
 	min-height: 100vh;
 	display: flex;
 	justify-content: center;

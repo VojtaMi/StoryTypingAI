@@ -150,7 +150,7 @@ function BodyBrickCard({
 	return (
 		<article className="brick-gallery__brick">
 			<BrickHeader specName={block.type} keys={group.keys} kind={kind} />
-			<div className="brick-gallery__preview brick-gallery__preview--body">
+			<div className="brick-gallery__preview brick-gallery__preview--body lesson-theme">
 				<article className="lesson-doc" aria-label={`${block.title} preview`}>
 					<section className="lesson-doc__section">
 						<h2 className="lesson-doc__heading">{block.title}</h2>
