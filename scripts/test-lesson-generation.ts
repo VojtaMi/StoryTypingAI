@@ -41,14 +41,11 @@ const sampleResponse = JSON.stringify({
 			sentences: ["Kato estas en domo.", "Domo estas granda."],
 		},
 	],
-	exercises: [{}, {}],
 });
 
 const bricks = getLessonBricks(DEFAULT_LESSON_GENERATION_SELECTION);
-const lesson = parseGeneratedLesson(
-	sampleResponse,
-	bricks,
-	(title) => `generated-${slugify(title, "lesson")}`,
+const lesson = parseGeneratedLesson(sampleResponse, bricks, (title) =>
+	slugify(title, "lesson"),
 );
 
 console.log(buildLessonPrompt(bricks));

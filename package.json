@@ -20,7 +20,7 @@
 		"gemini:images": "tsx --env-file-if-exists=.env.local scripts/compare-gemini-images.ts",
 		"gemini:tts": "tsx --env-file-if-exists=.env.local scripts/test-gemini-tts.ts",
 		"gemini:tts:compare": "tsx --env-file-if-exists=.env.local scripts/compare-gemini-tts.ts",
-		"lesson:generation:append": "node --import ./scripts/register-css-loader.mjs --import tsx scripts/append-generated-lesson.ts",
+		"lesson:generation:append": "node --import ./scripts/register-css-loader.mjs --import tsx scripts/append-authored-lesson.ts",
 		"lesson:generation:bricks": "node --import ./scripts/register-css-loader.mjs --import tsx scripts/describe-lesson-bricks.ts",
 		"lesson:generation:test": "node --import ./scripts/register-css-loader.mjs --import tsx scripts/test-lesson-generation.ts",
 		"model:compare": "tsx --env-file-if-exists=.env.local scripts/compare-text-models.ts",

@@ -5,25 +5,35 @@ import {
 	getLessonBricks,
 	parseGeneratedLesson,
 } from "../src/lessons/lessonGeneration.ts";
-import { generatedLessons } from "../src/lessons/predefined/generatedLessons.ts";
+import { authoredLessons } from "../src/lessons/predefined/authoredLessons.ts";
 import { lessons } from "../src/lessons/predefined/lessons.ts";
 import type { Lesson } from "../src/lessons/types.ts";
 import { slugify } from "../src/structuredGeneration.ts";
 import { lessonSelectionFromArgs, readArg } from "./lesson-generation-cli.ts";
 
-const GENERATED_LESSONS_PATH = "src/lessons/predefined/generatedLessons.ts";
+const AUTHORED_LESSONS_PATH = "src/lessons/predefined/authoredLessons.ts";
+const FILE_HEADER = [
+	'import type { Lesson } from "../types";',
+	"",
+	"/**",
+	" * Curriculum lessons authored with AI help via `npm run lesson:generation:append`.",
+	" * They are ordinary predefined lessons — the script only automates writing them",
+	" * down. Lessons the app generates for a learner at runtime never land here.",
+	" */",
+];
 const execFileAsync = promisify(execFile);
 
 const args = process.argv.slice(2);
 const selection = lessonSelectionFromArgs(args);
 const inputPath = readArg(args, "--input");
+const explicitId = readArg(args, "--id");
 const jsonText = inputPath
 	? await readFile(inputPath, "utf8")
 	: await readStdin();
 const lesson = parseGeneratedLesson(
 	jsonText,
 	getLessonBricks(selection),
-	(title) => `generated-${slugify(title, "lesson")}`,
+	(title) => explicitId ?? slugify(title, "lesson"),
 );
 
 await appendLesson(lesson);
@@ -44,27 +54,20 @@ async function readStdin(): Promise<string> {
 }
 
 async function appendLesson(lesson: Lesson): Promise<void> {
-	const generatedIds = new Set(generatedLessons.map((item) => item.id));
-	if (generatedIds.has(lesson.id)) {
-		throw new Error(
-			`Generated lesson id already exists in ${GENERATED_LESSONS_PATH}: ${lesson.id}`,
-		);
-	}
-
-	// `lessons` is predefined + generated, and generated ids already threw above.
+	// `lessons` already contains the authored ones, so this covers both sources.
 	if (lessons.some((item) => item.id === lesson.id)) {
 		throw new Error(
-			`Generated lesson id conflicts with a predefined lesson: ${lesson.id}`,
+			`A lesson with id "${lesson.id}" already exists. ` +
+				"Give the lesson a different title, or pass --id <slug> to disambiguate.",
 		);
 	}
 
-	const allLessons = [...generatedLessons, lesson];
+	const allLessons = [...authoredLessons, lesson];
 	await writeFile(
-		GENERATED_LESSONS_PATH,
+		AUTHORED_LESSONS_PATH,
 		[
-			'import type { Lesson } from "../types";',
-			"",
-			`export const generatedLessons: Lesson[] = ${JSON.stringify(allLessons, null, "\t")};`,
+			...FILE_HEADER,
+			`export const authoredLessons: Lesson[] = ${JSON.stringify(allLessons, null, "\t")};`,
 			"",
 		].join("\n"),
 		"utf8",
@@ -73,6 +76,6 @@ async function appendLesson(lesson: Lesson): Promise<void> {
 		"biome",
 		"check",
 		"--write",
-		GENERATED_LESSONS_PATH,
+		AUTHORED_LESSONS_PATH,
 	]);
 }

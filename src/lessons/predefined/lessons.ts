@@ -1,7 +1,7 @@
 import type { Lesson } from "../types";
-import { generatedLessons } from "./generatedLessons";
+import { authoredLessons } from "./authoredLessons";
 
-const predefinedLessons: Lesson[] = [
+const handWrittenLessons: Lesson[] = [
 	{
 		id: "hundo-estas-besto",
 		title: "Hundo estas besto",
@@ -372,7 +372,8 @@ const predefinedLessons: Lesson[] = [
 	},
 ];
 
-export const lessons: Lesson[] = [...predefinedLessons, ...generatedLessons];
+/** Authored lessons append after the hand-written ones, so the indices below stay put. */
+export const lessons: Lesson[] = [...handWrittenLessons, ...authoredLessons];
 
 /** The lesson the curriculum-guided path starts with in V1. */
 export const firstLesson = lessons[0];

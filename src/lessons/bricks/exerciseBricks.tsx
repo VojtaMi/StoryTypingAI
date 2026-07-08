@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { type GenerationSpec, isObject } from "../../structuredGeneration";
 import { lessonStoryText, lessonVocab } from "../lessonContent";
 import LessonTypingExercise from "../templates/LessonTypingExercise";
 import PhraseBuilderExercise from "../templates/PhraseBuilderExercise";
@@ -33,10 +32,18 @@ export interface ExerciseBrickCtx {
  * Same contract shape as the teaching bricks; adding an exercise type means
  * adding one spec here rather than another inline block in App.tsx.
  */
+/**
+ * Generatable exercises are derived from the lesson's canonical body, never
+ * authored by the model, so a brick only needs to say how to build itself.
+ */
+interface ExerciseDerivationSpec {
+	create(): LessonExercise;
+}
+
 interface ExerciseBrickSpec<T extends LessonExercise> {
 	render(exercise: T, ctx: ExerciseBrickCtx): ReactNode;
 	toBotContext(exercise: T, lesson: Lesson): string;
-	generation?: GenerationSpec<LessonExercise>;
+	generation?: ExerciseDerivationSpec;
 }
 
 /** A word-match brick shows either its named subset of the lesson's words, or all of them. */
@@ -52,13 +59,7 @@ export function wordsForWordMatch(
 
 const wordMatchBrick: ExerciseBrickSpec<WordMatchLessonExercise> = {
 	generation: {
-		shape: {},
-		instructions:
-			"Do not generate word-match card data. The app derives the word-match exercise from the lesson's canonical introducedWords.",
-		parse(value) {
-			if (!isObject(value)) {
-				throw new Error("Generated word-match exercise must be an object.");
-			}
+		create() {
 			return {
 				id: "word-match",
 				type: "word-match",
@@ -115,13 +116,7 @@ const phraseBuilderBrick: ExerciseBrickSpec<PhraseBuilderLessonExercise> = {
 
 const typingStoryBrick: ExerciseBrickSpec<TypingStoryLessonExercise> = {
 	generation: {
-		shape: {},
-		instructions:
-			"Do not generate typing text. The app derives the typing exercise from the lesson's canonical story.",
-		parse(value) {
-			if (!isObject(value)) {
-				throw new Error("Generated typing exercise must be an object.");
-			}
+		create() {
 			return {
 				id: "typing",
 				type: "typing-story",
@@ -192,10 +187,10 @@ export const LESSON_GENERATABLE_EXERCISE_BRICK_TYPES = [
 export type LessonGeneratableExerciseBrickType =
 	(typeof LESSON_GENERATABLE_EXERCISE_BRICK_TYPES)[number];
 
-export function exerciseGenerationSpec(
+export function exerciseDerivationSpec(
 	type: LessonGeneratableExerciseBrickType,
-): GenerationSpec<LessonExercise> {
+): ExerciseDerivationSpec {
 	const generation = EXERCISE_BRICKS[type].generation;
 	if (!generation) throw new Error(`${type} cannot generate lesson content.`);
-	return generation as GenerationSpec<LessonExercise>;
+	return generation;
 }

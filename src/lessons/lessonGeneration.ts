@@ -4,7 +4,7 @@ import {
 	requiredString,
 } from "../structuredGeneration";
 import {
-	exerciseGenerationSpec,
+	exerciseDerivationSpec,
 	type LessonGeneratableExerciseBrickType,
 } from "./bricks/exerciseBricks";
 import {
@@ -20,21 +20,22 @@ import type {
 	LessonTeachingSection,
 } from "./types";
 
-export interface LessonGenerationBrick<T, TType extends string = string>
-	extends GenerationSpec<T> {
-	type: TType;
+/** A body brick is the only thing the model authors, so it carries the full spec. */
+export interface LessonBodyGenerationBrick
+	extends GenerationSpec<LessonBodyBlock> {
+	type: LessonGeneratableBodyBrickType;
+}
+
+/** Exercises are derived from the parsed body; the model is never asked for them. */
+export interface LessonExerciseDerivationBrick {
+	type: LessonGeneratableExerciseBrickType;
+	create(): LessonExercise;
 }
 
 export interface LessonGenerationBricks {
 	level: LessonLevel;
-	body: LessonGenerationBrick<
-		LessonBodyBlock,
-		LessonGeneratableBodyBrickType
-	>[];
-	exercises: LessonGenerationBrick<
-		LessonExercise,
-		LessonGeneratableExerciseBrickType
-	>[];
+	body: LessonBodyGenerationBrick[];
+	exercises: LessonExerciseDerivationBrick[];
 }
 
 export interface LessonGenerationSelection {
@@ -62,7 +63,7 @@ export function getLessonBricks(
 			};
 		}),
 		exercises: selection.exercises.map((type) => {
-			const spec = exerciseGenerationSpec(type);
+			const spec = exerciseDerivationSpec(type);
 			return {
 				type,
 				...spec,
@@ -71,17 +72,14 @@ export function getLessonBricks(
 	};
 }
 
-/** Composes the lesson generation prompt from each selected brick's own shape and rules. */
+/** Composes the lesson generation prompt from each selected body brick's own shape and rules. */
 export function buildLessonPrompt(bricks: LessonGenerationBricks): string {
 	const shape = JSON.stringify({
 		title: "Short lesson title",
 		lede: "One-sentence learner-facing summary",
 		body: bricks.body.map((brick) => brick.shape),
-		exercises: bricks.exercises.map((brick) => brick.shape),
 	});
-	const instructions = [...bricks.body, ...bricks.exercises]
-		.map((brick) => brick.instructions)
-		.join(" ");
+	const instructions = bricks.body.map((brick) => brick.instructions).join(" ");
 	return (
 		`Create a small Esperanto lesson for a ${bricks.level} learner. ` +
 		"Return only valid JSON with this exact shape: " +
@@ -101,22 +99,14 @@ export function parseGeneratedLesson(
 	if (!isObject(parsed)) throw new Error("Lesson JSON was not an object.");
 	if (!Array.isArray(parsed.body))
 		throw new Error("Lesson JSON is missing body.");
-	if (!Array.isArray(parsed.exercises)) {
-		throw new Error("Lesson JSON is missing exercises.");
-	}
 	if (parsed.body.length !== bricks.body.length) {
 		throw new Error("Lesson JSON body does not match the selected bricks.");
-	}
-	if (parsed.exercises.length !== bricks.exercises.length) {
-		throw new Error("Lesson JSON exercises do not match the selected bricks.");
 	}
 
 	const bodyBlocks = parsed.body.map((value, index) =>
 		bricks.body[index].parse(value),
 	);
-	const exercises = parsed.exercises.map((value, index) =>
-		bricks.exercises[index].parse(value),
-	);
+	const exercises = bricks.exercises.map((brick) => brick.create());
 	const introducedWords = bricksRequireVocabulary(bricks)
 		? requiredVocabulary(bodyBlocks)
 		: [];
