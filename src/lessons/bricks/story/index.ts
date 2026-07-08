@@ -1,16 +1,10 @@
 import { createElement } from "react";
 import { isObject, requiredString } from "../../../structuredGeneration";
+import type { LessonStoryBlock } from "../../types";
 import type { LessonBodyBrickSpec } from "../contracts";
-import { StoryBlock } from "./StoryBlock";
+import { StoryBlock, storyBlockText } from "./StoryBlock";
 
-export interface LessonStoryBlock {
-	id: string;
-	type: "story";
-	title: string;
-	intro: string;
-	text: string;
-	sentences?: string[];
-}
+export type { LessonStoryBlock } from "../../types";
 
 export const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
 	example: {
@@ -18,7 +12,6 @@ export const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
 		type: "story",
 		title: "Your story",
 		intro: "Read it aloud, then type it from memory on the next screen.",
-		text: "La kato estas en la domo. La domo estas varma.",
 		sentences: ["La kato estas en la domo.", "La domo estas varma."],
 	},
 	generation: {
@@ -51,11 +44,10 @@ export const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
 				type: "story",
 				title: "Your story",
 				intro: "Read it aloud, then type it from memory on the next screen.",
-				text: sentences.join(" "),
 				sentences,
 			};
 		},
 	},
 	render: (block, ctx) => createElement(StoryBlock, { block, ctx }),
-	toBotContext: (block) => block.text,
+	toBotContext: (block) => storyBlockText(block),
 };

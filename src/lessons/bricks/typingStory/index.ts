@@ -20,11 +20,17 @@ export const typingStoryBrick: ExerciseBrickSpec<TypingStoryLessonExercise> = {
 			};
 		},
 	},
+	assertRenderable(_exercise, lesson) {
+		if (!lessonStoryText(lesson)) {
+			throw new Error(`Lesson ${lesson.id} types a story it does not have.`);
+		}
+	},
 	render: (exercise, ctx) =>
 		createElement(LessonTypingExercise, {
 			lessonId: ctx.lessonId,
 			text: lessonStoryText(ctx.lesson),
 			imageUrl: exercise.imageUrl ?? DEFAULT_TYPING_IMAGE,
+			imageAlt: ctx.lesson.storyImagePrompt,
 			backgroundIntro: ctx.backgroundIntro,
 			onComplete: ctx.onComplete,
 			onBack: ctx.onBack,

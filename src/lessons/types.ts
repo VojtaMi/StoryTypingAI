@@ -16,7 +16,8 @@ export interface GrammarConcept {
 
 export interface LessonPattern {
 	id: string;
-	title: string;
+	/** Only when it says something the slots do not. `la + noun` names itself. */
+	title?: string;
 	slots: string[];
 	examples: string[];
 }
@@ -67,6 +68,57 @@ export type LessonTeachingSection =
 	| LessonColorTableSection
 	| LessonExamplesSection;
 
+export interface LessonVocabularyBlock {
+	id: string;
+	type: "vocabulary";
+	title: string;
+	words: IntroducedWord[];
+}
+
+export interface LessonGrammarBlock {
+	id: string;
+	type: "grammar";
+	title: string;
+	concepts: GrammarConcept[];
+}
+
+export interface LessonPatternsBlock {
+	id: string;
+	type: "patterns";
+	title: string;
+	patterns: LessonPattern[];
+}
+
+export interface LessonStoryBlock {
+	id: string;
+	type: "story";
+	title: string;
+	intro: string;
+	sentences: string[];
+}
+
+export interface LessonResourcesBlock {
+	id: string;
+	type: "resources";
+	title: string;
+	resources: LessonResource[];
+}
+
+/**
+ * Every shape the lesson doc can render, keyed by `type`. Declared here rather
+ * than in `bricks/registry.ts` (where the registry that consumes it lives)
+ * because `types.ts` is imported by every script, and `registry.ts` reaches
+ * React components, the chat modal, and CSS side-effects. `LessonExercise`
+ * below is the same arrangement.
+ */
+export type LessonBodyBlock =
+	| LessonTeachingSection
+	| LessonVocabularyBlock
+	| LessonGrammarBlock
+	| LessonPatternsBlock
+	| LessonStoryBlock
+	| LessonResourcesBlock;
+
 export interface WordMatchLessonExercise {
 	id: string;
 	type: "word-match";
@@ -99,19 +151,30 @@ export interface TypingStoryLessonExercise {
 	imageUrl?: string;
 }
 
+/**
+ * Prompts are not stored: they are carved out of `IntroducedWord.example` at
+ * render time by `promptsForFillBlank`, so the blank can never disagree with
+ * the vocabulary it tests. `wordTerms` narrows which words are drilled.
+ */
+export interface FillBlankLessonExercise {
+	id: string;
+	type: "fill-blank";
+	title?: string;
+	hint?: string;
+	wordTerms?: string[];
+	completeLabel?: string;
+}
+
 export type LessonExercise =
 	| WordMatchLessonExercise
 	| PhraseBuilderLessonExercise
+	| FillBlankLessonExercise
 	| TypingStoryLessonExercise;
 
-export interface LessonResource {
-	type: "link" | "note";
-	title: string;
-	/** For type "link" */
-	url?: string;
-	/** For type "note" */
-	content?: string;
-}
+/** A link without a URL, or a note without content, must fail to compile. */
+export type LessonResource =
+	| { type: "link"; title: string; url: string }
+	| { type: "note"; title: string; content: string };
 
 export interface Lesson {
 	id: string;

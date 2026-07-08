@@ -1,5 +1,5 @@
+import type { LessonGrammarBlock } from "../../types";
 import { renderWithCode } from "../teaching/TeachingBrick";
-import type { LessonGrammarBlock } from "./index";
 
 export function GrammarBlock({ block }: { block: LessonGrammarBlock }) {
 	return block.concepts.map((concept) => (

@@ -76,49 +76,49 @@ const handWrittenLessons: Lesson[] = [
 				term: "mi",
 				meaning: "I / me",
 				partOfSpeech: "pronoun",
-				example: "Mi.",
+				example: "Mi estas homo.",
 			},
 			{
 				term: "mia",
 				meaning: "my",
 				partOfSpeech: "possessive",
-				example: "Mia ĉambro.",
+				example: "Mia ĉambro estas blua.",
 			},
 			{
 				term: "vi",
 				meaning: "you",
 				partOfSpeech: "pronoun",
-				example: "Vi.",
+				example: "Vi estas homo.",
 			},
 			{
 				term: "via",
 				meaning: "your",
 				partOfSpeech: "possessive",
-				example: "Via ĉambro.",
+				example: "Via aŭto estas blua.",
 			},
 			{
 				term: "nia",
 				meaning: "our",
 				partOfSpeech: "possessive",
-				example: "Nia ĝardeno.",
+				example: "Nia hundo estas bruna.",
 			},
 			{
 				term: "bruna",
 				meaning: "brown",
 				partOfSpeech: "adjective",
-				example: "Bruna hundo.",
+				example: "La hundo estas bruna.",
 			},
 			{
 				term: "blua",
 				meaning: "blue",
 				partOfSpeech: "adjective",
-				example: "Blua aŭto.",
+				example: "La aŭto estas blua.",
 			},
 			{
 				term: "blanka",
 				meaning: "white",
 				partOfSpeech: "adjective",
-				example: "Blanka ŝipo.",
+				example: "Nia ŝipo estas blanka.",
 			},
 		],
 		grammarConcepts: [
@@ -128,12 +128,6 @@ const handWrittenLessons: Lesson[] = [
 				explanation:
 					"An adjective can describe a noun. In these first patterns, the adjective comes before the noun: `bruna hundo`.",
 				examples: ["bruna hundo", "blua aŭto", "blanka ŝipo"],
-			},
-			{
-				id: "mi-mia-nia",
-				title: "mi, mia, nia",
-				explanation: "`mi` means I or me. `mia` means my. `nia` means our.",
-				examples: ["mia ĉambro", "nia ĝardeno"],
 			},
 		],
 		teachingSections: [
@@ -196,19 +190,16 @@ const handWrittenLessons: Lesson[] = [
 		patterns: [
 			{
 				id: "adjective-noun",
-				title: "Adjective + noun",
 				slots: ["adjective", "noun"],
 				examples: ["bruna hundo", "blua aŭto", "blanka ŝipo"],
 			},
 			{
 				id: "possessive-noun",
-				title: "Possessive + noun",
 				slots: ["possessive", "noun"],
 				examples: ["mia ĉambro", "via ĉambro", "nia ĝardeno"],
 			},
 			{
 				id: "possessive-adjective-noun",
-				title: "Possessive + adjective + noun",
 				slots: ["possessive", "adjective", "noun"],
 				examples: ["nia blanka ŝipo"],
 			},
@@ -297,6 +288,29 @@ const handWrittenLessons: Lesson[] = [
 				partOfSpeech: "noun",
 				example: "Mia nomo estas Ana.",
 			},
+			{
+				term: "li",
+				meaning: "he",
+				partOfSpeech: "pronoun",
+				example: "Li estas homo.",
+			},
+			{
+				term: "ŝi",
+				meaning: "she",
+				partOfSpeech: "pronoun",
+				example: "Ŝi estas homo.",
+			},
+		],
+		teachingSections: [
+			{
+				id: "meeting-people",
+				type: "overview",
+				title: "Talking about people",
+				body: [
+					"So far every sentence has been about a thing. This lesson is about people: who someone is, and what they are called.",
+					"You already know `estas`. Everything here reuses it — only the words in front of and behind it change.",
+				],
+			},
 		],
 		grammarConcepts: [
 			{
@@ -324,19 +338,17 @@ const handWrittenLessons: Lesson[] = [
 		patterns: [
 			{
 				id: "la-noun",
-				title: "la + noun",
 				slots: ["la", "noun"],
 				examples: ["la homo", "la kato", "la nomo"],
 			},
 			{
 				id: "pronoun-estas-noun",
-				title: "Pronoun + estas + noun",
 				slots: ["pronoun", "estas", "noun"],
 				examples: ["Mi estas homo.", "Li estas homo.", "Ŝi estas homo."],
 			},
 			{
 				id: "nomo-estas-name",
-				title: "Name sentences",
+				title: "Saying a name",
 				slots: ["possessive", "nomo", "estas", "name"],
 				examples: ["Mia nomo estas Ana.", "Mia nomo estas Leo."],
 			},
@@ -354,7 +366,43 @@ const handWrittenLessons: Lesson[] = [
 				type: "word-match",
 				title: "Connect the new words",
 				hint: "Match the new people, cat, and name words.",
-				completeLabel: "Continue to Story",
+				completeLabel: "Complete sentences →",
+			},
+			{
+				id: "mi-estas-homo.fill-blank",
+				type: "fill-blank",
+				title: "Complete the sentence",
+				hint: "Choose the word the sentence is missing.",
+				completeLabel: "Build sentences →",
+			},
+			{
+				id: "mi-estas-homo.phrase-builder",
+				type: "phrase-builder",
+				title: "Build the sentences",
+				hint: "Choose the Esperanto tiles in the right order.",
+				completeLabel: "Continue to Story →",
+				// Tiles are spoken on tap through the shared word-audio cache, so
+				// they stay lowercase and stay off proper names.
+				prompts: [
+					{
+						id: "mi-estas-homo",
+						meaning: "I am a person.",
+						answer: ["mi", "estas", "homo"],
+						distractors: ["kato", "besto"],
+					},
+					{
+						id: "si-estas-homo",
+						meaning: "She is a person.",
+						answer: ["ŝi", "estas", "homo"],
+						distractors: ["li", "kato"],
+					},
+					{
+						id: "la-kato-estas-besto",
+						meaning: "The cat is an animal.",
+						answer: ["la", "kato", "estas", "besto"],
+						distractors: ["homo", "mi"],
+					},
+				],
 			},
 			{
 				id: "mi-estas-homo.typing",
@@ -367,6 +415,11 @@ const handWrittenLessons: Lesson[] = [
 				title: "Names and articles",
 				content:
 					"This lesson introduces `la` and subject pronouns through the same `estas` pattern learners already know.",
+			},
+			{
+				type: "link",
+				title: "Lernu! — pronouns and the article",
+				url: "https://lernu.net/en/gramatiko/pronomoj",
 			},
 		],
 	},

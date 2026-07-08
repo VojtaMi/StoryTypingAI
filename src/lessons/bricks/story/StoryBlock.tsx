@@ -1,31 +1,14 @@
+import type { LessonStoryBlock } from "../../types";
 import type { LessonBodyRenderCtx } from "../contracts";
-import type { LessonStoryBlock } from "./index";
+import { SpeakButton } from "../SpeakButton";
 
-function SpeakButton({
-	id,
-	text,
-	ready,
-	playing,
-	onPlay,
-}: {
-	id: string;
-	text: string;
-	ready: boolean;
-	playing: string | null;
-	onPlay: (id: string, text: string) => void;
-}) {
-	const isPlaying = playing === id;
-	return (
-		<button
-			type="button"
-			className={`lesson-speak${isPlaying ? " lesson-speak--active" : ""}${!ready ? " lesson-speak--loading" : ""}`}
-			aria-label={isPlaying ? "Playing..." : `Listen to "${text}"`}
-			onClick={() => onPlay(id, text)}
-			disabled={!ready || (playing !== null && !isPlaying)}
-		>
-			🔊
-		</button>
-	);
+/**
+ * The story as one string. This is also its audio cache key, so it must keep
+ * matching `lessonNarratableTexts(lesson)[0]` — the story is narrated whole,
+ * not per sentence, which would multiply TTS calls by five.
+ */
+export function storyBlockText(block: LessonStoryBlock): string {
+	return block.sentences.join(" ");
 }
 
 export function StoryBlock({
@@ -35,15 +18,22 @@ export function StoryBlock({
 	block: LessonStoryBlock;
 	ctx: LessonBodyRenderCtx;
 }) {
+	const text = storyBlockText(block);
 	return (
 		<>
 			<p className="lesson-doc__paragraph">{block.intro}</p>
 			<blockquote className="lesson-doc__story">
-				{block.text}
+				<span className="lesson-doc__story-lines">
+					{block.sentences.map((sentence) => (
+						<span key={sentence} className="lesson-doc__story-line">
+							{sentence}
+						</span>
+					))}
+				</span>
 				<SpeakButton
 					id="story"
-					text={block.text}
-					ready={ctx.ready.has(block.text)}
+					text={text}
+					ready={ctx.ready.has(text)}
 					playing={ctx.playing}
 					onPlay={ctx.onPlay}
 				/>

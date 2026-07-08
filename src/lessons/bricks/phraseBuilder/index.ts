@@ -20,6 +20,18 @@ export const phraseBuilderBrick: ExerciseBrickSpec<PhraseBuilderLessonExercise> 
 			],
 			completeLabel: "Continue",
 		},
+		assertRenderable(exercise, lesson) {
+			if (exercise.prompts.length === 0) {
+				throw new Error(`Lesson ${lesson.id} phrase-builder has no prompts.`);
+			}
+			for (const prompt of exercise.prompts) {
+				if (prompt.answer.length === 0) {
+					throw new Error(
+						`Lesson ${lesson.id} phrase-builder prompt "${prompt.id}" has no answer.`,
+					);
+				}
+			}
+		},
 		render: (exercise, ctx) =>
 			createElement(PhraseBuilderExercise, {
 				title: exercise.title,

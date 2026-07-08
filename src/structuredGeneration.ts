@@ -5,17 +5,23 @@ export interface GenerationSpec<T> {
 	parse(value: unknown): T;
 }
 
+/**
+ * Carves `word` out of `sentence`, returning the text around it and the surface
+ * form actually matched (`Mi` for the term `mi`). Callers that render the word
+ * back into the sentence need `match`, not a re-derivation from the offsets.
+ */
 export function splitOnWord(
 	sentence: string,
 	word: string,
 	errorMessage = "Generated sentence does not contain the answer word.",
-): { before: string; after: string } {
+): { before: string; match: string; after: string } {
 	const target = word.toLowerCase();
 	const tokenRegex = /\p{L}+/gu;
 	for (const match of sentence.matchAll(tokenRegex)) {
 		if (match[0].toLowerCase() === target) {
 			return {
 				before: sentence.slice(0, match.index),
+				match: match[0],
 				after: sentence.slice(match.index + match[0].length),
 			};
 		}

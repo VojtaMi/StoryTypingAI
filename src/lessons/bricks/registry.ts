@@ -1,6 +1,11 @@
 import type { GenerationSpec } from "../../structuredGeneration";
-import { lessonStoryText, lessonVocab } from "../lessonContent";
-import type { Lesson, LessonExercise, LessonTeachingSection } from "../types";
+import { lessonStory, lessonVocab } from "../lessonContent";
+import type {
+	Lesson,
+	LessonBodyBlock,
+	LessonExercise,
+	LessonTeachingSection,
+} from "../types";
 import type {
 	ExerciseBrickSpec,
 	ExerciseDerivationSpec,
@@ -8,30 +13,24 @@ import type {
 	LessonBodyRenderCtx,
 	LessonGeneratableBodyBrickType,
 } from "./contracts";
-import { grammarBrick, type LessonGrammarBlock } from "./grammar";
-import { type LessonPatternsBlock, patternsBrick } from "./patterns";
+import { fillBlankBrick } from "./fillBlank";
+import { grammarBrick } from "./grammar";
+import { patternsBrick } from "./patterns";
 import { phraseBuilderBrick } from "./phraseBuilder";
-import { type LessonStoryBlock, storyBrick } from "./story";
+import { resourcesBrick } from "./resources";
+import { storyBrick } from "./story";
 import { teachingBrick } from "./teaching";
 import { typingStoryBrick } from "./typingStory";
-import { type LessonVocabularyBlock, vocabularyBrick } from "./vocabulary";
+import { vocabularyBrick } from "./vocabulary";
 import { wordMatchBrick } from "./wordMatch";
 
-export type LessonBodyBlock =
-	| LessonTeachingSection
-	| LessonVocabularyBlock
-	| LessonGrammarBlock
-	| LessonPatternsBlock
-	| LessonStoryBlock;
+export type { LessonBodyBlock } from "../types";
 
-export function lessonBodyBlocks(lesson: Lesson): LessonBodyBlock[] {
-	if ((lesson.teachingSections?.length ?? 0) > 0) {
-		return lesson.teachingSections ?? [];
-	}
-
+/** The blocks a lesson's canonical fields imply, in the order the doc reads. */
+function synthesizedBodyBlocks(lesson: Lesson): LessonBodyBlock[] {
 	const blocks: LessonBodyBlock[] = [];
 	const vocab = lessonVocab(lesson);
-	const storyText = lessonStoryText(lesson);
+	const story = lessonStory(lesson);
 
 	if (vocab.length > 0) {
 		blocks.push({
@@ -60,17 +59,37 @@ export function lessonBodyBlocks(lesson: Lesson): LessonBodyBlock[] {
 		});
 	}
 
-	if (storyText) {
+	if (story.length > 0) {
 		blocks.push({
 			id: `${lesson.id}.story`,
 			type: "story",
 			title: "Your story",
 			intro: "Read it aloud, then type it from memory on the next screen.",
-			text: storyText,
+			sentences: story,
+		});
+	}
+
+	if (lesson.resources.length > 0) {
+		blocks.push({
+			id: `${lesson.id}.resources`,
+			type: "resources",
+			title: "Going further",
+			resources: lesson.resources,
 		});
 	}
 
 	return blocks;
+}
+
+/**
+ * Hand-authored teaching sections *precede* the blocks synthesized from the
+ * lesson's canonical fields; they do not replace them. Replacing them is how a
+ * lesson used to lose its own vocabulary and story the moment it gained an
+ * overview — and how a generated lesson selecting the `overview` brick rendered
+ * nothing else.
+ */
+export function lessonBodyBlocks(lesson: Lesson): LessonBodyBlock[] {
+	return [...(lesson.teachingSections ?? []), ...synthesizedBodyBlocks(lesson)];
 }
 
 type ExactLessonBodyBrickSpec = {
@@ -93,6 +112,7 @@ const LESSON_BODY_BRICKS: LessonBodyBrickRegistry = {
 	grammar: grammarBrick,
 	patterns: patternsBrick,
 	story: storyBrick,
+	resources: resourcesBrick,
 };
 
 export function lessonBodyBrickEntries(): [
@@ -139,6 +159,7 @@ type ExerciseBrickRegistry = {
 const EXERCISE_BRICKS: ExerciseBrickRegistry = {
 	"word-match": wordMatchBrick,
 	"phrase-builder": phraseBuilderBrick,
+	"fill-blank": fillBlankBrick,
 	"typing-story": typingStoryBrick,
 };
 
@@ -183,8 +204,21 @@ export function exerciseOfType<T extends LessonExercise["type"]>(
 	return found as Extract<LessonExercise, { type: T }>;
 }
 
+/**
+ * Throws if any of the lesson's exercises cannot be rendered from the lesson's
+ * own content. Called where a lesson is born — `parseGeneratedLesson` for the
+ * model path, `scripts/test-lessons.ts` for the hand-written corpus — never at
+ * render, where a missing prompt is already on screen.
+ */
+export function assertLessonExercises(lesson: Lesson): void {
+	for (const exercise of lesson.exercises) {
+		exerciseBrickFor(exercise).assertRenderable?.(exercise, lesson);
+	}
+}
+
 export const LESSON_GENERATABLE_EXERCISE_BRICK_TYPES = [
 	"word-match",
+	"fill-blank",
 	"typing-story",
 ] as const;
 

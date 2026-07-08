@@ -576,6 +576,10 @@ body {
 	background: var(--bg);
 }
 
+.app--story-has-background .story::before {
+	display: none;
+}
+
 .story__log {
 	margin-bottom: 1.5rem;
 	display: flex;

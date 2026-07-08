@@ -3,38 +3,22 @@ import {
 	describeLessonBodyBlock,
 	lessonBodyBlocks,
 } from "./bricks";
-import { lessonStoryText, lessonVocab } from "./lessonContent";
 import type { Lesson } from "./types";
 
 export function buildLessonBotContext(lesson: Lesson): string {
 	const parts: string[] = [`Lesson: ${lesson.title}`];
 
-	const vocab = lessonVocab(lesson);
-	if (vocab.length > 0) {
-		parts.push("# Vocabulary");
-		for (const word of vocab) {
-			parts.push(`${word.term} (${word.partOfSpeech}) — ${word.meaning}`);
-		}
-	}
-
-	// Vocabulary and story are surfaced from the canonical fields (above and
-	// below); every other body block describes itself through its own
-	// capability, so garden's tables and hundo's grammar/patterns flow through
-	// one loop instead of a per-shape branch.
-	const teachingBlocks = lessonBodyBlocks(lesson).filter(
-		(block) => block.type !== "vocabulary" && block.type !== "story",
-	);
-	if (teachingBlocks.length > 0) {
+	// Every block describes itself through its own capability, so the garden's
+	// tables, hundo's grammar, and each word's example sentence flow through one
+	// loop instead of a per-shape branch. Hand-rolling vocabulary and story here
+	// is what used to make `vocabularyBrick.toBotContext` unreachable.
+	const blocks = lessonBodyBlocks(lesson);
+	if (blocks.length > 0) {
 		parts.push("# Teaching");
-		for (const block of teachingBlocks) {
+		for (const block of blocks) {
+			parts.push(`## ${block.title}`);
 			parts.push(describeLessonBodyBlock(block));
 		}
-	}
-
-	const storyText = lessonStoryText(lesson);
-	if (storyText) {
-		parts.push("# Practice story");
-		parts.push(storyText);
 	}
 
 	if (lesson.exercises.length > 0) {

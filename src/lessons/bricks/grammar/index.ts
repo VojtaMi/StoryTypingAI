@@ -4,16 +4,11 @@ import {
 	requiredString,
 	slugify,
 } from "../../../structuredGeneration";
-import type { GrammarConcept } from "../../types";
+import type { LessonGrammarBlock } from "../../types";
 import type { LessonBodyBrickSpec } from "../contracts";
 import { GrammarBlock } from "./GrammarBlock";
 
-export interface LessonGrammarBlock {
-	id: string;
-	type: "grammar";
-	title: string;
-	concepts: GrammarConcept[];
-}
+export type { LessonGrammarBlock } from "../../types";
 
 export const grammarBrick: LessonBodyBrickSpec<LessonGrammarBlock> = {
 	example: {

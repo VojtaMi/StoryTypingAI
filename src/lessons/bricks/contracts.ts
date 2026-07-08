@@ -46,4 +46,15 @@ export interface ExerciseBrickSpec<T extends LessonExercise> {
 	render(exercise: T, ctx: ExerciseBrickCtx): ReactNode;
 	toBotContext(exercise: T, lesson: Lesson): string;
 	generation?: ExerciseDerivationSpec;
+	/**
+	 * Throws if this lesson cannot supply what the exercise renders. An exercise
+	 * that derives its content from the lesson (every one but `phrase-builder`)
+	 * can be listed by a lesson that lacks that content — a `wordTerms` typo, an
+	 * empty story — and would then render an empty screen.
+	 *
+	 * Called once where a lesson is born: `parseGeneratedLesson()` for the model
+	 * path, `scripts/test-lessons.ts` for the hand-written corpus. Never at
+	 * render; by then the empty screen is already up.
+	 */
+	assertRenderable?(exercise: T, lesson: Lesson): void;
 }

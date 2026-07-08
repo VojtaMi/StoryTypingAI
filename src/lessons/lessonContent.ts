@@ -15,8 +15,13 @@ export function lessonVocab(lesson: Lesson): IntroducedWord[] {
 	return lesson.introducedWords;
 }
 
+export function lessonStory(lesson: Lesson): string[] {
+	return lesson.story;
+}
+
+/** The story as one narratable string. Also the cache key for its audio. */
 export function lessonStoryText(lesson: Lesson): string {
-	return lesson.story.join(" ");
+	return lessonStory(lesson).join(" ");
 }
 
 /** Lesson-scoped narration text; vocabulary audio is handled by the shared word cache. */

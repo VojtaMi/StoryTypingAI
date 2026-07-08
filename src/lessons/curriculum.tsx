@@ -131,6 +131,17 @@ export const CURRICULUM: CurriculumStep[] = [
 		render: (ctx) => renderExerciseStep(miEstasHomoLesson, "word-match", ctx),
 	},
 	{
+		path: "/lessons/mi-estas-homo/fill-blank",
+		stageId: "mi-estas-homo.fill-blank",
+		render: (ctx) => renderExerciseStep(miEstasHomoLesson, "fill-blank", ctx),
+	},
+	{
+		path: "/lessons/mi-estas-homo/phrase-builder",
+		stageId: "mi-estas-homo.phrase-builder",
+		render: (ctx) =>
+			renderExerciseStep(miEstasHomoLesson, "phrase-builder", ctx),
+	},
+	{
 		path: "/lessons/mi-estas-homo/typing",
 		stageId: "mi-estas-homo.typing",
 		isFinal: true,

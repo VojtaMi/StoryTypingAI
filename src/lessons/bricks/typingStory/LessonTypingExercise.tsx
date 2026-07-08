@@ -9,6 +9,8 @@ interface LessonTypingExerciseProps {
 	lessonId: string;
 	text: string;
 	imageUrl: string;
+	/** Describes the scene for anyone who cannot see it. */
+	imageAlt?: string;
 	backgroundIntro?: string;
 	onComplete: () => void;
 	onBack: () => void;
@@ -18,6 +20,7 @@ export default function LessonTypingExercise({
 	lessonId,
 	text,
 	imageUrl,
+	imageAlt,
 	backgroundIntro,
 	onComplete,
 	onBack,
@@ -42,6 +45,7 @@ export default function LessonTypingExercise({
 		<div className="lesson-typing-page">
 			<div
 				className="lesson-typing-bg"
+				{...(imageAlt ? { role: "img", "aria-label": imageAlt } : {})}
 				style={{
 					backgroundImage: `linear-gradient(rgba(10,12,18,0.45), rgba(10,12,18,0.65)), url(${imageUrl})`,
 				}}

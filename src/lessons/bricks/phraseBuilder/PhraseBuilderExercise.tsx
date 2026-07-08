@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { EsperantoChatModal } from "../../../exercise_screen/chatbot/EsperantoChatModal";
 import "../../lesson.css";
 import { useWordAudioPlayer } from "../../lessonAudio";
+import { shuffle } from "../../shuffle";
 import type { PhraseBuilderPrompt } from "../../types";
 
 interface PhraseBuilderExerciseProps {
@@ -12,15 +13,6 @@ interface PhraseBuilderExerciseProps {
 	completeLabel?: string;
 	onComplete: () => void;
 	onBack: () => void;
-}
-
-function shuffle<T>(arr: T[]): T[] {
-	const result = [...arr];
-	for (let i = result.length - 1; i > 0; i--) {
-		const j = Math.floor(Math.random() * (i + 1));
-		[result[i], result[j]] = [result[j], result[i]];
-	}
-	return result;
 }
 
 function sameAnswer(left: string[], right: string[]) {

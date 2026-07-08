@@ -1,6 +1,7 @@
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "../../lessons/lesson.css";
+import { useChoicePrompt } from "../../lessons/useChoicePrompt";
 import { useWordMatching } from "../../lessons/useWordMatching";
 import type {
 	StoryRecapExercise,
@@ -27,15 +28,6 @@ function describeExercise(exercise: StoryRecapExercise): string {
 		return `${exercise.sentenceBeforeBlank}___${exercise.sentenceAfterBlank} (${exercise.answer})`;
 	}
 	return `${exercise.question} -> ${exercise.answer}`;
-}
-
-function shuffle<T>(items: T[]): T[] {
-	const result = [...items];
-	for (let i = result.length - 1; i > 0; i--) {
-		const j = Math.floor(Math.random() * (i + 1));
-		[result[i], result[j]] = [result[j], result[i]];
-	}
-	return result;
 }
 
 function itemClass(...modifiers: (string | false | null)[]): string {
@@ -279,21 +271,11 @@ function ChoiceRecap({
 	done: boolean;
 	onComplete: (attempts: number) => void;
 }) {
-	const shuffledChoices = useMemo(() => shuffle(choices), [choices]);
-	const [wrongChoice, setWrongChoice] = useState<string | null>(null);
-	const [wrongAttempts, setWrongAttempts] = useState(0);
-
-	function choose(choice: string) {
-		if (done) return;
-		if (choice === answer) {
-			setWrongChoice(null);
-			onComplete(wrongAttempts + 1);
-			return;
-		}
-		setWrongAttempts((count) => count + 1);
-		setWrongChoice(choice);
-		setTimeout(() => setWrongChoice(null), 700);
-	}
+	const { shuffledChoices, wrongChoice, choose } = useChoicePrompt(
+		choices,
+		answer,
+		onComplete,
+	);
 
 	return (
 		<section className="story-recap__exercise">

@@ -4,6 +4,7 @@ import {
 	requiredString,
 } from "../structuredGeneration";
 import {
+	assertLessonExercises,
 	exerciseDerivationSpec,
 	type LessonBodyBlock,
 	type LessonGeneratableBodyBrickType,
@@ -126,7 +127,7 @@ export function parseGeneratedLesson(
 	const title = requiredString(parsed.title, "lesson title", "Lesson JSON");
 	const id = lessonId(title);
 
-	return {
+	const lesson: Lesson = {
 		id,
 		title,
 		level: bricks.level,
@@ -142,6 +143,11 @@ export function parseGeneratedLesson(
 		})),
 		resources: [],
 	};
+
+	// The derived exercises were built from the bricks, not from this lesson.
+	// Prove they can actually render against it before anyone stores it.
+	assertLessonExercises(lesson);
+	return lesson;
 }
 
 function requiredVocabulary(blocks: LessonBodyBlock[]): IntroducedWord[] {
@@ -157,7 +163,7 @@ function requiredStory(blocks: LessonBodyBlock[]): string[] {
 	if (storyBlock?.type !== "story") {
 		throw new Error("Generated lesson is missing a story.");
 	}
-	return storyBlock.sentences ?? [storyBlock.text];
+	return storyBlock.sentences;
 }
 
 function validateExerciseRequirements(

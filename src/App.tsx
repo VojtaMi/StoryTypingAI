@@ -238,9 +238,12 @@ export default function App() {
 	const showMainMenu = !inStory && location === MAIN_MENU_PATH;
 	const showLessonsMenu = !inStory && location === LESSONS_MENU_PATH;
 	const showCurriculum = !inStory && !!currentStep;
+	const appClassName = `app${
+		inStory && visibleBackgroundUrl ? " app--story-has-background" : ""
+	}`;
 
 	return (
-		<div className="app">
+		<div className={appClassName}>
 			{inStory && visibleBackgroundUrl && (
 				<>
 					{previousBackgroundUrl && (

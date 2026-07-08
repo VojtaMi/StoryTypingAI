@@ -11,13 +11,17 @@ export {
 	STORY_BODY_BRICK_TYPE,
 	VOCABULARY_BODY_BRICK_TYPE,
 } from "./contracts";
+export type { FillBlankPrompt } from "./fillBlank";
+export { promptsForFillBlank } from "./fillBlank";
 export type { LessonGrammarBlock } from "./grammar";
 export type { LessonPatternsBlock } from "./patterns";
+export { patternShape } from "./patterns";
 export type {
 	LessonBodyBlock,
 	LessonGeneratableExerciseBrickType,
 } from "./registry";
 export {
+	assertLessonExercises,
 	describeExerciseBrick,
 	describeLessonBodyBlock,
 	exerciseBrickEntries,
@@ -30,6 +34,8 @@ export {
 	renderExerciseBrick,
 	renderLessonBodyBlock,
 } from "./registry";
+export type { LessonResourcesBlock } from "./resources";
 export type { LessonStoryBlock } from "./story";
 export type { LessonVocabularyBlock } from "./vocabulary";
+export { clozeFor } from "./vocabulary";
 export { wordsForWordMatch } from "./wordMatch";

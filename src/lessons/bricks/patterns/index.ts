@@ -1,13 +1,13 @@
 import { createElement } from "react";
-import type { LessonPattern } from "../../types";
+import type { LessonPattern, LessonPatternsBlock } from "../../types";
 import type { LessonBodyBrickSpec } from "../contracts";
 import { PatternsBlock } from "./PatternsBlock";
 
-export interface LessonPatternsBlock {
-	id: string;
-	type: "patterns";
-	title: string;
-	patterns: LessonPattern[];
+export type { LessonPatternsBlock } from "../../types";
+
+/** The slot skeleton, which is what a pattern *is*. Its title is optional prose. */
+export function patternShape(pattern: LessonPattern): string {
+	return pattern.slots.join(" + ");
 }
 
 export const patternsBrick: LessonBodyBrickSpec<LessonPatternsBlock> = {
@@ -18,7 +18,6 @@ export const patternsBrick: LessonBodyBrickSpec<LessonPatternsBlock> = {
 		patterns: [
 			{
 				id: "subject-estas-place",
-				title: "Subject + estas + place",
 				slots: ["subject", "estas", "place"],
 				examples: ["La kato estas en la domo."],
 			},
@@ -27,9 +26,13 @@ export const patternsBrick: LessonBodyBrickSpec<LessonPatternsBlock> = {
 	render: (block) => createElement(PatternsBlock, { block }),
 	toBotContext: (block) =>
 		block.patterns
-			.map(
-				(pattern) =>
-					`${pattern.title}: ${pattern.slots.join(" + ")}. Examples: ${pattern.examples.join("; ")}`,
+			.map((pattern) =>
+				[
+					pattern.title
+						? `${pattern.title}: ${patternShape(pattern)}`
+						: patternShape(pattern),
+					`Examples: ${pattern.examples.join("; ")}`,
+				].join(". "),
 			)
 			.join("\n"),
 };

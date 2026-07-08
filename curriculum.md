@@ -97,8 +97,10 @@ Teaches the six letters absent from standard keyboards and their key mappings.
 | homo | person / human | noun |
 | kato | cat | noun |
 | nomo | name | noun |
+| li | he | pronoun |
+| ŝi | she | pronoun |
 
-**Formally reused from earlier lessons:** mi, mia, hundo, besto, bruna, estas
+**Formally reused from earlier lessons:** mi, mia, hundo, besto, bruna, estas, la
 
 **Grammar introduced**
 

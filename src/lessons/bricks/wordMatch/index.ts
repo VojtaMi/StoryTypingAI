@@ -37,6 +37,22 @@ export const wordMatchBrick: ExerciseBrickSpec<WordMatchLessonExercise> = {
 			};
 		},
 	},
+	assertRenderable(exercise, lesson) {
+		const words = wordsForWordMatch(lesson, exercise);
+		if (words.length < 2) {
+			throw new Error(
+				`Lesson ${lesson.id} word-match needs at least two words, got ${words.length}.`,
+			);
+		}
+		// The matching grid maps term → meaning, so a repeated meaning makes one
+		// of its two terms unmatchable.
+		const meanings = new Set(words.map((word) => word.meaning));
+		if (meanings.size !== words.length) {
+			throw new Error(
+				`Lesson ${lesson.id} word-match reuses an English meaning.`,
+			);
+		}
+	},
 	render: (exercise, ctx) =>
 		createElement(WordMatchExercise, {
 			words: wordsForWordMatch(ctx.lesson, exercise),

@@ -1,30 +1,17 @@
+import type { IntroducedWord, LessonVocabularyBlock } from "../../types";
 import type { LessonBodyRenderCtx } from "../contracts";
-import type { LessonVocabularyBlock } from "./index";
+import { SpeakButton } from "../SpeakButton";
+import { clozeFor } from "./index";
 
-function SpeakButton({
-	id,
-	text,
-	ready,
-	playing,
-	onPlay,
-}: {
-	id: string;
-	text: string;
-	ready: boolean;
-	playing: string | null;
-	onPlay: (id: string, text: string) => void;
-}) {
-	const isPlaying = playing === id;
+/** The word's example sentence with the word itself picked out of it. */
+function WordExample({ word }: { word: IntroducedWord }) {
+	const { before, match, after } = clozeFor(word);
 	return (
-		<button
-			type="button"
-			className={`lesson-speak${isPlaying ? " lesson-speak--active" : ""}${!ready ? " lesson-speak--loading" : ""}`}
-			aria-label={isPlaying ? "Playing..." : `Listen to "${text}"`}
-			onClick={() => onPlay(id, text)}
-			disabled={!ready || (playing !== null && !isPlaying)}
-		>
-			🔊
-		</button>
+		<span className="lesson-doc__word-example">
+			{before}
+			<strong>{match}</strong>
+			{after}
+		</span>
 	);
 }
 
@@ -52,6 +39,7 @@ export function VocabularyBlock({
 					</dt>
 					<dd className="lesson-doc__word-body">
 						<span className="lesson-doc__word-meaning">{word.meaning}</span>
+						<WordExample word={word} />
 					</dd>
 				</div>
 			))}

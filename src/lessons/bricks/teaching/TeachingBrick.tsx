@@ -35,7 +35,11 @@ export function renderWithCode(text: string): ReactNode {
 export interface TeachingBrickSpec<T extends LessonTeachingSection> {
 	/** Renders the body below the numbered section heading. */
 	render(section: T): ReactNode;
-	/** Projects the section to plain text for the tutor bot's context. */
+	/**
+	 * Projects the section's body to plain text for the tutor bot's context.
+	 * Omit the title — `buildLessonBotContext` heads every block with it, the
+	 * same way `LessonIntro` heads every rendered block with it.
+	 */
 	describeForBot(section: T): string;
 }
 
@@ -46,8 +50,7 @@ const overviewBrick: TeachingBrickSpec<LessonOverviewSection> = {
 				{renderWithCode(paragraph)}
 			</p>
 		)),
-	describeForBot: (section) =>
-		[`## ${section.title}`, ...section.body].join("\n"),
+	describeForBot: (section) => section.body.join("\n"),
 };
 
 const possessiveTableBrick: TeachingBrickSpec<LessonPossessiveTableSection> = {
@@ -77,13 +80,12 @@ const possessiveTableBrick: TeachingBrickSpec<LessonPossessiveTableSection> = {
 		</table>
 	),
 	describeForBot: (section) =>
-		[
-			`## ${section.title}`,
-			...section.rows.map(
+		section.rows
+			.map(
 				(row) =>
 					`${row.pronoun} (${row.pronounMeaning}) → ${row.possessive} (${row.possessiveMeaning})`,
-			),
-		].join("\n"),
+			)
+			.join("\n"),
 };
 
 const colorTableBrick: TeachingBrickSpec<LessonColorTableSection> = {
@@ -107,10 +109,7 @@ const colorTableBrick: TeachingBrickSpec<LessonColorTableSection> = {
 		</table>
 	),
 	describeForBot: (section) =>
-		[
-			`## ${section.title}`,
-			...section.rows.map((row) => `${row.term} — ${row.meaning}`),
-		].join("\n"),
+		section.rows.map((row) => `${row.term} — ${row.meaning}`).join("\n"),
 };
 
 const examplesBrick: TeachingBrickSpec<LessonExamplesSection> = {
@@ -125,12 +124,9 @@ const examplesBrick: TeachingBrickSpec<LessonExamplesSection> = {
 		</div>
 	),
 	describeForBot: (section) =>
-		[
-			`## ${section.title}`,
-			...section.examples.map(
-				(example) => `${example.phrase} — ${example.meaning}`,
-			),
-		].join("\n"),
+		section.examples
+			.map((example) => `${example.phrase} — ${example.meaning}`)
+			.join("\n"),
 };
 
 type TeachingBrickRegistry = {
