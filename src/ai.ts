@@ -63,18 +63,45 @@ type StreamEvent =
 const AI_CONTINUE_PROMPT =
 	"Continue the story from here. Keep the same style, tension, and perspective.";
 
+/**
+ * POSTs `body` as JSON to an app endpoint. `label` names the operation in the
+ * thrown error, which reaches the learner as a message (e.g. "Translation
+ * request failed: 503").
+ */
+async function post(
+	url: string,
+	body: unknown,
+	label: string,
+): Promise<Response> {
+	const res = await fetch(url, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+	if (!res.ok) throw new Error(`${label} failed: ${res.status}`);
+	return res;
+}
+
+/** {@link post}, then parses the JSON reply. */
+async function postJson<T>(
+	url: string,
+	body: unknown,
+	label: string,
+): Promise<T> {
+	const res = await post(url, body, label);
+	return (await res.json()) as T;
+}
+
 async function complete(
 	messages: ChatMessage[],
 	model: TextModelId,
 	maxTokens = STORY_SEGMENT_MAX_TOKENS,
 ): Promise<string> {
-	const res = await fetch("/api/ai/complete", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ messages, maxTokens, model }),
-	});
-	if (!res.ok) throw new Error(`AI request failed: ${res.status}`);
-	const { text } = (await res.json()) as { text?: string };
+	const { text } = await postJson<{ text?: string }>(
+		"/api/ai/complete",
+		{ messages, maxTokens, model },
+		"AI request",
+	);
 	if (!text) throw new Error("The AI returned an empty response.");
 	return text;
 }
@@ -85,12 +112,11 @@ async function completeStream(
 	onChunk: (chunk: string) => void,
 	maxTokens = STORY_SEGMENT_MAX_TOKENS,
 ): Promise<string> {
-	const res = await fetch("/api/ai/complete-stream", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ messages, maxTokens, model }),
-	});
-	if (!res.ok) throw new Error(`AI request failed: ${res.status}`);
+	const res = await post(
+		"/api/ai/complete-stream",
+		{ messages, maxTokens, model },
+		"AI request",
+	);
 	if (!res.body) throw new Error("The AI did not return a response stream.");
 
 	const reader = res.body.getReader();
@@ -190,24 +216,30 @@ async function fetchLearnerContext(): Promise<LearnerContext> {
 }
 
 /**
- * Folds a tutor-chat transcript into the learner handout. Fire-and-forget: it
- * must never disrupt closing the chat, so all failures are swallowed.
+ * Folds evidence into the learner handout. Fire-and-forget: refining must never
+ * disrupt the learner's flow, so all failures are swallowed and the handout
+ * stays as it was. Invalidates on both sides of the request so a read racing it
+ * cannot leave a stale profile cached.
  */
+async function refineLearnerProfile(
+	endpoint: string,
+	evidence: unknown,
+): Promise<void> {
+	try {
+		invalidateLearnerProfile();
+		await post(`/api/learner-profile/${endpoint}`, evidence, "Profile refine");
+		invalidateLearnerProfile();
+	} catch {
+		// Fire-and-forget: the handout simply stays as it was.
+	}
+}
+
+/** Folds a tutor-chat transcript into the learner handout. */
 export async function refineLearnerProfileFromChat(
 	messages: EsperantoTutorChatMessage[],
 ): Promise<void> {
 	if (messages.length === 0) return;
-	try {
-		invalidateLearnerProfile();
-		const res = await fetch("/api/learner-profile/refine", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ messages }),
-		});
-		if (res.ok) invalidateLearnerProfile();
-	} catch {
-		// Fire-and-forget: the handout simply stays as it was.
-	}
+	return refineLearnerProfile("refine", { messages });
 }
 
 export interface StoryFinishFeedback {
@@ -218,46 +250,24 @@ export interface StoryFinishFeedback {
 /**
  * Folds evidence from a just-finished reading story (word lookups since the
  * last refine, the story's premise/character/setting, and optional learner
- * difficulty feedback) into the learner handout. Fire-and-forget: it must
- * never disrupt the reading flow, so all failures are swallowed.
+ * difficulty feedback) into the learner handout.
  */
 export async function refineLearnerProfileFromStory(
 	evidence: StoryFinishFeedback,
 ): Promise<void> {
 	if (!evidence.storySummary?.trim() && !evidence.feedback?.trim()) return;
-	try {
-		invalidateLearnerProfile();
-		const res = await fetch("/api/learner-profile/refine-story", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(evidence),
-		});
-		if (res.ok) invalidateLearnerProfile();
-	} catch {
-		// Fire-and-forget: the handout simply stays as it was.
-	}
+	return refineLearnerProfile("refine-story", evidence);
 }
 
 /**
- * Folds the learner's answers on the end-of-story recap quiz (correct on
- * first attempt vs. needed retries) into the learner handout. Fire-and-forget:
- * it must never disrupt finishing the story, so all failures are swallowed.
+ * Folds the learner's answers on the end-of-story recap quiz (correct on first
+ * attempt vs. needed retries) into the learner handout.
  */
 export async function refineLearnerProfileFromRecap(
 	results: StoryRecapExerciseResult[],
 ): Promise<void> {
 	if (results.length === 0) return;
-	try {
-		invalidateLearnerProfile();
-		const res = await fetch("/api/learner-profile/refine-recap", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ results }),
-		});
-		if (res.ok) invalidateLearnerProfile();
-	} catch {
-		// Fire-and-forget: the handout simply stays as it was.
-	}
+	return refineLearnerProfile("refine-recap", { results });
 }
 
 export async function generateReadingStoryFrame(
@@ -434,13 +444,11 @@ export async function generateStoryBackgroundImage(
 	storyId: string,
 	options: { sectionIndex?: number; visualContext?: string } = {},
 ): Promise<StoryBackgroundImage> {
-	const res = await fetch("/api/ai/background-image", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ genreId, messages, storyId, ...options }),
-	});
-	if (!res.ok) throw new Error(`Image request failed: ${res.status}`);
-	return res.json() as Promise<StoryBackgroundImage>;
+	return postJson<StoryBackgroundImage>(
+		"/api/ai/background-image",
+		{ genreId, messages, storyId, ...options },
+		"Image request",
+	);
 }
 
 export async function generateOpeningAudio(
@@ -449,13 +457,11 @@ export async function generateOpeningAudio(
 	narrationVoice: NarrationVoiceId,
 	options: { sectionIndex?: number } = {},
 ): Promise<StoryOpeningAudio> {
-	const res = await fetch("/api/ai/opening-audio", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ text, storyId, narrationVoice, ...options }),
-	});
-	if (!res.ok) throw new Error(`Opening audio request failed: ${res.status}`);
-	return res.json() as Promise<StoryOpeningAudio>;
+	return postJson<StoryOpeningAudio>(
+		"/api/ai/opening-audio",
+		{ text, storyId, narrationVoice, ...options },
+		"Opening audio request",
+	);
 }
 
 /** Fetches a stable audio URL for a lesson text, generating and caching it server-side on first call. */
@@ -464,13 +470,11 @@ export async function fetchLessonAudioUrl(
 	text: string,
 	instructions?: string,
 ): Promise<string> {
-	const res = await fetch("/api/lesson-audio", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ lessonId, text, instructions }),
-	});
-	if (!res.ok) throw new Error(`Lesson audio request failed: ${res.status}`);
-	const body = (await res.json()) as { url: string };
+	const body = await postJson<{ url: string }>(
+		"/api/lesson-audio",
+		{ lessonId, text, instructions },
+		"Lesson audio request",
+	);
 	return body.url;
 }
 
@@ -487,24 +491,20 @@ export async function translateWords(
 	words: string[],
 ): Promise<Record<string, string>> {
 	if (words.length === 0) return {};
-	const res = await fetch("/api/ai/translate-words", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ words }),
-	});
-	if (!res.ok) throw new Error(`Translation request failed: ${res.status}`);
-	const body = (await res.json()) as { translations: Record<string, string> };
+	const body = await postJson<{ translations: Record<string, string> }>(
+		"/api/ai/translate-words",
+		{ words },
+		"Translation request",
+	);
 	return body.translations;
 }
 
 export async function getWordAudioUrl(word: string): Promise<string> {
-	const res = await fetch("/api/word-audio", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ word }),
-	});
-	if (!res.ok) throw new Error(`Word audio request failed: ${res.status}`);
-	const body = (await res.json()) as { url: string };
+	const body = await postJson<{ url: string }>(
+		"/api/word-audio",
+		{ word },
+		"Word audio request",
+	);
 	return body.url;
 }
 
@@ -521,26 +521,22 @@ export async function logLearnerWordClick(word: string): Promise<void> {
 }
 
 export async function regenerateWordAudioUrl(word: string): Promise<string> {
-	const res = await fetch("/api/word-audio/regenerate", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ word }),
-	});
-	if (!res.ok) throw new Error(`Word audio regenerate failed: ${res.status}`);
-	const body = (await res.json()) as { url: string };
+	const body = await postJson<{ url: string }>(
+		"/api/word-audio/regenerate",
+		{ word },
+		"Word audio regenerate",
+	);
 	return body.url;
 }
 
 export async function regenerateWordTranslation(
 	word: string,
 ): Promise<string | null> {
-	const res = await fetch("/api/ai/translate-words/regenerate", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ word }),
-	});
-	if (!res.ok) throw new Error(`Regenerate request failed: ${res.status}`);
-	const body = (await res.json()) as { translation: string | null };
+	const body = await postJson<{ translation: string | null }>(
+		"/api/ai/translate-words/regenerate",
+		{ word },
+		"Regenerate request",
+	);
 	return body.translation;
 }
 

@@ -85,7 +85,11 @@ export function useCachedAudioPlayer(
 			}
 			ensureAudioUrl(text)
 				.then((url) => playUrl(url, key))
-				.catch(() => {});
+				.catch((err) => {
+					// Playback is best-effort: a failed click should stay silent
+					// rather than interrupt the lesson with an error state.
+					console.warn("Could not play audio for:", text, err);
+				});
 		},
 		[cache, ensureAudioUrl, playUrl],
 	);
