@@ -9,6 +9,15 @@
  * into `.artifacts/screenshots/`, which is gitignored. Absolute paths pass
  * through untouched. A relative path that escapes the repo is denied.
  *
+ * Verified against @playwright/mcp@0.0.71: an omitted filename lands in the
+ * MCP `--output-dir`; a relative one lands in $CWD; an absolute one is written
+ * as given (it is NOT rejected for being outside the output dir — it fails with
+ * ENOENT only if the directory does not exist).
+ *
+ * The MCP server itself is configured per-machine in `~/.claude.json`, not in
+ * this repo, with `--headless` and a custom `--output-dir`. For a debugging
+ * session that needs a visible browser, drop `--headless` there and reconnect.
+ *
  * Reads the hook payload on stdin, writes hook JSON on stdout.
  */
 import { mkdirSync } from "node:fs";
