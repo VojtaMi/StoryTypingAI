@@ -41,6 +41,12 @@ translation-cache.json
 
 # Playwright MCP session snapshots
 .playwright-mcp/
+# Safety net: a relative `filename` passed to browser_take_screenshot resolves
+# against $CWD (the repo root), not the configured --output-dir. Root-anchored
+# so real image assets under public/ or src/ are unaffected.
+/*.png
+/*.jpeg
+/*.jpg
 rosti/.rostistate
 
 # Local AI/tool artifacts and scratch outputs
