@@ -17,9 +17,9 @@ import { fillBlankBrick } from "./fillBlank";
 import { grammarBrick } from "./grammar";
 import { patternsBrick } from "./patterns";
 import { phraseBuilderBrick } from "./phraseBuilder";
-import { resourcesBrick } from "./resources";
 import { storyBrick } from "./story";
 import { teachingBrick } from "./teaching";
+import { tipBrick } from "./tip";
 import { typingStoryBrick } from "./typingStory";
 import { vocabularyBrick } from "./vocabulary";
 import { wordMatchBrick } from "./wordMatch";
@@ -63,18 +63,9 @@ function synthesizedBodyBlocks(lesson: Lesson): LessonBodyBlock[] {
 		blocks.push({
 			id: `${lesson.id}.story`,
 			type: "story",
-			title: "Your story",
-			intro: "Read it aloud, then type it from memory on the next screen.",
+			title: "Sentences",
+			intro: "Listen and repeat subsequent sentences.",
 			sentences: story,
-		});
-	}
-
-	if (lesson.resources.length > 0) {
-		blocks.push({
-			id: `${lesson.id}.resources`,
-			type: "resources",
-			title: "Going further",
-			resources: lesson.resources,
 		});
 	}
 
@@ -108,11 +99,11 @@ const LESSON_BODY_BRICKS: LessonBodyBrickRegistry = {
 	"possessive-table": teachingBrick,
 	"color-table": teachingBrick,
 	examples: teachingBrick,
+	tip: tipBrick,
 	vocabulary: vocabularyBrick,
 	grammar: grammarBrick,
 	patterns: patternsBrick,
 	story: storyBrick,
-	resources: resourcesBrick,
 };
 
 export function lessonBodyBrickEntries(): [

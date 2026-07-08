@@ -34,8 +34,8 @@ export {
 	renderExerciseBrick,
 	renderLessonBodyBlock,
 } from "./registry";
-export type { LessonResourcesBlock } from "./resources";
 export type { LessonStoryBlock } from "./story";
+export type { LessonTipBlock } from "./tip";
 export type { LessonVocabularyBlock } from "./vocabulary";
 export { clozeFor } from "./vocabulary";
 export { wordsForWordMatch } from "./wordMatch";

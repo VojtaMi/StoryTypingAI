@@ -62,11 +62,20 @@ export interface LessonExamplesSection {
 	}[];
 }
 
+export interface LessonTipBlock {
+	id: string;
+	type: "tip";
+	title: string;
+	body: string[];
+}
+
 export type LessonTeachingSection =
 	| LessonOverviewSection
 	| LessonPossessiveTableSection
 	| LessonColorTableSection
 	| LessonExamplesSection;
+
+export type LessonAuthoredBodyBlock = LessonTeachingSection | LessonTipBlock;
 
 export interface LessonVocabularyBlock {
 	id: string;
@@ -97,13 +106,6 @@ export interface LessonStoryBlock {
 	sentences: string[];
 }
 
-export interface LessonResourcesBlock {
-	id: string;
-	type: "resources";
-	title: string;
-	resources: LessonResource[];
-}
-
 /**
  * Every shape the lesson doc can render, keyed by `type`. Declared here rather
  * than in `bricks/registry.ts` (where the registry that consumes it lives)
@@ -112,12 +114,11 @@ export interface LessonResourcesBlock {
  * below is the same arrangement.
  */
 export type LessonBodyBlock =
-	| LessonTeachingSection
+	| LessonAuthoredBodyBlock
 	| LessonVocabularyBlock
 	| LessonGrammarBlock
 	| LessonPatternsBlock
-	| LessonStoryBlock
-	| LessonResourcesBlock;
+	| LessonStoryBlock;
 
 export interface WordMatchLessonExercise {
 	id: string;
@@ -171,11 +172,6 @@ export type LessonExercise =
 	| FillBlankLessonExercise
 	| TypingStoryLessonExercise;
 
-/** A link without a URL, or a note without content, must fail to compile. */
-export type LessonResource =
-	| { type: "link"; title: string; url: string }
-	| { type: "note"; title: string; content: string };
-
 export interface Lesson {
 	id: string;
 	title: string;
@@ -183,12 +179,11 @@ export interface Lesson {
 	lede?: string;
 	introducedWords: IntroducedWord[];
 	grammarConcepts: GrammarConcept[];
-	teachingSections?: LessonTeachingSection[];
+	teachingSections?: LessonAuthoredBodyBlock[];
 	patterns?: LessonPattern[];
 	story: string[];
 	storyImagePrompt?: string;
 	exercises: LessonExercise[];
-	resources: LessonResource[];
 }
 
 export const LESSON_LEVEL_LABELS: Record<LessonLevel, string> = {

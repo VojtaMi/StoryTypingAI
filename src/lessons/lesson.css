@@ -344,6 +344,19 @@
 	font-weight: 700;
 }
 
+/* Learner-facing callouts */
+.lesson-doc__tip {
+	margin: 0;
+	padding: 0.95rem 1.1rem;
+	border-top: 1px solid var(--lesson-rule);
+	border-bottom: 1px solid var(--lesson-rule);
+	background: rgba(176, 74, 50, 0.06);
+}
+
+.lesson-doc__tip-body > :last-child {
+	margin-bottom: 0;
+}
+
 /* Closing links and notes */
 .lesson-resources {
 	margin: 0;

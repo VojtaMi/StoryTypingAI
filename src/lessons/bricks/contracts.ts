@@ -19,6 +19,7 @@ export const LESSON_GENERATABLE_BODY_BRICK_TYPES = [
 	"vocabulary",
 	"grammar",
 	"overview",
+	"tip",
 	"story",
 ] as const;
 

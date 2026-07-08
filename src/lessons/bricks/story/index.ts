@@ -10,9 +10,9 @@ export const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
 	example: {
 		id: "story",
 		type: "story",
-		title: "Your story",
-		intro: "Read it aloud, then type it from memory on the next screen.",
-		sentences: ["La kato estas en la domo.", "La domo estas varma."],
+		title: "Sentences",
+		intro: "Listen and repeat subsequent sentences.",
+		sentences: ["La kato estas en la domo."],
 	},
 	generation: {
 		shape: {
@@ -22,19 +22,19 @@ export const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
 			],
 		},
 		instructions:
-			"Write a tiny two to five sentence Esperanto practice story. " +
-			"Use mostly the introduced words and very basic known words. Do not include English in the story.",
+			"Write one to five short Esperanto practice sentences. " +
+			"Use mostly the introduced words and very basic known words. Do not include English.",
 		example: {
-			sentences: ["La kato estas en la domo.", "La domo estas varma."],
+			sentences: ["La kato estas en la domo."],
 		},
 		parse(value) {
 			if (
 				!isObject(value) ||
 				!Array.isArray(value.sentences) ||
-				value.sentences.length < 2 ||
+				value.sentences.length < 1 ||
 				value.sentences.length > 5
 			) {
-				throw new Error("Generated story needs two to five sentences.");
+				throw new Error("Generated sentences need one to five sentences.");
 			}
 			const sentences = value.sentences.map((sentence) =>
 				requiredString(sentence, "story sentence"),
@@ -42,8 +42,8 @@ export const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
 			return {
 				id: "story",
 				type: "story",
-				title: "Your story",
-				intro: "Read it aloud, then type it from memory on the next screen.",
+				title: "Sentences",
+				intro: "Listen and repeat subsequent sentences.",
 				sentences,
 			};
 		},

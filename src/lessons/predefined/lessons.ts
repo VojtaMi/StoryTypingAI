@@ -35,6 +35,17 @@ const handWrittenLessons: Lesson[] = [
 				examples: ["Hundo estas besto."],
 			},
 		],
+		teachingSections: [
+			{
+				id: "pronunciation-tip",
+				type: "tip",
+				title: "Pronunciation tip",
+				body: [
+					"Every letter in Esperanto is always pronounced — there are no silent letters. " +
+						"The stress always falls on the second-to-last syllable: HUN-do, ES-tas, BES-to.",
+				],
+			},
+		],
 		story: ["Hundo estas besto."],
 		exercises: [
 			{
@@ -44,25 +55,6 @@ const handWrittenLessons: Lesson[] = [
 			{
 				id: "hundo-estas-besto.typing",
 				type: "typing-story",
-			},
-		],
-		resources: [
-			{
-				type: "link",
-				title: "Esperanto on Duolingo",
-				url: "https://www.duolingo.com/course/eo/en/Learn-Esperanto",
-			},
-			{
-				type: "link",
-				title: "Lernu! — free beginner course",
-				url: "https://lernu.net/en",
-			},
-			{
-				type: "note",
-				title: "Pronunciation tip",
-				content:
-					"Every letter in Esperanto is always pronounced — there are no silent letters. " +
-					"The stress always falls on the second-to-last syllable: HUN-do, ES-tas, BES-to.",
 			},
 		],
 	},
@@ -255,14 +247,6 @@ const handWrittenLessons: Lesson[] = [
 				imageUrl: "/images/nia-gardeno-typing-bg.webp",
 			},
 		],
-		resources: [
-			{
-				type: "note",
-				title: "Tiny story pattern",
-				content:
-					"This lesson reuses older nouns with new adjective and ownership patterns, so later lessons can generate many more combinations from the same slots.",
-			},
-		],
 	},
 	{
 		id: "mi-estas-homo",
@@ -407,19 +391,6 @@ const handWrittenLessons: Lesson[] = [
 			{
 				id: "mi-estas-homo.typing",
 				type: "typing-story",
-			},
-		],
-		resources: [
-			{
-				type: "note",
-				title: "Names and articles",
-				content:
-					"This lesson introduces `la` and subject pronouns through the same `estas` pattern learners already know.",
-			},
-			{
-				type: "link",
-				title: "Lernu! — pronouns and the article",
-				url: "https://lernu.net/en/gramatiko/pronomoj",
 			},
 		],
 	},

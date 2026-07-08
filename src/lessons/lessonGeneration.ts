@@ -16,9 +16,9 @@ import {
 import type {
 	IntroducedWord,
 	Lesson,
+	LessonAuthoredBodyBlock,
 	LessonExercise,
 	LessonLevel,
-	LessonTeachingSection,
 } from "./types";
 
 /** A body brick is the only thing the model authors, so it carries the full spec. */
@@ -141,7 +141,6 @@ export function parseGeneratedLesson(
 			...exercise,
 			id: `${id}.${exercise.id}`,
 		})),
-		resources: [],
 	};
 
 	// The derived exercises were built from the bricks, not from this lesson.
@@ -191,11 +190,12 @@ function lessonFieldBodyTypes(
 
 function isTeachingSection(
 	block: LessonBodyBlock,
-): block is LessonTeachingSection {
+): block is LessonAuthoredBodyBlock {
 	return (
 		block.type === "overview" ||
 		block.type === "possessive-table" ||
 		block.type === "color-table" ||
-		block.type === "examples"
+		block.type === "examples" ||
+		block.type === "tip"
 	);
 }

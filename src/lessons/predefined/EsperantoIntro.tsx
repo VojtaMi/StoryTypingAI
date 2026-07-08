@@ -74,6 +74,36 @@ export default function EsperantoIntro({
 					</div>
 				</section>
 
+				<hr className="lesson-doc__rule" />
+
+				<section className="lesson-doc__section">
+					<h2 className="lesson-doc__heading">
+						<span className="lesson-doc__num">3.</span> Interesting sources
+					</h2>
+					<ul className="lesson-resources">
+						<li className="lesson-resources__item">
+							<a
+								className="lesson-resources__link"
+								href="https://www.duolingo.com/course/eo/en/Learn-Esperanto"
+								target="_blank"
+								rel="noreferrer"
+							>
+								Esperanto on Duolingo ↗
+							</a>
+						</li>
+						<li className="lesson-resources__item">
+							<a
+								className="lesson-resources__link"
+								href="https://lernu.net/en"
+								target="_blank"
+								rel="noreferrer"
+							>
+								Lernu! — free beginner course ↗
+							</a>
+						</li>
+					</ul>
+				</section>
+
 				<div className="lesson-doc__actions">
 					<button type="button" className="lesson-doc__begin" onClick={onStart}>
 						Start First Exercise
