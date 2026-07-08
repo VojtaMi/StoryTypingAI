@@ -62,7 +62,8 @@ export interface LessonBodyRenderCtx {
 	onPlay: (id: string, text: string) => void;
 }
 
-interface LessonBodyBrickSpec<T extends LessonBodyBlock> {
+export interface LessonBodyBrickSpec<T extends LessonBodyBlock> {
+	example: T;
 	render(block: T, ctx: LessonBodyRenderCtx): ReactNode;
 	toBotContext(block: T): string;
 	generation?: GenerationSpec<LessonBodyBlock>;
@@ -145,6 +146,31 @@ export function lessonBodyBlocks(lesson: Lesson): LessonBodyBlock[] {
 }
 
 const vocabularyBrick: LessonBodyBrickSpec<LessonVocabularyBlock> = {
+	example: {
+		id: "vocabulary",
+		type: "vocabulary",
+		title: "New words",
+		words: [
+			{
+				term: "kato",
+				meaning: "cat",
+				partOfSpeech: "noun",
+				example: "La kato estas en la domo.",
+			},
+			{
+				term: "domo",
+				meaning: "house",
+				partOfSpeech: "noun",
+				example: "La domo estas granda.",
+			},
+			{
+				term: "en",
+				meaning: "in",
+				partOfSpeech: "preposition",
+				example: "La kato estas en la domo.",
+			},
+		],
+	},
 	generation: {
 		shape: {
 			words: [
@@ -159,6 +185,28 @@ const vocabularyBrick: LessonBodyBrickSpec<LessonVocabularyBlock> = {
 		instructions:
 			"Introduce three to six canonical vocabulary items for the lesson. " +
 			"Use target words when provided. Each example must be simple Esperanto that a learner at this level can understand.",
+		example: {
+			words: [
+				{
+					term: "kato",
+					meaning: "cat",
+					partOfSpeech: "noun",
+					example: "La kato estas en la domo.",
+				},
+				{
+					term: "domo",
+					meaning: "house",
+					partOfSpeech: "noun",
+					example: "La domo estas granda.",
+				},
+				{
+					term: "en",
+					meaning: "in",
+					partOfSpeech: "preposition",
+					example: "La kato estas en la domo.",
+				},
+			],
+		},
 		parse(value) {
 			if (
 				!isObject(value) ||
@@ -218,6 +266,19 @@ const vocabularyBrick: LessonBodyBrickSpec<LessonVocabularyBlock> = {
 };
 
 const grammarBrick: LessonBodyBrickSpec<LessonGrammarBlock> = {
+	example: {
+		id: "grammar",
+		type: "grammar",
+		title: "Grammar",
+		concepts: [
+			{
+				id: "using-en",
+				title: "Using en",
+				explanation: "`En` means in. It shows where something is.",
+				examples: ["La kato estas en la domo."],
+			},
+		],
+	},
 	generation: {
 		shape: {
 			title: "Grammar point title",
@@ -227,6 +288,11 @@ const grammarBrick: LessonBodyBrickSpec<LessonGrammarBlock> = {
 		instructions:
 			"Teach one compact grammar or usage point that helps with the introduced words and story. " +
 			"Use one short English explanation. Include one to three short Esperanto examples. Put Esperanto forms in backticks when naming them.",
+		example: {
+			title: "Using en",
+			explanation: "`En` means in. It shows where something is.",
+			examples: ["La kato estas en la domo."],
+		},
 		parse(value) {
 			if (
 				!isObject(value) ||
@@ -287,6 +353,19 @@ const grammarBrick: LessonBodyBrickSpec<LessonGrammarBlock> = {
 };
 
 const patternsBrick: LessonBodyBrickSpec<LessonPatternsBlock> = {
+	example: {
+		id: "patterns",
+		type: "patterns",
+		title: "Patterns",
+		patterns: [
+			{
+				id: "subject-estas-place",
+				title: "Subject + estas + place",
+				slots: ["subject", "estas", "place"],
+				examples: ["La kato estas en la domo."],
+			},
+		],
+	},
 	render: (block) =>
 		block.patterns.map((pattern) => (
 			<div key={pattern.id} className="lesson-doc__grammar">
@@ -309,6 +388,14 @@ const patternsBrick: LessonBodyBrickSpec<LessonPatternsBlock> = {
 };
 
 const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
+	example: {
+		id: "story",
+		type: "story",
+		title: "Your story",
+		intro: "Read it aloud, then type it from memory on the next screen.",
+		text: "La kato estas en la domo. La domo estas varma.",
+		sentences: ["La kato estas en la domo.", "La domo estas varma."],
+	},
 	generation: {
 		shape: {
 			sentences: [
@@ -319,6 +406,9 @@ const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
 		instructions:
 			"Write a tiny two to five sentence Esperanto practice story. " +
 			"Use mostly the introduced words and very basic known words. Do not include English in the story.",
+		example: {
+			sentences: ["La kato estas en la domo.", "La domo estas varma."],
+		},
 		parse(value) {
 			if (
 				!isObject(value) ||
@@ -360,6 +450,14 @@ const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
 };
 
 const teachingBrick: LessonBodyBrickSpec<LessonTeachingSection> = {
+	example: {
+		id: "teaching",
+		type: "overview",
+		title: "A cat at home",
+		body: [
+			"This lesson uses a tiny home scene to practice saying where something is.",
+		],
+	},
 	generation: {
 		shape: {
 			title: "Teaching point title",
@@ -371,6 +469,12 @@ const teachingBrick: LessonBodyBrickSpec<LessonTeachingSection> = {
 		instructions:
 			"Give a short learner-facing overview of the lesson theme, context, or communication goal. " +
 			"Use one or two short English paragraphs. Do not introduce a second standalone grammar rule; leave grammar mechanics to the grammar brick.",
+		example: {
+			title: "A cat at home",
+			body: [
+				"This lesson uses a tiny home scene to practice saying where something is.",
+			],
+		},
 		parse(value) {
 			if (
 				!isObject(value) ||
@@ -396,11 +500,16 @@ const teachingBrick: LessonBodyBrickSpec<LessonTeachingSection> = {
 	toBotContext: (block) => describeTeachingSection(block),
 };
 
-type LessonBodyBrickRegistry = {
+type ExactLessonBodyBrickSpec = {
 	[K in LessonBodyBlock["type"]]: LessonBodyBrickSpec<
 		Extract<LessonBodyBlock, { type: K }>
 	>;
-};
+}[LessonBodyBlock["type"]];
+
+type LessonBodyBrickRegistry = Record<
+	LessonBodyBlock["type"],
+	ExactLessonBodyBrickSpec | LessonBodyBrickSpec<LessonTeachingSection>
+>;
 
 const LESSON_BODY_BRICKS: LessonBodyBrickRegistry = {
 	overview: teachingBrick,
@@ -412,6 +521,16 @@ const LESSON_BODY_BRICKS: LessonBodyBrickRegistry = {
 	patterns: patternsBrick,
 	story: storyBrick,
 };
+
+export function lessonBodyBrickEntries(): [
+	LessonBodyBlock["type"],
+	LessonBodyBrickSpec<LessonBodyBlock>,
+][] {
+	return Object.entries(LESSON_BODY_BRICKS).map(([type, spec]) => [
+		type as LessonBodyBlock["type"],
+		spec as LessonBodyBrickSpec<LessonBodyBlock>,
+	]);
+}
 
 function brickFor(
 	block: LessonBodyBlock,
@@ -439,6 +558,9 @@ export const LESSON_GENERATABLE_BODY_BRICK_TYPES = [
 
 export type LessonGeneratableBodyBrickType =
 	(typeof LESSON_GENERATABLE_BODY_BRICK_TYPES)[number];
+
+export const VOCABULARY_BODY_BRICK_TYPE = "vocabulary";
+export const STORY_BODY_BRICK_TYPE = "story";
 
 export function lessonBodyGenerationSpec(
 	type: LessonGeneratableBodyBrickType,

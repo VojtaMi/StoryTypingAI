@@ -11,6 +11,8 @@ import {
 	type LessonBodyBlock,
 	type LessonGeneratableBodyBrickType,
 	lessonBodyGenerationSpec,
+	STORY_BODY_BRICK_TYPE,
+	VOCABULARY_BODY_BRICK_TYPE,
 } from "./bricks/lessonBodyBricks";
 import type {
 	IntroducedWord,
@@ -29,6 +31,7 @@ export interface LessonBodyGenerationBrick
 /** Exercises are derived from the parsed body; the model is never asked for them. */
 export interface LessonExerciseDerivationBrick {
 	type: LessonGeneratableExerciseBrickType;
+	requires: LessonGeneratableBodyBrickType;
 	create(): LessonExercise;
 }
 
@@ -53,22 +56,26 @@ export const DEFAULT_LESSON_GENERATION_SELECTION: LessonGenerationSelection = {
 export function getLessonBricks(
 	selection: LessonGenerationSelection = DEFAULT_LESSON_GENERATION_SELECTION,
 ): LessonGenerationBricks {
+	const body = selection.body.map((type) => {
+		const spec = lessonBodyGenerationSpec(type);
+		return {
+			type,
+			...spec,
+		};
+	});
+	const exercises = selection.exercises.map((type) => {
+		const spec = exerciseDerivationSpec(type);
+		return {
+			type,
+			...spec,
+		};
+	});
+	validateExerciseRequirements(body, exercises);
+
 	return {
 		level: selection.level,
-		body: selection.body.map((type) => {
-			const spec = lessonBodyGenerationSpec(type);
-			return {
-				type,
-				...spec,
-			};
-		}),
-		exercises: selection.exercises.map((type) => {
-			const spec = exerciseDerivationSpec(type);
-			return {
-				type,
-				...spec,
-			};
-		}),
+		body,
+		exercises,
 	};
 }
 
@@ -107,10 +114,13 @@ export function parseGeneratedLesson(
 		bricks.body[index].parse(value),
 	);
 	const exercises = bricks.exercises.map((brick) => brick.create());
-	const introducedWords = bricksRequireVocabulary(bricks)
+	const neededBodyTypes = lessonFieldBodyTypes(bricks);
+	const introducedWords = neededBodyTypes.has(VOCABULARY_BODY_BRICK_TYPE)
 		? requiredVocabulary(bodyBlocks)
 		: [];
-	const story = bricksRequireStory(bricks) ? requiredStory(bodyBlocks) : [];
+	const story = neededBodyTypes.has(STORY_BODY_BRICK_TYPE)
+		? requiredStory(bodyBlocks)
+		: [];
 	const grammarConcepts = bodyBlocks.flatMap((block) =>
 		block.type === "grammar" ? block.concepts : [],
 	);
@@ -152,18 +162,27 @@ function requiredStory(blocks: LessonBodyBlock[]): string[] {
 	return storyBlock.sentences ?? [storyBlock.text];
 }
 
-function bricksRequireVocabulary(bricks: LessonGenerationBricks) {
-	return (
-		bricks.body.some((brick) => brick.type === "vocabulary") ||
-		bricks.exercises.some((brick) => brick.type === "word-match")
-	);
+function validateExerciseRequirements(
+	body: LessonBodyGenerationBrick[],
+	exercises: LessonExerciseDerivationBrick[],
+) {
+	const selectedBodyTypes = new Set(body.map((brick) => brick.type));
+	for (const exercise of exercises) {
+		if (!selectedBodyTypes.has(exercise.requires)) {
+			throw new Error(
+				`Exercise brick "${exercise.type}" requires the "${exercise.requires}" body brick.`,
+			);
+		}
+	}
 }
 
-function bricksRequireStory(bricks: LessonGenerationBricks) {
-	return (
-		bricks.body.some((brick) => brick.type === "story") ||
-		bricks.exercises.some((brick) => brick.type === "typing-story")
-	);
+function lessonFieldBodyTypes(
+	bricks: LessonGenerationBricks,
+): Set<LessonGeneratableBodyBrickType> {
+	return new Set([
+		...bricks.body.map((brick) => brick.type),
+		...bricks.exercises.map((brick) => brick.requires),
+	]);
 }
 
 function isTeachingSection(

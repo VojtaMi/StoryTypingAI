@@ -10,6 +10,11 @@ import type {
 	TypingStoryLessonExercise,
 	WordMatchLessonExercise,
 } from "../types";
+import {
+	type LessonGeneratableBodyBrickType,
+	STORY_BODY_BRICK_TYPE,
+	VOCABULARY_BODY_BRICK_TYPE,
+} from "./lessonBodyBricks";
 
 const DEFAULT_TYPING_IMAGE = "/images/lesson-typing-bg.webp";
 
@@ -36,11 +41,13 @@ export interface ExerciseBrickCtx {
  * Generatable exercises are derived from the lesson's canonical body, never
  * authored by the model, so a brick only needs to say how to build itself.
  */
-interface ExerciseDerivationSpec {
+export interface ExerciseDerivationSpec {
+	requires: LessonGeneratableBodyBrickType;
 	create(): LessonExercise;
 }
 
-interface ExerciseBrickSpec<T extends LessonExercise> {
+export interface ExerciseBrickSpec<T extends LessonExercise> {
+	example: T;
 	render(exercise: T, ctx: ExerciseBrickCtx): ReactNode;
 	toBotContext(exercise: T, lesson: Lesson): string;
 	generation?: ExerciseDerivationSpec;
@@ -58,7 +65,15 @@ export function wordsForWordMatch(
 }
 
 const wordMatchBrick: ExerciseBrickSpec<WordMatchLessonExercise> = {
+	example: {
+		id: "word-match",
+		type: "word-match",
+		title: "Connect the new words",
+		hint: "Match each Esperanto word to its meaning.",
+		completeLabel: "Continue to Story",
+	},
 	generation: {
+		requires: VOCABULARY_BODY_BRICK_TYPE,
 		create() {
 			return {
 				id: "word-match",
@@ -93,6 +108,21 @@ const wordMatchBrick: ExerciseBrickSpec<WordMatchLessonExercise> = {
 };
 
 const phraseBuilderBrick: ExerciseBrickSpec<PhraseBuilderLessonExercise> = {
+	example: {
+		id: "phrase-builder",
+		type: "phrase-builder",
+		title: "Build the sentence",
+		hint: "Put the words in Esperanto order.",
+		prompts: [
+			{
+				id: "kato-en-domo",
+				meaning: "The cat is in the house.",
+				answer: ["La", "kato", "estas", "en", "la", "domo"],
+				distractors: ["granda", "varma"],
+			},
+		],
+		completeLabel: "Continue",
+	},
 	render: (exercise, ctx) => (
 		<PhraseBuilderExercise
 			title={exercise.title}
@@ -115,7 +145,12 @@ const phraseBuilderBrick: ExerciseBrickSpec<PhraseBuilderLessonExercise> = {
 };
 
 const typingStoryBrick: ExerciseBrickSpec<TypingStoryLessonExercise> = {
+	example: {
+		id: "typing",
+		type: "typing-story",
+	},
 	generation: {
+		requires: STORY_BODY_BRICK_TYPE,
 		create() {
 			return {
 				id: "typing",
@@ -148,6 +183,16 @@ const EXERCISE_BRICKS: ExerciseBrickRegistry = {
 	"phrase-builder": phraseBuilderBrick,
 	"typing-story": typingStoryBrick,
 };
+
+export function exerciseBrickEntries(): [
+	LessonExercise["type"],
+	ExerciseBrickSpec<LessonExercise>,
+][] {
+	return Object.entries(EXERCISE_BRICKS).map(([type, spec]) => [
+		type as LessonExercise["type"],
+		spec as ExerciseBrickSpec<LessonExercise>,
+	]);
+}
 
 export function renderExerciseBrick(
 	exercise: LessonExercise,

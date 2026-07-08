@@ -1,6 +1,7 @@
 export interface GenerationSpec<T> {
 	shape: unknown;
 	instructions: string;
+	example?: unknown;
 	parse(value: unknown): T;
 }
 

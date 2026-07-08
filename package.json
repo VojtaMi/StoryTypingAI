@@ -10,7 +10,7 @@
 		"build": "tsc -b && vite build && npm run build:server",
 		"build:server": "vite build --config vite.server.config.ts",
 		"preview": "vite preview",
-		"check": "npm run build && npm run lint",
+		"check": "npm run build && npm run lint && npm run bricks:test",
 		"lint": "biome ci .",
 		"lint:fix": "biome check --write .",
 		"lint:staged": "biome check --staged --no-errors-on-unmatched",
@@ -23,6 +23,7 @@
 		"lesson:generation:append": "node --import ./scripts/register-css-loader.mjs --import tsx scripts/append-authored-lesson.ts",
 		"lesson:generation:bricks": "node --import ./scripts/register-css-loader.mjs --import tsx scripts/describe-lesson-bricks.ts",
 		"lesson:generation:test": "node --import ./scripts/register-css-loader.mjs --import tsx scripts/test-lesson-generation.ts",
+		"bricks:test": "node --import ./scripts/register-css-loader.mjs --import tsx scripts/test-bricks.ts",
 		"model:compare": "tsx --env-file-if-exists=.env.local scripts/compare-text-models.ts",
 		"test:opening": "tsx scripts/test-opening.ts"
 	},
