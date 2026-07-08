@@ -69,14 +69,16 @@ Deployment to Rosti (rosti.cz) is documented in [`rosti/README.md`](./rosti/READ
 
 Playwright MCP is configured locally (`~/.claude.json`, not in this repo) with a custom `--output-dir` and `--headless`. Browser stays headless (no popup); for a debugging session needing headed mode, drop `--headless` and reconnect the MCP server.
 
-**Never pass a bare/relative `filename` to `browser_take_screenshot`.** Despite the tool's own doc string, a relative filename resolves against the *current working directory* — i.e. the repo root — not the configured `--output-dir`. Verified against `@playwright/mcp@0.0.71`:
+Despite the tool's own doc string, a relative `filename` resolves against the *current working directory* — the repo root — not the configured `--output-dir`. Verified against `@playwright/mcp@0.0.71`:
 
-| `filename` argument | file lands in |
+| `filename` argument | writes to |
 | --- | --- |
-| omitted | `--output-dir` ✅ |
-| `"shot.png"` (relative) | repo root ❌ |
-| absolute path inside `--output-dir` | `--output-dir` ✅ |
+| omitted | `--output-dir` |
+| `"shot.png"` (relative) | **the repo root** |
+| any absolute path (inside `--output-dir` or not) | that path, creating no directories |
 
-So: **omit `filename`** and read the path from the tool result, or pass an absolute path under `--output-dir`. Absolute paths *outside* that dir are rejected.
+You don't have to remember this. A `PreToolUse` hook ([`.claude/hooks/screenshot-to-artifacts.mjs`](./.claude/hooks/screenshot-to-artifacts.mjs), wired up in [`.claude/settings.json`](./.claude/settings.json)) rewrites any relative `filename` to `.artifacts/screenshots/<name>`, creating the directory. `.artifacts/` is gitignored, and it is where `npm run verify:page` puts its screenshots too. Absolute paths pass through untouched; a relative path that escapes `.artifacts/screenshots` is denied.
 
-`/*.png` is gitignored as a safety net, but a leaked screenshot is still a leaked screenshot — don't rely on it.
+So just pass `filename: "gallery.png"` and read the real path back from the tool result.
+
+`/*.png` is also gitignored as a belt-and-braces net — the hook only guards this repo's Claude Code sessions, not other tools.

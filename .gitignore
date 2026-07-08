@@ -27,6 +27,7 @@ translation-cache.json
 .claude/*
 !.claude/skills/
 !.claude/settings.json
+!.claude/hooks/
 .vscode/*
 !.vscode/extensions.json
 .idea
