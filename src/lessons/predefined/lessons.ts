@@ -1,6 +1,7 @@
 import type { Lesson } from "../types";
+import { generatedLessons } from "./generatedLessons";
 
-export const lessons: Lesson[] = [
+const predefinedLessons: Lesson[] = [
 	{
 		id: "hundo-estas-besto",
 		title: "Hundo estas besto",
@@ -370,6 +371,8 @@ export const lessons: Lesson[] = [
 		],
 	},
 ];
+
+export const lessons: Lesson[] = [...predefinedLessons, ...generatedLessons];
 
 /** The lesson the curriculum-guided path starts with in V1. */
 export const firstLesson = lessons[0];

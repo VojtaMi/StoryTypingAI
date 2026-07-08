@@ -1,10 +1,11 @@
 import type { Genre, GenreId } from "./genres";
 import type { LearnerContext } from "./learnerContext";
 import {
-	buildLessonPrompt,
+	buildLessonPromptFromBricks,
 	DEFAULT_LESSON_GENERATION_SELECTION,
+	getLessonBricks,
 	type LessonGenerationSelection,
-	parseGeneratedLesson,
+	parseGeneratedLessonFromBricks,
 } from "./lessons/lessonGeneration";
 import type { Lesson, LessonLevel } from "./lessons/types";
 import {
@@ -352,9 +353,10 @@ export async function generateLesson(
 			input.selection?.exercises ??
 			DEFAULT_LESSON_GENERATION_SELECTION.exercises,
 	};
+	const bricks = getLessonBricks(selection);
 	const text = await complete(
 		[
-			{ role: "system", content: buildLessonPrompt(selection) },
+			{ role: "system", content: buildLessonPromptFromBricks(bricks) },
 			{
 				role: "user",
 				content: [
@@ -374,7 +376,7 @@ export async function generateLesson(
 		model,
 		LESSON_GENERATION_MAX_TOKENS,
 	);
-	return parseGeneratedLesson(text, selection);
+	return parseGeneratedLessonFromBricks(text, bricks);
 }
 
 export async function continueStoryStream(

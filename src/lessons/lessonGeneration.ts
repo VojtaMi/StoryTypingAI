@@ -15,6 +15,28 @@ import type {
 	LessonTeachingSection,
 } from "./types";
 
+type LessonGenerationBrickKind = "body" | "exercise";
+
+export interface LessonGenerationBrick<
+	TType extends string = string,
+	TKind extends LessonGenerationBrickKind = LessonGenerationBrickKind,
+> {
+	kind: TKind;
+	type: TType;
+	description: string;
+	shape: unknown;
+	instructions: string;
+}
+
+export interface LessonGenerationBricks {
+	level: LessonLevel;
+	body: LessonGenerationBrick<LessonGeneratableBodyBrickType, "body">[];
+	exercises: LessonGenerationBrick<
+		LessonGeneratableExerciseBrickType,
+		"exercise"
+	>[];
+}
+
 export interface LessonGenerationSelection {
 	level: LessonLevel;
 	body: LessonGeneratableBodyBrickType[];
@@ -27,23 +49,55 @@ export const DEFAULT_LESSON_GENERATION_SELECTION: LessonGenerationSelection = {
 	exercises: ["word-match", "typing-story"],
 };
 
+export function getLessonBricks(
+	selection: LessonGenerationSelection = DEFAULT_LESSON_GENERATION_SELECTION,
+): LessonGenerationBricks {
+	return {
+		level: selection.level,
+		body: selection.body.map((type) => {
+			const spec = lessonBodyGenerationSpec(type);
+			return {
+				kind: "body",
+				type,
+				description: `Lesson body brick: ${type}`,
+				shape: parseSpecShape(spec.shape),
+				instructions: spec.instructions,
+			};
+		}),
+		exercises: selection.exercises.map((type) => {
+			const spec = exerciseGenerationSpec(type);
+			return {
+				kind: "exercise",
+				type,
+				description: `Lesson exercise brick: ${type}`,
+				shape: parseSpecShape(spec.shape),
+				instructions: spec.instructions,
+			};
+		}),
+	};
+}
+
 /** Composes the lesson generation prompt from each selected brick's own shape and rules. */
 export function buildLessonPrompt(
 	selection: LessonGenerationSelection,
 ): string {
-	const bodySpecs = selection.body.map(lessonBodyGenerationSpec);
-	const exerciseSpecs = selection.exercises.map(exerciseGenerationSpec);
+	return buildLessonPromptFromBricks(getLessonBricks(selection));
+}
+
+export function buildLessonPromptFromBricks(
+	bricks: LessonGenerationBricks,
+): string {
 	const shape = JSON.stringify({
 		title: "Short lesson title",
 		lede: "One-sentence learner-facing summary",
-		body: bodySpecs.map((spec) => JSON.parse(spec.shape) as unknown),
-		exercises: exerciseSpecs.map((spec) => JSON.parse(spec.shape) as unknown),
+		body: bricks.body.map((brick) => brick.shape),
+		exercises: bricks.exercises.map((brick) => brick.shape),
 	});
-	const instructions = [...bodySpecs, ...exerciseSpecs]
-		.map((spec) => spec.instructions)
+	const instructions = [...bricks.body, ...bricks.exercises]
+		.map((brick) => brick.instructions)
 		.join(" ");
 	return (
-		`Create a small Esperanto lesson for a ${selection.level} learner. ` +
+		`Create a small Esperanto lesson for a ${bricks.level} learner. ` +
 		"Return only valid JSON with this exact shape: " +
 		`${shape} ` +
 		`${instructions} ` +
@@ -56,6 +110,13 @@ export function parseGeneratedLesson(
 	text: string,
 	selection: LessonGenerationSelection,
 ): Lesson {
+	return parseGeneratedLessonFromBricks(text, getLessonBricks(selection));
+}
+
+export function parseGeneratedLessonFromBricks(
+	text: string,
+	bricks: LessonGenerationBricks,
+): Lesson {
 	const parsed = JSON.parse(text) as unknown;
 	if (!isObject(parsed)) throw new Error("Lesson JSON was not an object.");
 	if (!Array.isArray(parsed.body))
@@ -63,25 +124,23 @@ export function parseGeneratedLesson(
 	if (!Array.isArray(parsed.exercises)) {
 		throw new Error("Lesson JSON is missing exercises.");
 	}
-	if (parsed.body.length !== selection.body.length) {
+	if (parsed.body.length !== bricks.body.length) {
 		throw new Error("Lesson JSON body does not match the selected bricks.");
 	}
-	if (parsed.exercises.length !== selection.exercises.length) {
+	if (parsed.exercises.length !== bricks.exercises.length) {
 		throw new Error("Lesson JSON exercises do not match the selected bricks.");
 	}
 
 	const bodyBlocks = parsed.body.map((value, index) =>
-		lessonBodyGenerationSpec(selection.body[index]).parse(value),
+		lessonBodyGenerationSpec(bricks.body[index].type).parse(value),
 	);
 	const exercises = parsed.exercises.map((value, index) =>
-		exerciseGenerationSpec(selection.exercises[index]).parse(value),
+		exerciseGenerationSpec(bricks.exercises[index].type).parse(value),
 	);
-	const introducedWords = selectionRequiresVocabulary(selection)
+	const introducedWords = selectionRequiresVocabulary(bricks)
 		? requiredVocabulary(bodyBlocks)
 		: [];
-	const story = selectionRequiresStory(selection)
-		? requiredStory(bodyBlocks)
-		: [];
+	const story = selectionRequiresStory(bricks) ? requiredStory(bodyBlocks) : [];
 	const grammarConcepts = bodyBlocks.flatMap((block) =>
 		block.type === "grammar" ? block.concepts : [],
 	);
@@ -92,7 +151,7 @@ export function parseGeneratedLesson(
 	return {
 		id: lessonId,
 		title,
-		level: selection.level,
+		level: bricks.level,
 		lede: requiredString(parsed.lede, "lesson lede", "Lesson JSON"),
 		introducedWords,
 		grammarConcepts,
@@ -105,6 +164,10 @@ export function parseGeneratedLesson(
 		})),
 		resources: [],
 	};
+}
+
+function parseSpecShape(shape: string): unknown {
+	return JSON.parse(shape) as unknown;
 }
 
 function requiredVocabulary(blocks: LessonBodyBlock[]): IntroducedWord[] {
@@ -123,17 +186,17 @@ function requiredStory(blocks: LessonBodyBlock[]): string[] {
 	return storyBlock.sentences ?? [storyBlock.text];
 }
 
-function selectionRequiresVocabulary(selection: LessonGenerationSelection) {
+function selectionRequiresVocabulary(bricks: LessonGenerationBricks) {
 	return (
-		selection.body.includes("vocabulary") ||
-		selection.exercises.includes("word-match")
+		bricks.body.some((brick) => brick.type === "vocabulary") ||
+		bricks.exercises.some((brick) => brick.type === "word-match")
 	);
 }
 
-function selectionRequiresStory(selection: LessonGenerationSelection) {
+function selectionRequiresStory(bricks: LessonGenerationBricks) {
 	return (
-		selection.body.includes("story") ||
-		selection.exercises.includes("typing-story")
+		bricks.body.some((brick) => brick.type === "story") ||
+		bricks.exercises.some((brick) => brick.type === "typing-story")
 	);
 }
 
