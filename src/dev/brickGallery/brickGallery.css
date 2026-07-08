@@ -170,50 +170,7 @@
 	position: absolute;
 }
 
-.brick-gallery__generation {
-	display: grid;
-	grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-	gap: 1rem;
-}
-
-.brick-gallery__generation h3 {
-	margin: 0 0 0.45rem;
-	color: var(--brick-gallery-soft);
-	font-family: system-ui, sans-serif;
-	font-size: 0.78rem;
-	font-weight: 800;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-}
-
-.brick-gallery__generation pre {
-	min-height: 100%;
-	margin: 0;
-	padding: 0.9rem;
-	overflow: auto;
-	border: 1px solid var(--brick-gallery-rule);
-	border-radius: 8px;
-	background: #f6efe5;
-	color: var(--brick-gallery-ink);
-	font-family: "SFMono-Regular", "Cascadia Code", Menlo, Consolas, monospace;
-	font-size: 0.82rem;
-	line-height: 1.5;
-	white-space: pre-wrap;
-}
-
-.brick-gallery__json-pair {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 1rem;
-}
-
 @media (max-width: 820px) {
-	.brick-gallery__brick-header,
-	.brick-gallery__generation,
-	.brick-gallery__json-pair {
-		grid-template-columns: 1fr;
-	}
-
 	.brick-gallery__brick-header {
 		display: grid;
 	}

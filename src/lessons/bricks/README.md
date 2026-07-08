@@ -34,3 +34,5 @@ To inspect bricks visually, run `npm run dev:vite` and open
 [`/bricks`](http://localhost:5173/bricks). Individual bricks are available at
 `/bricks/<registry-key>`, for example
 [`/bricks/fill-blank`](http://localhost:5173/bricks/fill-blank).
+The gallery is only a visual registry preview; model-authored JSON shapes and
+constraints belong in each brick's README and `index.ts`.

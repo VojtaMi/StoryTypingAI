@@ -16,8 +16,6 @@ import "./brickGallery.css";
 type GenerationKind = "model-authored" | "derived" | "neither";
 
 interface ParseGeneration<T> {
-	instructions: string;
-	shape: unknown;
 	example: unknown;
 	parse(value: unknown): T;
 }
@@ -93,10 +91,6 @@ function renderFixture<T>(spec: { example: T; generation?: unknown }): T {
 	return spec.example;
 }
 
-function formatJson(value: unknown) {
-	return JSON.stringify(value, null, 2);
-}
-
 function brickHref(key: string) {
 	return `${BRICK_GALLERY_PATH}/${encodeURIComponent(key)}`;
 }
@@ -145,29 +139,6 @@ function BrickHeader({
 	);
 }
 
-function GenerationDetails<T>({ generation }: { generation: unknown }) {
-	if (!hasParseGeneration<T>(generation)) return null;
-
-	return (
-		<section className="brick-gallery__generation">
-			<div>
-				<h3>Instructions</h3>
-				<pre>{generation.instructions}</pre>
-			</div>
-			<div className="brick-gallery__json-pair">
-				<div>
-					<h3>Shape</h3>
-					<pre>{formatJson(generation.shape)}</pre>
-				</div>
-				<div>
-					<h3>Example</h3>
-					<pre>{formatJson(generation.example)}</pre>
-				</div>
-			</div>
-		</section>
-	);
-}
-
 function BodyBrickCard({
 	group,
 }: {
@@ -187,7 +158,6 @@ function BodyBrickCard({
 					</section>
 				</article>
 			</div>
-			<GenerationDetails<LessonBodyBlock> generation={group.spec.generation} />
 		</article>
 	);
 }
@@ -206,7 +176,6 @@ function ExerciseBrickCard({
 			<div className="brick-gallery__preview brick-gallery__preview--exercise">
 				{renderExerciseBrick(exercise, exerciseCtx)}
 			</div>
-			<GenerationDetails<LessonExercise> generation={group.spec.generation} />
 		</article>
 	);
 }
