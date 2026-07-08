@@ -1,15 +1,13 @@
 import {
 	type ExerciseBrickSpec,
 	exerciseBrickEntries,
-	renderExerciseBrick,
-} from "../../lessons/bricks/exerciseBricks";
-import {
 	type LessonBodyBlock,
 	type LessonBodyBrickSpec,
 	type LessonBodyRenderCtx,
 	lessonBodyBrickEntries,
+	renderExerciseBrick,
 	renderLessonBodyBlock,
-} from "../../lessons/bricks/lessonBodyBricks";
+} from "../../lessons/bricks";
 import "../../lessons/lesson.css";
 import { buildLessonBotContext } from "../../lessons/lessonBotContext";
 import { firstLesson } from "../../lessons/predefined/lessons";

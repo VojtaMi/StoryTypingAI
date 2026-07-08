@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
-import "../lesson.css";
-import { useWordAudioPlayer } from "../lessonAudio";
-import type { IntroducedWord } from "../types";
-import { useWordMatching } from "../useWordMatching";
+import { EsperantoChatModal } from "../../../exercise_screen/chatbot/EsperantoChatModal";
+import "../../lesson.css";
+import { useWordAudioPlayer } from "../../lessonAudio";
+import type { IntroducedWord } from "../../types";
+import { useWordMatching } from "../../useWordMatching";
 
 interface WordMatchExerciseProps {
 	words: IntroducedWord[];

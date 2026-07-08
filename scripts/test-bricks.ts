@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { exerciseBrickEntries } from "../src/lessons/bricks/exerciseBricks.tsx";
 import {
+	exerciseBrickEntries,
+	LESSON_GENERATABLE_BODY_BRICK_TYPES,
 	type LessonBodyBlock,
 	lessonBodyBrickEntries,
-} from "../src/lessons/bricks/lessonBodyBricks.tsx";
+} from "../src/lessons/bricks/index.ts";
 
 type BrickSpec = {
 	example?: unknown;
@@ -35,6 +36,19 @@ for (const [type, spec] of exerciseBrickEntries()) {
 			`Exercise brick "${type}" requires unknown body brick "${spec.generation.requires}".`,
 		);
 	}
+}
+
+// contracts.ts cannot import the registry, so the generatable list is written by
+// hand. Pin it: every listed type must be a registry key whose brick can author.
+const bodyBricksByType = new Map(lessonBodyBrickEntries());
+for (const type of LESSON_GENERATABLE_BODY_BRICK_TYPES) {
+	const spec = bodyBricksByType.get(type);
+	assert.ok(spec, `Generatable body brick "${type}" is not a registry key.`);
+	assert.ok(
+		hasParse(spec.generation),
+		`Body brick "${type}" is listed as generatable but has no generation.parse.`,
+	);
+	console.log(`checked generatable body:${type}`);
 }
 
 function checkBrick(name: string, spec: BrickSpec) {

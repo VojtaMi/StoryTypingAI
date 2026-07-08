@@ -5,15 +5,13 @@ import {
 } from "../structuredGeneration";
 import {
 	exerciseDerivationSpec,
-	type LessonGeneratableExerciseBrickType,
-} from "./bricks/exerciseBricks";
-import {
 	type LessonBodyBlock,
 	type LessonGeneratableBodyBrickType,
+	type LessonGeneratableExerciseBrickType,
 	lessonBodyGenerationSpec,
 	STORY_BODY_BRICK_TYPE,
 	VOCABULARY_BODY_BRICK_TYPE,
-} from "./bricks/lessonBodyBricks";
+} from "./bricks";
 import type {
 	IntroducedWord,
 	Lesson,

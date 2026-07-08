@@ -1,8 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { LESSON_GENERATABLE_EXERCISE_BRICK_TYPES } from "../src/lessons/bricks/exerciseBricks.tsx";
-import { LESSON_GENERATABLE_BODY_BRICK_TYPES } from "../src/lessons/bricks/lessonBodyBricks.tsx";
+import {
+	LESSON_GENERATABLE_BODY_BRICK_TYPES,
+	LESSON_GENERATABLE_EXERCISE_BRICK_TYPES,
+} from "../src/lessons/bricks/index.ts";
 import {
 	DEFAULT_LESSON_GENERATION_SELECTION,
 	type LessonGenerationSelection,

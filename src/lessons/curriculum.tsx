@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { exerciseOfType, renderExerciseBrick } from "./bricks/exerciseBricks";
+import { exerciseOfType, renderExerciseBrick } from "./bricks";
+import { WordMatchExercise } from "./bricks/wordMatch";
 import { buildLessonBotContext } from "./lessonBotContext";
 import { completeLessonStage } from "./lessonProgress";
 import EsperantoIntro from "./predefined/EsperantoIntro";
@@ -12,7 +13,6 @@ import {
 	miEstasHomoLesson,
 } from "./predefined/lessons";
 import LessonIntro from "./templates/LessonIntro";
-import WordMatchExercise from "./templates/WordMatchExercise";
 import type { Lesson, LessonExercise } from "./types";
 
 /** What a step's renderer receives: the two curriculum-level hooks it can fire. */

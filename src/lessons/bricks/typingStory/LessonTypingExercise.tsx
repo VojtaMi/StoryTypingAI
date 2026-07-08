@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
-import { TypingPassage } from "../../exercise_screen/typing/TypingPassage";
-import { useTypingSession } from "../../exercise_screen/typing/useTypingSession";
-import "../lesson.css";
-import { useLessonTextAudioPlayer } from "../lessonAudio";
+import { EsperantoChatModal } from "../../../exercise_screen/chatbot/EsperantoChatModal";
+import { TypingPassage } from "../../../exercise_screen/typing/TypingPassage";
+import { useTypingSession } from "../../../exercise_screen/typing/useTypingSession";
+import "../../lesson.css";
+import { useLessonTextAudioPlayer } from "../../lessonAudio";
 
 interface LessonTypingExerciseProps {
 	lessonId: string;

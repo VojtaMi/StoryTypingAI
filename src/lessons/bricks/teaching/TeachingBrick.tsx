@@ -5,7 +5,7 @@ import type {
 	LessonOverviewSection,
 	LessonPossessiveTableSection,
 	LessonTeachingSection,
-} from "../types";
+} from "../../types";
 
 /** Renders text with inline `code` spans marked by backticks. */
 export function renderWithCode(text: string): ReactNode {

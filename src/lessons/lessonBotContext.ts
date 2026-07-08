@@ -1,8 +1,8 @@
-import { describeExerciseBrick } from "./bricks/exerciseBricks";
 import {
+	describeExerciseBrick,
 	describeLessonBodyBlock,
 	lessonBodyBlocks,
-} from "./bricks/lessonBodyBricks";
+} from "./bricks";
 import { lessonStoryText, lessonVocab } from "./lessonContent";
 import type { Lesson } from "./types";
 

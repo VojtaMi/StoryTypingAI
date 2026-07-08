@@ -4,7 +4,7 @@ import {
 	type LessonBodyBlock,
 	lessonBodyBlocks,
 	renderLessonBodyBlock,
-} from "../bricks/lessonBodyBricks";
+} from "../bricks";
 import "../lesson.css";
 import {
 	lessonAudioUrlCache,

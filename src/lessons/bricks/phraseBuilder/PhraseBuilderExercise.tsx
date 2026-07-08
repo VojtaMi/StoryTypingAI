@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { EsperantoChatModal } from "../../exercise_screen/chatbot/EsperantoChatModal";
-import "../lesson.css";
-import { useWordAudioPlayer } from "../lessonAudio";
-import type { PhraseBuilderPrompt } from "../types";
+import { EsperantoChatModal } from "../../../exercise_screen/chatbot/EsperantoChatModal";
+import "../../lesson.css";
+import { useWordAudioPlayer } from "../../lessonAudio";
+import type { PhraseBuilderPrompt } from "../../types";
 
 interface PhraseBuilderExerciseProps {
 	title: string;
