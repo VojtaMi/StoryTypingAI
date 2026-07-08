@@ -14,4 +14,7 @@ Registry keys alias to specs. There are 8 body registry keys but only 5 body bri
 
 To add a brick, add its folder under `src/lessons/bricks/` with an `index.ts` spec, component file, and CSS file if it owns non-trivial styles. Export it through `registry.ts` and `index.ts`. `npm run bricks:test` requires every registry entry to have an `example`.
 
-To inspect bricks visually, run `npm run dev:vite` and open `/bricks.html`.
+To inspect bricks visually, run `npm run dev:vite` and open
+[`/bricks`](http://localhost:5173/bricks). Individual bricks are available at
+`/bricks/<registry-key>`, for example
+[`/bricks/word-match`](http://localhost:5173/bricks/word-match).

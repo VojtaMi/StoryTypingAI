@@ -9,7 +9,6 @@ import {
 	renderLessonBodyBlock,
 } from "../../lessons/bricks";
 import "../../lessons/lesson.css";
-import { buildLessonBotContext } from "../../lessons/lessonBotContext";
 import { firstLesson } from "../../lessons/predefined/lessons";
 import type { LessonExercise } from "../../lessons/types";
 import "./brickGallery.css";
@@ -32,6 +31,8 @@ interface GroupedEntry<Key extends string, Spec> {
 	spec: Spec;
 }
 
+const BRICK_GALLERY_PATH = "/bricks";
+
 const bodyRenderCtx: LessonBodyRenderCtx = {
 	ready: new Set<string>(),
 	playing: null,
@@ -41,7 +42,7 @@ const bodyRenderCtx: LessonBodyRenderCtx = {
 const exerciseCtx = {
 	lesson: firstLesson,
 	lessonId: firstLesson.id,
-	backgroundIntro: buildLessonBotContext(firstLesson),
+	backgroundIntro: "",
 	onComplete: () => {},
 	onBack: () => {},
 };
@@ -96,6 +97,25 @@ function formatJson(value: unknown) {
 	return JSON.stringify(value, null, 2);
 }
 
+function brickHref(key: string) {
+	return `${BRICK_GALLERY_PATH}/${encodeURIComponent(key)}`;
+}
+
+function selectedBrickKey() {
+	const { hash, pathname } = window.location;
+
+	if (pathname.startsWith(`${BRICK_GALLERY_PATH}/`)) {
+		const key = pathname.slice(BRICK_GALLERY_PATH.length + 1).split("/")[0];
+		return decodeURIComponent(key);
+	}
+
+	if (hash.startsWith("#")) {
+		return decodeURIComponent(hash.slice(1));
+	}
+
+	return null;
+}
+
 function BrickHeader({
 	specName,
 	keys,
@@ -115,7 +135,9 @@ function BrickHeader({
 				<span className="brick-gallery__pill">{kind}</span>
 				<div className="brick-gallery__aliases">
 					{keys.map((key) => (
-						<code key={key}>{key}</code>
+						<a key={key} href={brickHref(key)}>
+							<code>{key}</code>
+						</a>
 					))}
 				</div>
 			</div>
@@ -190,40 +212,74 @@ function ExerciseBrickCard({
 }
 
 export default function BrickGallery() {
+	const selectedKey = selectedBrickKey();
 	const bodyGroups = groupBySpec(lessonBodyBrickEntries());
 	const exerciseGroups = groupBySpec(exerciseBrickEntries());
+	const visibleBodyGroups = selectedKey
+		? bodyGroups.filter((group) =>
+				group.keys.some((key) => key === selectedKey),
+			)
+		: bodyGroups;
+	const visibleExerciseGroups = selectedKey
+		? exerciseGroups.filter((group) =>
+				group.keys.some((key) => key === selectedKey),
+			)
+		: exerciseGroups;
+	const hasSelectedBrick =
+		visibleBodyGroups.length > 0 || visibleExerciseGroups.length > 0;
 
 	return (
 		<main className="brick-gallery">
 			<header className="brick-gallery__page-header">
 				<p className="brick-gallery__label">Dev workbench</p>
 				<h1>Lesson brick gallery</h1>
-				<p>
+				<p className="brick-gallery__intro">
 					Every brick renders from its fixture through the same registry used by
 					lessons. Shared specs keep all registry aliases visible.
 				</p>
+				{selectedKey && (
+					<p className="brick-gallery__filter">
+						Showing <code>{selectedKey}</code>.{" "}
+						<a href={BRICK_GALLERY_PATH}>View all bricks</a>
+					</p>
+				)}
 			</header>
 
-			<section className="brick-gallery__section" aria-labelledby="body-bricks">
-				<h2 id="body-bricks">Body bricks</h2>
-				<div className="brick-gallery__stack">
-					{bodyGroups.map((group) => (
-						<BodyBrickCard key={group.keys.join("|")} group={group} />
-					))}
-				</div>
-			</section>
+			{!hasSelectedBrick && selectedKey && (
+				<section className="brick-gallery__section">
+					<p className="brick-gallery__empty">
+						No brick registered as <code>{selectedKey}</code>.
+					</p>
+				</section>
+			)}
 
-			<section
-				className="brick-gallery__section"
-				aria-labelledby="exercise-bricks"
-			>
-				<h2 id="exercise-bricks">Exercise bricks</h2>
-				<div className="brick-gallery__stack">
-					{exerciseGroups.map((group) => (
-						<ExerciseBrickCard key={group.keys.join("|")} group={group} />
-					))}
-				</div>
-			</section>
+			{visibleBodyGroups.length > 0 && (
+				<section
+					className="brick-gallery__section"
+					aria-labelledby="body-bricks"
+				>
+					<h2 id="body-bricks">Body bricks</h2>
+					<div className="brick-gallery__stack">
+						{visibleBodyGroups.map((group) => (
+							<BodyBrickCard key={group.keys.join("|")} group={group} />
+						))}
+					</div>
+				</section>
+			)}
+
+			{visibleExerciseGroups.length > 0 && (
+				<section
+					className="brick-gallery__section"
+					aria-labelledby="exercise-bricks"
+				>
+					<h2 id="exercise-bricks">Exercise bricks</h2>
+					<div className="brick-gallery__stack">
+						{visibleExerciseGroups.map((group) => (
+							<ExerciseBrickCard key={group.keys.join("|")} group={group} />
+						))}
+					</div>
+				</section>
+			)}
 		</main>
 	);
 }

@@ -28,12 +28,27 @@
 	line-height: 1.05;
 }
 
-.brick-gallery__page-header p:last-child {
+.brick-gallery__intro {
 	max-width: 720px;
 	margin: 1rem 0 0;
 	color: var(--brick-gallery-soft);
 	font-size: 1.1rem;
 	line-height: 1.6;
+}
+
+.brick-gallery__filter,
+.brick-gallery__empty {
+	max-width: 720px;
+	margin: 1rem 0 0;
+	color: var(--brick-gallery-soft);
+	font-family: system-ui, sans-serif;
+	font-size: 0.95rem;
+	line-height: 1.5;
+}
+
+.brick-gallery__filter a {
+	color: var(--brick-gallery-accent);
+	font-weight: 700;
 }
 
 .brick-gallery__section {
@@ -113,6 +128,10 @@
 	flex-wrap: wrap;
 	gap: 0.35rem;
 	justify-content: flex-end;
+}
+
+.brick-gallery__aliases a {
+	text-decoration: none;
 }
 
 .brick-gallery__aliases code {
