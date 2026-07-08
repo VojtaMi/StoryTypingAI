@@ -36,12 +36,28 @@ When part of an LLM's output must satisfy a structural invariant (e.g. "this sen
 
 ## Delegating Implementation to Codex
 
-`codex exec --full-auto` is a viable implementer for scoped, well-specified work. Two limits, both verified against `codex-cli 0.125.0` — do not re-derive them:
+`codex exec --full-auto` is a viable implementer for scoped, well-specified work. Always invoke it with network access so it can verify its own UI changes:
 
-- **Codex cannot verify anything in a browser.** In `codex exec`, every MCP tool call is auto-cancelled (`user cancelled MCP tool call`), because the `exec_permission_approvals` feature is still under development. This holds regardless of `--full-auto`, `approval_policy`, or `--headless`. The `browser_use` / `computer_use` feature flags are enabled but surface no tool in `exec`.
-- **Codex cannot bind a port** under the default `workspace-write` sandbox — `npm run dev:vite` fails with `listen EPERM`. Adding `-c sandbox_workspace_write.network_access=true` unblocks it, but that *also* grants model-run shell commands arbitrary outbound network access. Do not enable it casually.
+```bash
+codex exec --full-auto -c 'sandbox_workspace_write.network_access=true' - < brief.md
+```
 
-Consequence: **Codex writes code; a browser-capable agent verifies UI.** Codex will report a page as done without ever having rendered it (it says so, but only in a trailing "Blocked" note). Never accept "it should render" — drive the page yourself.
+Facts verified against `codex-cli 0.125.0` and `@playwright/mcp@0.0.71` — do not re-derive them:
+
+- **Codex cannot use MCP tools.** In `codex exec`, every MCP tool call is auto-cancelled (`user cancelled MCP tool call`), because the `exec_permission_approvals` feature is still under development. This holds regardless of `--full-auto`, `approval_policy`, or `--headless`. So Codex cannot drive Playwright *through MCP*, and the enabled `browser_use` / `computer_use` feature flags surface no tool in `exec`.
+- **Codex can drive a real browser from the shell.** `scripts/verify-page.mjs` uses the `playwright` devDependency directly, so it sidesteps MCP entirely. Codex runs it happily.
+- **Codex needs `network_access=true` to bind a port.** Without it, `npm run dev:vite` fails with `listen EPERM`. The flag also grants model-run shell commands outbound network access — that is the accepted trade for self-verifying delegations.
+- **Codex's sandbox can only write to the workdir, `/tmp`, and `$TMPDIR`.** An `npx` that must populate `~/.npm/_cacache` fails with `EROFS`. Anything Codex needs must resolve from the repo's `node_modules` (as `playwright` now does) or be pre-installed on the host. Chromium lives in `~/.cache/ms-playwright`, which Codex can read but not write — if Playwright is upgraded, run `npx playwright install chromium-headless-shell` from a normal shell first.
+
+So a delegation brief should ask for verification as a command, not a promise:
+
+```bash
+npm run dev:vite -- --port 5207 --strictPort &
+sleep 4
+npm run verify:page -- http://localhost:5207/bricks.html --expect-text "Lesson brick gallery"
+```
+
+`verify:page` exits non-zero on navigation failure, any console error, any uncaught page error, any failed request, or a missing `--expect-text`, and writes a screenshot to the gitignored `.artifacts/verify/`. Before this existed, Codex twice shipped a page it had never rendered — reporting so only in a trailing "Blocked" note.
 
 When writing a delegation brief, **state the invariant, not the check.** A brief that says "remove the `as` cast" gets a removed cast; if nothing typechecks that directory, the unsoundness just moves. A brief that says "this must fail to compile if the value isn't validated" gets the real fix. Every defect that survived delegation in this repo landed exactly where a brief named a symptom instead of the property it protects.
 

@@ -1,0 +1,17 @@
+{
+	"$schema": "https://json.schemastore.org/claude-code-settings.json",
+	"hooks": {
+		"PreToolUse": [
+			{
+				"matcher": "mcp__playwright__browser_take_screenshot",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node -e 'let s=\"\";process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{const f=((JSON.parse(s||\"{}\").tool_input)||{}).filename;if(!f||f.startsWith(\"/\"))process.exit(0);process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:\"A relative filename resolves against the repo root, not the Playwright --output-dir, and leaks a PNG into the repo. Omit filename entirely (the tool result reports the saved path), or pass an absolute path under /home/vmikel/.claude/playwright-output/esperanto-ai.\"}}))})'",
+						"timeout": 10
+					}
+				]
+			}
+		]
+	}
+}
