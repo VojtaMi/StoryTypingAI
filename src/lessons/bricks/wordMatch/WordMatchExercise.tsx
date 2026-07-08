@@ -57,8 +57,8 @@ export default function WordMatchExercise({
 				</button>
 
 				<p className="lesson-doc__eyebrow">Exercise</p>
-				<h1 className="word-match__title">{title}</h1>
-				<p className="word-match__hint">{hint}</p>
+				<h1 className="lesson-exercise__title">{title}</h1>
+				<p className="lesson-exercise__hint word-match__hint">{hint}</p>
 
 				<div className="word-match__columns">
 					<div className="word-match__col">
@@ -71,10 +71,11 @@ export default function WordMatchExercise({
 									key={term}
 									type="button"
 									className={[
+										"lesson-choice",
 										"word-match__item",
 										isMatched && "word-match__item--matched",
-										isSelected && "word-match__item--selected",
-										isWrong && "word-match__item--wrong",
+										isSelected && "lesson-choice--selected",
+										isWrong && "lesson-choice--wrong",
 									]
 										.filter(Boolean)
 										.join(" ")}
@@ -97,10 +98,11 @@ export default function WordMatchExercise({
 									key={meaning}
 									type="button"
 									className={[
+										"lesson-choice",
 										"word-match__item",
 										isMatched && "word-match__item--matched",
-										isSelected && "word-match__item--selected",
-										isWrong && "word-match__item--wrong",
+										isSelected && "lesson-choice--selected",
+										isWrong && "lesson-choice--wrong",
 									]
 										.filter(Boolean)
 										.join(" ")}
@@ -115,7 +117,7 @@ export default function WordMatchExercise({
 				</div>
 
 				{allMatched && (
-					<div className="word-match__done">
+					<div className="lesson-exercise__actions word-match__done">
 						<p className="word-match__done-msg">All matched!</p>
 						<button
 							type="button"

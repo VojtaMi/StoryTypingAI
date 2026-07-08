@@ -42,7 +42,7 @@ export default function LessonTypingExercise({
 	}, [playAudio]);
 
 	return (
-		<div className="lesson-typing-page">
+		<div className="lesson-theme lesson-typing-page">
 			<div
 				className="lesson-typing-bg"
 				{...(imageAlt ? { role: "img", "aria-label": imageAlt } : {})}
@@ -60,8 +60,10 @@ export default function LessonTypingExercise({
 				</button>
 
 				<p className="lesson-doc__eyebrow">Exercise</p>
-				<h1 className="lesson-typing__title">Typing Practice</h1>
-				<p className="lesson-typing__hint">
+				<h1 className="lesson-exercise__title lesson-typing__title">
+					Typing Practice
+				</h1>
+				<p className="lesson-exercise__hint lesson-typing__hint">
 					type what you see
 					<button
 						type="button"
@@ -85,7 +87,7 @@ export default function LessonTypingExercise({
 				</div>
 
 				{done && (
-					<div className="lesson-typing__done">
+					<div className="lesson-exercise__actions lesson-typing__done">
 						<p className="lesson-typing__done-msg">Well done!</p>
 						<button
 							type="button"

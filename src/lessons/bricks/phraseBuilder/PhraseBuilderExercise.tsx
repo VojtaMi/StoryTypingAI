@@ -85,8 +85,8 @@ export default function PhraseBuilderExercise({
 				<p className="lesson-doc__eyebrow">
 					Exercise {promptIndex + 1} / {prompts.length}
 				</p>
-				<h1 className="phrase-builder__title">{title}</h1>
-				<p className="phrase-builder__hint">{hint}</p>
+				<h1 className="lesson-exercise__title">{title}</h1>
+				<p className="lesson-exercise__hint">{hint}</p>
 
 				<div className="phrase-builder__prompt">
 					<span className="phrase-builder__prompt-label">Build</span>
@@ -106,7 +106,7 @@ export default function PhraseBuilderExercise({
 							// biome-ignore lint/suspicious/noArrayIndexKey: duplicate words can be valid in generated prompts
 							key={`${word}-${index}`}
 							type="button"
-							className="phrase-builder__selected"
+							className="lesson-choice lesson-choice--selected phrase-builder__selected"
 							onClick={() => removeSelected(index)}
 						>
 							{word}
@@ -126,7 +126,7 @@ export default function PhraseBuilderExercise({
 								// biome-ignore lint/suspicious/noArrayIndexKey: duplicate words can be valid in generated prompts
 								key={`${tile}-${index}`}
 								type="button"
-								className="phrase-builder__tile"
+								className="lesson-choice phrase-builder__tile"
 								onClick={() => chooseTile(tile)}
 								disabled={isUsed || isCorrect}
 							>
@@ -136,7 +136,7 @@ export default function PhraseBuilderExercise({
 					})}
 				</div>
 
-				<div className="phrase-builder__actions">
+				<div className="lesson-exercise__actions">
 					{!isCorrect && (
 						<button
 							type="button"

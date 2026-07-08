@@ -12,7 +12,7 @@ export function renderWithCode(text: string): ReactNode {
 	return text.split("`").map((part, index) =>
 		index % 2 === 1 ? (
 			// biome-ignore lint/suspicious/noArrayIndexKey: static, order-stable split
-			<code key={index} className="lesson-doc__code">
+			<code key={index} className="lesson-highlight lesson-doc__code">
 				{part}
 			</code>
 		) : (

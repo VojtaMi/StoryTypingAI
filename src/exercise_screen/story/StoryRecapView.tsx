@@ -31,7 +31,11 @@ function describeExercise(exercise: StoryRecapExercise): string {
 }
 
 function itemClass(...modifiers: (string | false | null)[]): string {
-	return ["word-match__item", ...modifiers.filter(Boolean)].join(" ");
+	return [
+		"lesson-choice",
+		"word-match__item",
+		...modifiers.filter(Boolean),
+	].join(" ");
 }
 
 export function StoryRecapView({
@@ -222,8 +226,8 @@ function WordConnectRecap({
 							type="button"
 							className={itemClass(
 								matched.has(term) && "word-match__item--matched",
-								selectedTerm === term && "word-match__item--selected",
-								wrongPair?.term === term && "word-match__item--wrong",
+								selectedTerm === term && "lesson-choice--selected",
+								wrongPair?.term === term && "lesson-choice--wrong",
 							)}
 							disabled={done || matched.has(term)}
 							onClick={() => chooseTerm(term)}
@@ -239,8 +243,8 @@ function WordConnectRecap({
 							type="button"
 							className={itemClass(
 								matchedMeanings.has(meaning) && "word-match__item--matched",
-								selectedMeaning === meaning && "word-match__item--selected",
-								wrongPair?.meaning === meaning && "word-match__item--wrong",
+								selectedMeaning === meaning && "lesson-choice--selected",
+								wrongPair?.meaning === meaning && "lesson-choice--wrong",
 							)}
 							disabled={done || matchedMeanings.has(meaning)}
 							onClick={() => chooseMeaning(meaning)}
@@ -287,8 +291,8 @@ function ChoiceRecap({
 						key={choice}
 						type="button"
 						className={itemClass(
-							done && choice === answer && "word-match__item--correct",
-							wrongChoice === choice && "word-match__item--wrong",
+							done && choice === answer && "lesson-choice--correct",
+							wrongChoice === choice && "lesson-choice--wrong",
 						)}
 						disabled={done}
 						onClick={() => choose(choice)}

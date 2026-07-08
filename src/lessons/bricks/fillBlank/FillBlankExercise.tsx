@@ -40,7 +40,7 @@ function Prompt({
 				</span>
 				{prompt.after}
 			</p>
-			<p className="fill-blank__meaning">{prompt.meaning}</p>
+			<p className="lesson-highlight fill-blank__meaning">{prompt.meaning}</p>
 
 			<div className="word-match__col fill-blank__choices">
 				{shuffledChoices.map((choice) => (
@@ -48,9 +48,10 @@ function Prompt({
 						key={choice}
 						type="button"
 						className={[
+							"lesson-choice",
 							"word-match__item",
-							solved && choice === prompt.answer && "word-match__item--correct",
-							wrongChoice === choice && "word-match__item--wrong",
+							solved && choice === prompt.answer && "lesson-choice--correct",
+							wrongChoice === choice && "lesson-choice--wrong",
 						]
 							.filter(Boolean)
 							.join(" ")}
@@ -100,8 +101,8 @@ export default function FillBlankExercise({
 				<p className="lesson-doc__eyebrow">
 					Exercise {promptIndex + 1} / {prompts.length}
 				</p>
-				<h1 className="fill-blank__title">{title}</h1>
-				<p className="fill-blank__hint">{hint}</p>
+				<h1 className="lesson-exercise__title">{title}</h1>
+				<p className="lesson-exercise__hint">{hint}</p>
 
 				<Prompt
 					// Remount per prompt so the choice shuffle and wrong-flash reset.
@@ -111,7 +112,7 @@ export default function FillBlankExercise({
 					onSolved={() => setSolved(true)}
 				/>
 
-				<div className="fill-blank__actions">
+				<div className="lesson-exercise__actions fill-blank__actions">
 					{solved && (
 						<button
 							type="button"

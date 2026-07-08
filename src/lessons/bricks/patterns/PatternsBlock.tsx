@@ -10,7 +10,7 @@ export function PatternsBlock({ block }: { block: LessonPatternsBlock }) {
 				{pattern.slots.map((slot, index) => (
 					<span key={slot} className="lesson-doc__slot-group">
 						{index > 0 && <span className="lesson-doc__slot-plus">+</span>}
-						<span className="lesson-doc__slot">{slot}</span>
+						<span className="lesson-highlight lesson-doc__slot">{slot}</span>
 					</span>
 				))}
 			</p>
