@@ -37,6 +37,7 @@ export function AuthoringInput({
 					type="button"
 					className="authoring__continue"
 					onClick={onAutoContinue}
+					disabled={canSubmit}
 				>
 					Let AI continue
 				</button>

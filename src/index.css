@@ -481,12 +481,13 @@ body[data-view="menu"] {
 	color: var(--text);
 }
 
-.authoring__continue:hover {
+.authoring__continue:hover:not(:disabled) {
 	border-color: var(--accent);
 	background: rgba(93, 121, 199, 0.24);
 }
 
-.authoring__submit:disabled {
+.authoring__submit:disabled,
+.authoring__continue:disabled {
 	opacity: 0.4;
 	cursor: not-allowed;
 }
