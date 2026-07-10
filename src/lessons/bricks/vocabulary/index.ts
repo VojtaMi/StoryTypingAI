@@ -39,6 +39,7 @@ export function clozeFor(word: IntroducedWord): {
 }
 
 export const vocabularyBrick: LessonBodyBrickSpec<LessonVocabularyBlock> = {
+	weight: "light",
 	example: {
 		id: "vocabulary",
 		type: "vocabulary",

@@ -7,6 +7,7 @@ import LessonTypingExercise from "./LessonTypingExercise";
 const DEFAULT_TYPING_IMAGE = "/images/lesson-typing-bg.webp";
 
 export const typingStoryBrick: ExerciseBrickSpec<TypingStoryLessonExercise> = {
+	weight: "heavy",
 	example: {
 		id: "typing",
 		type: "typing-story",

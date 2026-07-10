@@ -69,6 +69,7 @@ export function promptsForFillBlank(
 }
 
 export const fillBlankBrick: ExerciseBrickSpec<FillBlankLessonExercise> = {
+	weight: "light",
 	example: {
 		id: "fill-blank",
 		type: "fill-blank",

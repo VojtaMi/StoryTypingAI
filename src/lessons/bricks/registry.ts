@@ -17,6 +17,7 @@ import { fillBlankBrick } from "./fillBlank";
 import { grammarBrick } from "./grammar";
 import { patternsBrick } from "./patterns";
 import { phraseBuilderBrick } from "./phraseBuilder";
+import { shortTypingBrick } from "./shortTyping";
 import { storyBrick } from "./story";
 import { teachingBrick } from "./teaching";
 import { tipBrick } from "./tip";
@@ -151,6 +152,7 @@ const EXERCISE_BRICKS: ExerciseBrickRegistry = {
 	"word-match": wordMatchBrick,
 	"phrase-builder": phraseBuilderBrick,
 	"fill-blank": fillBlankBrick,
+	"short-typing": shortTypingBrick,
 	"typing-story": typingStoryBrick,
 };
 
@@ -210,6 +212,7 @@ export function assertLessonExercises(lesson: Lesson): void {
 export const LESSON_GENERATABLE_EXERCISE_BRICK_TYPES = [
 	"word-match",
 	"fill-blank",
+	"short-typing",
 	"typing-story",
 ] as const;
 

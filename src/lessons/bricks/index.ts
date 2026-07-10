@@ -4,6 +4,7 @@ export type {
 	ExerciseDerivationSpec,
 	LessonBodyBrickSpec,
 	LessonBodyRenderCtx,
+	LessonBrickWeight,
 	LessonGeneratableBodyBrickType,
 } from "./contracts";
 export {
@@ -34,6 +35,8 @@ export {
 	renderExerciseBrick,
 	renderLessonBodyBlock,
 } from "./registry";
+export type { ShortTypingPrompt } from "./shortTyping";
+export { promptsForShortTyping } from "./shortTyping";
 export type { LessonStoryBlock } from "./story";
 export type { LessonTipBlock } from "./tip";
 export type { LessonVocabularyBlock } from "./vocabulary";

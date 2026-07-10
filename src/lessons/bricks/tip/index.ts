@@ -7,6 +7,7 @@ import { TipBlock } from "./TipBlock";
 export type { LessonTipBlock } from "../../types";
 
 export const tipBrick: LessonBodyBrickSpec<LessonTipBlock> = {
+	weight: "light",
 	example: {
 		id: "tip",
 		type: "tip",

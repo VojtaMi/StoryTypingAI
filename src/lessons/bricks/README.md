@@ -4,7 +4,9 @@ A brick is a self-contained lesson unit: typed `example`, renderer, bot-context 
 
 There are two tiers. Body bricks are authored by the model through `shape`, `instructions`, and `parse`. Exercise bricks are derived from parsed body content through `create()`. The model never authors an exercise.
 
-Use this rule to choose the tier: must this agree with something else in the lesson? If yes, derive it in code. The typing exercise is the story; the word-match cards are the `introducedWords`; the fill-blank prompts are each word's `example` with its `term` carved out by `clozeFor`. This follows `CLAUDE.md`'s rule to shrink what we ask the LLM for and derive invariants deterministically.
+Use this rule to choose the tier: must this agree with something else in the lesson? If yes, derive it in code. `typing-story` is the story; `short-typing` is the vocabulary examples; the word-match cards are the `introducedWords`; the fill-blank prompts are each word's `example` with its `term` carved out by `clozeFor`. This follows `CLAUDE.md`'s rule to shrink what we ask the LLM for and derive invariants deterministically.
+
+Bricks also declare their presentation weight. Lightweight bricks fit generated lessons and ordinary lesson flow; heavy bricks can be immersive or asset-backed. `typing-story` is heavy because it owns an image-backed full-screen scene. `short-typing` is light because it reuses the typing card without requiring story or image content.
 
 `phrase-builder` is the worked exception. Its `prompts` carry real lesson content that is not derivable from existing body blocks, so it is not generatable and only appears in hand-written lessons. Making it generatable would mean moving it to the authored tier, and its `answer: string[]` must then be derived by splitting a model-authored sentence, never asked for pre-split. `patterns` is non-generatable for the same reason: nothing in a lesson implies it.
 

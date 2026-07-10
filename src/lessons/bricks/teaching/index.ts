@@ -12,6 +12,7 @@ export {
 } from "./TeachingBrick";
 
 export const teachingBrick: LessonBodyBrickSpec<LessonTeachingSection> = {
+	weight: "light",
 	example: {
 		id: "teaching",
 		type: "overview",

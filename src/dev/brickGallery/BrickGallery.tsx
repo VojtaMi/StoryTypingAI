@@ -4,6 +4,7 @@ import {
 	type LessonBodyBlock,
 	type LessonBodyBrickSpec,
 	type LessonBodyRenderCtx,
+	type LessonBrickWeight,
 	lessonBodyBrickEntries,
 	renderExerciseBrick,
 	renderLessonBodyBlock,
@@ -114,10 +115,12 @@ function BrickHeader({
 	specName,
 	keys,
 	kind,
+	weight,
 }: {
 	specName: string;
 	keys: readonly string[];
 	kind: GenerationKind;
+	weight: LessonBrickWeight;
 }) {
 	return (
 		<header className="brick-gallery__brick-header">
@@ -126,6 +129,7 @@ function BrickHeader({
 				<h2 className="brick-gallery__brick-title">{specName}</h2>
 			</div>
 			<div className="brick-gallery__meta">
+				<span className="brick-gallery__pill">{weight}</span>
 				<span className="brick-gallery__pill">{kind}</span>
 				<div className="brick-gallery__aliases">
 					{keys.map((key) => (
@@ -149,7 +153,12 @@ function BodyBrickCard({
 
 	return (
 		<article className="brick-gallery__brick">
-			<BrickHeader specName={block.type} keys={group.keys} kind={kind} />
+			<BrickHeader
+				specName={block.type}
+				keys={group.keys}
+				kind={kind}
+				weight={group.spec.weight}
+			/>
 			<div className="brick-gallery__preview brick-gallery__preview--body lesson-theme">
 				<article className="lesson-doc" aria-label={`${block.title} preview`}>
 					<section className="lesson-doc__section">
@@ -172,7 +181,12 @@ function ExerciseBrickCard({
 
 	return (
 		<article className="brick-gallery__brick">
-			<BrickHeader specName={exercise.type} keys={group.keys} kind={kind} />
+			<BrickHeader
+				specName={exercise.type}
+				keys={group.keys}
+				kind={kind}
+				weight={group.spec.weight}
+			/>
 			<div className="brick-gallery__preview brick-gallery__preview--exercise">
 				{renderExerciseBrick(exercise, exerciseCtx)}
 			</div>

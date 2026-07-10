@@ -152,6 +152,15 @@ export interface TypingStoryLessonExercise {
 	imageUrl?: string;
 }
 
+export interface ShortTypingLessonExercise {
+	id: string;
+	type: "short-typing";
+	title?: string;
+	hint?: string;
+	wordTerms?: string[];
+	completeLabel?: string;
+}
+
 /**
  * Prompts are not stored: they are carved out of `IntroducedWord.example` at
  * render time by `promptsForFillBlank`, so the blank can never disagree with
@@ -170,6 +179,7 @@ export type LessonExercise =
 	| WordMatchLessonExercise
 	| PhraseBuilderLessonExercise
 	| FillBlankLessonExercise
+	| ShortTypingLessonExercise
 	| TypingStoryLessonExercise;
 
 export interface Lesson {

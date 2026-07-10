@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { EsperantoChatModal } from "../../../exercise_screen/chatbot/EsperantoChatModal";
-import { TypingPassage } from "../../../exercise_screen/typing/TypingPassage";
-import { useTypingSession } from "../../../exercise_screen/typing/useTypingSession";
 import "../../lesson.css";
 import { useLessonTextAudioPlayer } from "../../lessonAudio";
+import { TypingPracticeCard } from "../typing/TypingPracticeCard";
 
 interface LessonTypingExerciseProps {
 	lessonId: string;
@@ -25,12 +24,7 @@ export default function LessonTypingExercise({
 	onComplete,
 	onBack,
 }: LessonTypingExerciseProps) {
-	const [done, setDone] = useState(false);
 	const [chatOpen, setChatOpen] = useState(false);
-	const session = useTypingSession(text, () => setDone(true), {
-		requireAllCorrect: true,
-	});
-
 	const { play } = useLessonTextAudioPlayer(lessonId);
 
 	const playAudio = useCallback(() => {
@@ -50,55 +44,14 @@ export default function LessonTypingExercise({
 					backgroundImage: `linear-gradient(rgba(10,12,18,0.45), rgba(10,12,18,0.65)), url(${imageUrl})`,
 				}}
 			/>
-			<div className="lesson-typing-card">
-				<button
-					type="button"
-					className="lesson-doc__back lesson-doc__back--light"
-					onClick={onBack}
-				>
-					← Back to lessons
-				</button>
-
-				<p className="lesson-doc__eyebrow">Exercise</p>
-				<h1 className="lesson-exercise__title lesson-typing__title">
-					Typing Practice
-				</h1>
-				<p className="lesson-exercise__hint lesson-typing__hint">
-					type what you see
-					<button
-						type="button"
-						className="lesson-typing__replay"
-						onClick={playAudio}
-						aria-label="Replay audio"
-					>
-						🔊
-					</button>
-				</p>
-
-				<div className="lesson-typing__passage">
-					<TypingPassage
-						target={text}
-						typedValue={session.typedValue}
-						statuses={session.statuses}
-						inputRef={session.inputRef}
-						onChange={session.handleChange}
-						onKeyDown={session.handleKeyDown}
-					/>
-				</div>
-
-				{done && (
-					<div className="lesson-exercise__actions lesson-typing__done">
-						<p className="lesson-typing__done-msg">Well done!</p>
-						<button
-							type="button"
-							className="lesson-doc__begin"
-							onClick={onComplete}
-						>
-							Continue →
-						</button>
-					</div>
-				)}
-			</div>
+			<TypingPracticeCard
+				title="Typing Practice"
+				hint="type what you see"
+				prompts={[{ id: "story", target: text }]}
+				onReplay={playAudio}
+				onComplete={onComplete}
+				onBack={onBack}
+			/>
 
 			{backgroundIntro && (
 				<EsperantoChatModal

@@ -11,6 +11,7 @@ import { GrammarBlock } from "./GrammarBlock";
 export type { LessonGrammarBlock } from "../../types";
 
 export const grammarBrick: LessonBodyBrickSpec<LessonGrammarBlock> = {
+	weight: "light",
 	example: {
 		id: "grammar",
 		type: "grammar",
@@ -31,7 +32,7 @@ export const grammarBrick: LessonBodyBrickSpec<LessonGrammarBlock> = {
 			examples: ["Short Esperanto example"],
 		},
 		instructions:
-			"Teach one compact grammar or usage point that helps with the introduced words and story. " +
+			"Teach one compact grammar or usage point that helps with the introduced words and selected practice content. " +
 			"Use one short English explanation. Include one to three short Esperanto examples. Put Esperanto forms in backticks when naming them.",
 		example: {
 			title: "Using en",

@@ -48,8 +48,8 @@ export interface LessonGenerationSelection {
 
 export const DEFAULT_LESSON_GENERATION_SELECTION: LessonGenerationSelection = {
 	level: "absolute-beginner",
-	body: ["vocabulary", "grammar", "story"],
-	exercises: ["word-match", "typing-story"],
+	body: ["vocabulary", "grammar"],
+	exercises: ["word-match", "short-typing"],
 };
 
 export function getLessonBricks(
@@ -91,7 +91,7 @@ export function buildLessonPrompt(bricks: LessonGenerationBricks): string {
 		"Return only valid JSON with this exact shape: " +
 		`${shape} ` +
 		`${instructions} ` +
-		"Keep the lesson coherent: the teaching point should explain the vocabulary/story, and the story should use the introduced words. " +
+		"Keep the lesson coherent: the teaching point should explain the vocabulary and selected practice content. " +
 		"Do not include markdown, comments, explanations, trailing commas, or extra fields."
 	);
 }

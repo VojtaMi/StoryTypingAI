@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
 	exerciseBrickEntries,
 	LESSON_GENERATABLE_BODY_BRICK_TYPES,
+	LESSON_GENERATABLE_EXERCISE_BRICK_TYPES,
 	type LessonBodyBlock,
 	lessonBodyBrickEntries,
 } from "../src/lessons/bricks/index.ts";
@@ -9,6 +10,7 @@ import {
 type BrickSpec = {
 	example?: unknown;
 	generation?: unknown;
+	weight?: unknown;
 };
 
 type ParseableGeneration = {
@@ -51,8 +53,26 @@ for (const type of LESSON_GENERATABLE_BODY_BRICK_TYPES) {
 	console.log(`checked generatable body:${type}`);
 }
 
+const exerciseBricksByType = new Map(exerciseBrickEntries());
+for (const type of LESSON_GENERATABLE_EXERCISE_BRICK_TYPES) {
+	const spec = exerciseBricksByType.get(type);
+	assert.ok(
+		spec,
+		`Generatable exercise brick "${type}" is not a registry key.`,
+	);
+	assert.ok(
+		hasCreate(spec.generation),
+		`Exercise brick "${type}" is listed as generatable but has no generation.create.`,
+	);
+	console.log(`checked generatable exercise:${type}`);
+}
+
 function checkBrick(name: string, spec: BrickSpec) {
 	assert.notStrictEqual(spec.example, undefined, `${name} is missing example.`);
+	assert.ok(
+		spec.weight === "light" || spec.weight === "heavy",
+		`${name} has invalid weight "${String(spec.weight)}".`,
+	);
 
 	if (hasParse(spec.generation)) {
 		assert.notStrictEqual(

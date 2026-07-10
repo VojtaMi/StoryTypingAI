@@ -5,6 +5,7 @@ import PhraseBuilderExercise from "./PhraseBuilderExercise";
 
 export const phraseBuilderBrick: ExerciseBrickSpec<PhraseBuilderLessonExercise> =
 	{
+		weight: "light",
 		example: {
 			id: "phrase-builder",
 			type: "phrase-builder",

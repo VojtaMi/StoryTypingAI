@@ -11,6 +11,7 @@ export function patternShape(pattern: LessonPattern): string {
 }
 
 export const patternsBrick: LessonBodyBrickSpec<LessonPatternsBlock> = {
+	weight: "light",
 	example: {
 		id: "patterns",
 		type: "patterns",

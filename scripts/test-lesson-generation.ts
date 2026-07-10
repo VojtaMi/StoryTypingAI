@@ -38,9 +38,6 @@ const sampleResponse = JSON.stringify({
 			explanation: "`en` means in. It shows where something is.",
 			examples: ["Kato estas en domo."],
 		},
-		{
-			sentences: ["Kato estas en domo.", "Domo estas granda."],
-		},
 	],
 });
 

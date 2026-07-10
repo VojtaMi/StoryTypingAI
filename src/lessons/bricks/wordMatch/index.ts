@@ -18,12 +18,13 @@ export function wordsForWordMatch(
 }
 
 export const wordMatchBrick: ExerciseBrickSpec<WordMatchLessonExercise> = {
+	weight: "light",
 	example: {
 		id: "word-match",
 		type: "word-match",
 		title: "Connect the new words",
 		hint: "Match each Esperanto word to its meaning.",
-		completeLabel: "Continue to Story",
+		completeLabel: "Continue →",
 	},
 	generation: {
 		requires: VOCABULARY_BODY_BRICK_TYPE,
@@ -33,7 +34,7 @@ export const wordMatchBrick: ExerciseBrickSpec<WordMatchLessonExercise> = {
 				type: "word-match",
 				title: "Connect the new words",
 				hint: "Match each Esperanto word to its meaning.",
-				completeLabel: "Continue to Story",
+				completeLabel: "Continue →",
 			};
 		},
 	},

@@ -7,6 +7,7 @@ import { StoryBlock, storyBlockText } from "./StoryBlock";
 export type { LessonStoryBlock } from "../../types";
 
 export const storyBrick: LessonBodyBrickSpec<LessonStoryBlock> = {
+	weight: "light",
 	example: {
 		id: "story",
 		type: "story",

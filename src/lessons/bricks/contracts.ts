@@ -8,7 +8,10 @@ export interface LessonBodyRenderCtx {
 	onPlay: (id: string, text: string) => void;
 }
 
+export type LessonBrickWeight = "light" | "heavy";
+
 export interface LessonBodyBrickSpec<T> {
+	weight: LessonBrickWeight;
 	example: T;
 	render(block: T, ctx: LessonBodyRenderCtx): ReactNode;
 	toBotContext(block: T): string;
@@ -43,6 +46,7 @@ export interface ExerciseDerivationSpec {
 }
 
 export interface ExerciseBrickSpec<T extends LessonExercise> {
+	weight: LessonBrickWeight;
 	example: T;
 	render(exercise: T, ctx: ExerciseBrickCtx): ReactNode;
 	toBotContext(exercise: T, lesson: Lesson): string;
