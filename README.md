@@ -53,6 +53,18 @@ npm run build    # type-check and build for production
 npm run preview  # preview the production build
 ```
 
+To record and inspect AI API calls during development:
+
+```bash
+AI_CALL_LOG=1 npm run dev
+npm run ai-log:summary # compact timing and failure overview
+npm run ai-log:pretty  # write .artifacts/ai-calls.pretty.json for editor inspection
+```
+
+Set `AI_CALL_LOG_PAYLOAD=full` when starting the dev server to record complete
+request and response payloads instead of short previews. Logs may contain learner
+content and model prompts, so they stay in the git-ignored `logs/` directory.
+
 Saved stories are local development files under `saves/`, which is git-ignored.
 The file-save and AI APIs are served by the Node server during `npm run dev`.
 

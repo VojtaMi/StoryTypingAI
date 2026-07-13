@@ -4,6 +4,8 @@
 	"version": "1.0.0",
 	"type": "module",
 	"scripts": {
+		"ai-log:pretty": "tsx scripts/format-ai-call-log.ts pretty",
+		"ai-log:summary": "tsx scripts/format-ai-call-log.ts summary",
 		"audio:variants": "tsx scripts/generate-audio-variants.ts",
 		"backfill:opening-audio": "tsx scripts/backfill-opening-audio.ts",
 		"bricks:test": "node --import ./scripts/register-css-loader.mjs --import tsx scripts/test-bricks.ts",
