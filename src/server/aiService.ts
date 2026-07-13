@@ -124,6 +124,7 @@ async function completeOpenAi(
 				model,
 				max_completion_tokens: maxTokens,
 				messages,
+				reasoning_effort: model.startsWith("gpt-5.6") ? "none" : undefined,
 			}),
 		(value) => value.choices[0]?.message?.content ?? "",
 	);
@@ -157,6 +158,7 @@ async function streamOpenAi(
 				model,
 				max_completion_tokens: maxTokens,
 				messages,
+				reasoning_effort: model.startsWith("gpt-5.6") ? "none" : undefined,
 				stream: true,
 			});
 

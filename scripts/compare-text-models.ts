@@ -137,6 +137,7 @@ type GeminiGenerateContentResponse = {
 };
 
 const ALL_BENCHMARK_MODELS = [
+	"gpt-5.6-luna",
 	"gpt-5.4-mini",
 	"gpt-5.4",
 	"gpt-5.5",
@@ -158,6 +159,7 @@ const PRICE_PER_MILLION_TOKENS: Record<
 	TextModelId,
 	{ input: number; output: number }
 > = {
+	"gpt-5.6-luna": { input: 1, output: 6 },
 	"gpt-5.4-mini": { input: 0.75, output: 4.5 },
 	"gpt-5.4": { input: 2.5, output: 15 },
 	"gpt-5.5": { input: 5, output: 30 },
