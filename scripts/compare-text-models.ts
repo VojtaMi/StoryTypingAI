@@ -1085,7 +1085,7 @@ function parseArgs(rawArgs: string[]) {
 		frames: stringFlag(rawArgs, "--frames"),
 	};
 	if (parsed.smoke) {
-		parsed.models ??= "gpt-5.4-mini,gemini-2.5-flash";
+		parsed.models ??= "gpt-5.6-luna,gemini-2.5-flash";
 		parsed.frames ??= "fresh-rolls";
 	}
 	return parsed;
