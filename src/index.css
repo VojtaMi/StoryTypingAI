@@ -560,6 +560,7 @@ body {
 .story {
 	--story-panel: rgba(20, 23, 34, 0.74);
 	--story-panel-strong: rgba(20, 23, 34, 0.86);
+	--story-panel-solid: rgba(20, 23, 34, 0.94);
 	--story-border: rgba(192, 202, 245, 0.16);
 
 	width: min(100%, 920px);
@@ -1023,11 +1024,12 @@ body {
 	background: var(--accent);
 }
 
+/* No backdrop-filter here: the blinking caret repaints inside the panel every
+   second, which re-samples the blur over the scaled background and shimmers. */
 .story .passage {
-	background: var(--story-panel-strong);
+	background: var(--story-panel-solid);
 	border: 1px solid var(--story-border);
 	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-	backdrop-filter: blur(12px) saturate(120%);
 }
 
 .story .passage {
@@ -1071,13 +1073,12 @@ body {
 	border: 1px solid var(--story-border);
 	border-left: 3px solid var(--accent);
 	border-radius: 10px;
-	background: var(--story-panel-strong);
+	background: var(--story-panel-solid);
 	color: #dbe3ff;
 	line-height: 1.7;
 	white-space: pre-wrap;
 	overflow-wrap: break-word;
 	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-	backdrop-filter: blur(12px) saturate(120%);
 }
 
 .streaming-preview::after {

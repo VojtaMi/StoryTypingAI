@@ -48,9 +48,10 @@ export function StoryFeedbackForm({
 						key={option}
 						className={
 							difficulty === option
-								? "phrase-builder__selected"
-								: "phrase-builder__tile"
+								? "lesson-choice lesson-choice--selected phrase-builder__selected"
+								: "lesson-choice phrase-builder__tile"
 						}
+						aria-pressed={difficulty === option}
 						onClick={() => setDifficulty(option)}
 					>
 						{DIFFICULTY_LABEL[option]}
