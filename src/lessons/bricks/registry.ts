@@ -200,7 +200,7 @@ export function exerciseOfType<T extends LessonExercise["type"]>(
 /**
  * Throws if any of the lesson's exercises cannot be rendered from the lesson's
  * own content. Called where a lesson is born — `parseGeneratedLesson` for the
- * model path, `scripts/test-lessons.ts` for the hand-written corpus — never at
+ * model path, `tests/lessons.test.ts` for the hand-written corpus — never at
  * render, where a missing prompt is already on screen.
  */
 export function assertLessonExercises(lesson: Lesson): void {

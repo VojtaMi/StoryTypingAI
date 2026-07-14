@@ -58,7 +58,7 @@ export interface ExerciseBrickSpec<T extends LessonExercise> {
 	 * empty story — and would then render an empty screen.
 	 *
 	 * Called once where a lesson is born: `parseGeneratedLesson()` for the model
-	 * path, `scripts/test-lessons.ts` for the hand-written corpus. Never at
+	 * path, `tests/lessons.test.ts` for the hand-written corpus. Never at
 	 * render; by then the empty screen is already up.
 	 */
 	assertRenderable?(exercise: T, lesson: Lesson): void;

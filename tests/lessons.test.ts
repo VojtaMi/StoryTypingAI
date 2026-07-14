@@ -8,7 +8,7 @@ import { lessons } from "../src/lessons/predefined/lessons.ts";
 import type { Lesson } from "../src/lessons/types.ts";
 
 /**
- * `test-bricks.ts` asserts that bricks are well-formed. This asserts the other
+ * `bricks.test.ts` asserts that bricks are well-formed. This asserts the other
  * half: that our lesson corpus satisfies the preconditions those bricks render
  * against. Both run in `npm run check`, because a brick with an unmeetable
  * precondition and a lesson that fails to meet one are different bugs.
