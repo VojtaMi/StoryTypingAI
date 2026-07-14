@@ -28,6 +28,12 @@ The commit hook runs Biome on staged files, so keep changes passing:
 npm run lint:staged
 ```
 
+## Story Architecture
+
+Typing stories and reading stories have different lifecycles. Typing stories are interactive continuations; reading stories use a finite prepared-reading workflow, where a complete story is generated once and the session only reveals its sections. Keep their orchestration separate unless a task explicitly changes both.
+
+See [`docs/architecture.md`](./docs/architecture.md) for the responsibility areas and both lifecycles, and [`docs/ai-workflows.md`](./docs/ai-workflows.md) for who owns each AI operation.
+
 ## LLM Generation Code
 
 When a single LLM call generates multiple distinct structured items (e.g. a lesson made of several exercise types), give each item type a self-contained spec — its own prompt-shape fragment, its own authoring instructions, and its own parser — instead of one hardcoded monolithic prompt string plus one big parser. The orchestrator should just compose specs and dispatch parsing per item. See `src/storyRecap.ts` (`RecapExerciseSpec`) for the pattern.
