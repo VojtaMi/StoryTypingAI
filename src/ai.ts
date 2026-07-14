@@ -18,11 +18,11 @@ import {
 	type ChatMessage,
 	type Complete,
 	generateIntro,
-	generateReadingFrame,
+	generateReadingStory as generateReadingStoryText,
 	generateTitle,
 	openingMessages,
-	type ReadingStoryFrame,
-	readingPartMessages,
+	type ReadingStory,
+	type ReadingStoryPart,
 } from "./story";
 import { prepareStoryContext, type StoryMemory } from "./story_memory";
 import type { StoryOpeningAudio } from "./storyAudio";
@@ -35,9 +35,8 @@ import {
 } from "./storyRecap";
 import { slugify } from "./structuredGeneration";
 
-export type { ChatMessage, ReadingStoryFrame, StoryMemory };
+export type { ChatMessage, ReadingStory, ReadingStoryPart, StoryMemory };
 
-const READING_STORY_PART_MAX_TOKENS = 700;
 const STORY_RECAP_MAX_TOKENS = 900;
 const LESSON_GENERATION_MAX_TOKENS = 1600;
 
@@ -270,40 +269,17 @@ export async function refineLearnerProfileFromRecap(
 	return refineLearnerProfile("refine-recap", { results });
 }
 
-export async function generateReadingStoryFrame(
+/**
+ * Generates a whole reading story — metadata, title, and all six Esperanto
+ * parts — in one request. This is the only text generation a reading story
+ * makes: advancing through it reads `story.parts`, it does not call the AI.
+ */
+export async function generateReadingStory(
 	genre: Genre,
 	model: TextModelId = DEFAULT_TEXT_MODEL,
-): Promise<ReadingStoryFrame> {
+): Promise<ReadingStory> {
 	const learnerContext = await fetchLearnerContext();
-	return generateReadingFrame(httpCompleter(model), genre, learnerContext);
-}
-
-export async function generateReadingStoryPart(
-	frame: ReadingStoryFrame,
-	partIndex: number,
-	previousParts: string[],
-	model: TextModelId = DEFAULT_TEXT_MODEL,
-): Promise<{
-	text: string;
-	messages: ChatMessage[];
-}> {
-	const fallbackContext = await fetchLearnerContext();
-	const learnerContext = {
-		languageProfile: frame.learnerProfile ?? fallbackContext.languageProfile,
-		preferences: frame.learnerPreferences ?? fallbackContext.preferences,
-		storyMemory: frame.storyMemory ?? fallbackContext.storyMemory,
-	};
-	const messages = readingPartMessages(
-		frame,
-		partIndex,
-		previousParts,
-		learnerContext,
-	);
-	const text = await complete(messages, model, READING_STORY_PART_MAX_TOKENS);
-	return {
-		text,
-		messages: [...messages, { role: "assistant", content: text }],
-	};
+	return generateReadingStoryText(httpCompleter(model), genre, learnerContext);
 }
 
 interface GenerateStoryRecapLessonInput {

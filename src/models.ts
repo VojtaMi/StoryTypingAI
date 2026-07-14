@@ -31,6 +31,15 @@ export const DEFAULT_CHAT_MODEL: TextModelId = "gpt-5.6-luna";
  */
 export const STORY_SEGMENT_MAX_TOKENS = 400;
 
+/**
+ * Token ceiling for one complete six-part reading story. A reading story is
+ * generated in a single call, so this has to cover all six parts of prose plus
+ * the story metadata at once — and, on reasoning models, the reasoning tokens
+ * spent on the way there. Sized well above a well-formed story, because a
+ * story truncated at the ceiling is thrown away, not shown.
+ */
+export const READING_STORY_MAX_TOKENS = 4000;
+
 /** Default model used for batch word translations — not user-selectable. */
 export const TRANSLATION_MODEL = "gpt-5.6-luna";
 

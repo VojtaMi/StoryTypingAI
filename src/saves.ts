@@ -1,19 +1,10 @@
-import type { ChatMessage, ReadingStoryFrame, StoryMemory } from "./ai";
+import type { ChatMessage, ReadingStory, StoryMemory } from "./ai";
 import type { StoryPhase, StorySegment } from "./exercise_screen/types";
 import type { GenreId } from "./genres";
 import type { NarrationVoiceId } from "./narrationVoice";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
 import type { StoryRecapLesson } from "./storyRecap";
-
-export interface PreparedReadingPart {
-	partIndex: number;
-	text?: string;
-	messages?: ChatMessage[];
-	openingAudio?: StoryOpeningAudio | null;
-	backgroundImage?: StoryBackgroundImage | null;
-	status: "generating" | "ready" | "error";
-}
 
 export interface SavedStory
 	extends Partial<StoryBackgroundImage>,
@@ -29,9 +20,9 @@ export interface SavedStory
 	phase: StoryPhase;
 	backgroundIntro?: string;
 	narrationVoice?: NarrationVoiceId;
-	readingFrame?: ReadingStoryFrame;
+	/** The whole story a reading save is a cursor into; absent on typing saves. */
+	readingStory?: ReadingStory;
 	readingPartIndex?: number;
-	preparedNextPart?: PreparedReadingPart;
 	storyRecapLesson?: StoryRecapLesson | null;
 	storyFeedbackSubmittedAt?: string | null;
 }

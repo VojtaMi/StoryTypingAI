@@ -40,6 +40,16 @@ export function shouldGenerateNextBackground(storyMessages: ChatMessage[]) {
 	return assistantCount > 1 && assistantCount % 2 === 1;
 }
 
+/**
+ * Which reading sections get their own background image. A reading story knows
+ * all its sections up front, so the cadence is a property of the section number
+ * rather than of how much history has accumulated: sections 1, 3 and 5 get an
+ * image, and the even sections keep the one before them on screen.
+ */
+export function shouldGenerateReadingBackground(partIndex: number) {
+	return partIndex % 2 === 1;
+}
+
 const SECTION_IMAGE_PATTERN = /section_(\d+)\.[a-z0-9]+$/i;
 
 export function buildSectionImageMap(

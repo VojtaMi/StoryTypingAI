@@ -1,32 +1,32 @@
 import type { Genre } from "./genres";
 import type { LearnerContext } from "./learnerContext";
+import { READING_STORY_MAX_TOKENS } from "./models";
 
 export type ChatMessage = {
 	role: "system" | "user" | "assistant";
 	content: string;
 };
 
-export interface ReadingStoryBeat {
-	part: number;
+/** One of the six sections of a reading story: its narrative job, its teaching
+ * job, and the finished Esperanto prose the learner reads. */
+export interface ReadingStoryPart {
 	role: string;
-	summary: string;
 	languageFocus: string;
+	text: string;
 }
 
-export type ReadingStoryLevel = "profile-adapted" | "beginner";
-
-export interface ReadingStoryFrame {
-	totalParts: 6;
-	level: ReadingStoryLevel;
+/**
+ * A complete reading story. Generated in a single call, so by the time a story
+ * exists every part the learner will read already exists too: the session only
+ * moves a cursor through `parts`, and never generates prose again.
+ */
+export interface ReadingStory {
+	title: string;
 	premise: string;
 	mainCharacter: string;
 	mainCharacterVisual: string;
 	setting: string;
-	beats: ReadingStoryBeat[];
-	learnerProfile?: string;
-	learnerPreferences?: string;
-	storyMemory?: string;
-	storyRecipe?: ReadingStoryRecipe;
+	parts: ReadingStoryPart[];
 }
 
 export interface ReadingStoryRecipe {
@@ -56,39 +56,34 @@ const INTRO_PROMPT =
 
 const TITLE_MAX_TOKENS = 120;
 const INTRO_MAX_TOKENS = 180;
-const READING_FRAME_MAX_TOKENS = 1200;
-
-const READING_FRAME_PROMPT =
-	"Plan a six-part Esperanto reading story adapted to the learner profile and preferences. " +
-	"Return only valid JSON with this exact shape: " +
-	'{"totalParts":6,"level":"profile-adapted","premise":"short English premise","mainCharacter":"short English description","mainCharacterVisual":"concrete hidden visual continuity description","setting":"short English setting","beats":[{"part":1,"role":"beginning","summary":"English beat summary","languageFocus":"English language focus"},{"part":2,"role":"inciting event","summary":"English beat summary","languageFocus":"English language focus"},{"part":3,"role":"first attempt","summary":"English beat summary","languageFocus":"English language focus"},{"part":4,"role":"complication","summary":"English beat summary","languageFocus":"English language focus"},{"part":5,"role":"resolution attempt","summary":"English beat summary","languageFocus":"English language focus"},{"part":6,"role":"ending","summary":"English beat summary","languageFocus":"English language focus"}]} ' +
-	"Write the frame fields in English. Use exactly six beats numbered 1 through 6. " +
-	"Do not include comments, markdown, prose outside the JSON, trailing commas, or ellipses. " +
-	"Use character names that do not look like common Esperanto grammar words; do not use names like Mia. " +
-	"mainCharacterVisual is hidden image-generation context: state the main character's age bracket, stable gender presentation, hair, clothing, recurring object, and any stable distinctive detail. " +
-	"Do not leave the visual identity as only Adult or person when the beats, name, or pronouns imply a specific presentation; mainCharacter, mainCharacterVisual, and beat pronouns must agree. " +
-	"Use concrete, visible story details and match the tone, audience fit, and subject matter to learner preferences. " +
-	"Prefer adult or age-neutral protagonists unless the learner preferences explicitly request child stories. " +
-	"When story memory marks motifs as recent, choose a clearly different premise, relationship pattern, object set, and story arc. " +
-	"The six beats can describe observation, decision, comparison, preparation, misunderstanding, routine disruption, quiet mystery, or another small situation.";
-
-const READING_FRAME_REPAIR_PROMPT =
-	"Repair this into valid JSON for a six-part Esperanto reading story frame adapted to the learner profile and preferences. " +
-	"Return only JSON with totalParts 6, level profile-adapted, premise, mainCharacter, mainCharacterVisual, setting, and exactly six beats. " +
-	"mainCharacterVisual must be concrete hidden image-generation context with age bracket, stable gender presentation, hair, clothing, recurring object, and stable distinctive detail. " +
-	"Do not leave the visual identity as only Adult or person when the beats, name, or pronouns imply a specific presentation; mainCharacter, mainCharacterVisual, and beat pronouns must agree. " +
-	"Each beat must have part, role, summary, and languageFocus. No markdown, comments, trailing commas, or ellipses.";
 
 export const READING_STORY_TOTAL_PARTS = 6;
 
-const READING_PART_SYSTEM_PROMPT =
-	"Write one part of a six-part Esperanto reading story adapted to the learner profile and frame. " +
-	"Output only Esperanto story prose: no title, no headings, no English, no markdown. " +
-	"Use 3-5 sentences unless the profile clearly supports more complexity. Use concrete vocabulary, natural Esperanto word endings, and repetition that supports the learner's current edge. " +
+const READING_STORY_PROMPT =
+	`Write a complete ${READING_STORY_TOTAL_PARTS}-part Esperanto reading story adapted to the learner profile and preferences. ` +
+	"Return only valid JSON with this exact shape: " +
+	'{"title":"short title, 2-6 words","premise":"short English premise","mainCharacter":"short English description","mainCharacterVisual":"concrete hidden visual continuity description","setting":"short English setting","parts":[{"role":"beginning","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"inciting event","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"first attempt","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"complication","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"resolution attempt","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"ending","languageFocus":"English language focus","text":"Esperanto prose for this part"}]} ' +
+	`Write title, premise, mainCharacter, mainCharacterVisual, setting, role, and languageFocus in English. Write every part text in Esperanto only. Return exactly ${READING_STORY_TOTAL_PARTS} parts, in narrative order, each one finished. ` +
+	"Do not include comments, markdown, prose outside the JSON, trailing commas, or ellipses. " +
+	"Each part text is 3-5 sentences unless the profile clearly supports more complexity. Use concrete vocabulary, natural Esperanto word endings, and repetition that supports the learner's current edge. " +
 	"Avoid idioms and metaphorical phrases that are beyond the learner profile. Prefer concrete actions and visible details. " +
 	"Repeat important nouns instead of relying too much on pronouns when that helps the learner. " +
+	"The parts build one continuous arc: each part follows on from the previous one, and the last part ends the story. " +
 	"Use character names that do not look like common Esperanto grammar words; do not use names like Mia. " +
-	"Follow the given frame beat exactly while preserving continuity with previous parts.";
+	"mainCharacterVisual is hidden image-generation context: state the main character's age bracket, stable gender presentation, hair, clothing, recurring object, and any stable distinctive detail. " +
+	"Do not leave the visual identity as only Adult or person when the story, name, or pronouns imply a specific presentation; mainCharacter, mainCharacterVisual, and the story's pronouns must agree. " +
+	"Use concrete, visible story details and match the tone, audience fit, and subject matter to learner preferences. " +
+	"Prefer adult or age-neutral protagonists unless the learner preferences explicitly request child stories. " +
+	"When story memory marks motifs as recent, choose a clearly different premise, relationship pattern, object set, and story arc. " +
+	"The story can be about observation, decision, comparison, preparation, misunderstanding, routine disruption, quiet mystery, or another small situation.";
+
+const READING_STORY_REPAIR_PROMPT =
+	`Repair this into valid JSON for a complete ${READING_STORY_TOTAL_PARTS}-part Esperanto reading story. ` +
+	`Return only JSON with title, premise, mainCharacter, mainCharacterVisual, setting, and exactly ${READING_STORY_TOTAL_PARTS} parts. ` +
+	"Each part must have a nonempty role, languageFocus, and a finished Esperanto text of 3-5 sentences. Do not shorten, summarize, or drop any part; keep the Esperanto prose that is already there and complete anything that was cut off. " +
+	"mainCharacterVisual must be concrete hidden image-generation context with age bracket, stable gender presentation, hair, clothing, recurring object, and stable distinctive detail. " +
+	"Do not leave the visual identity as only Adult or person when the story, name, or pronouns imply a specific presentation. " +
+	"No markdown, comments, trailing commas, or ellipses.";
 
 const READING_RECIPE_PROTAGONISTS = [
 	"adult commuter",
@@ -175,7 +170,7 @@ const STORY_MEMORY_GUIDANCE =
 	"Choose a premise, protagonist type, object set, and setting clearly different from recent motifs and the 'Avoid next' guidance.";
 
 const STORY_RECIPE_GUIDANCE =
-	"Use this story recipe as a diversity seed. Build the frame around it unless it conflicts with learner context.";
+	"Use this story recipe as a diversity seed. Build the story around it unless it conflicts with learner context.";
 
 /** A system turn carrying the learner handout, or nothing when no profile is available. */
 function learnerProfileMessages(learnerProfile?: string): ChatMessage[] {
@@ -227,105 +222,90 @@ function normalizeLearnerContext(
 	return learnerContext ?? {};
 }
 
-export function readingFrameMessages(
+/**
+ * The one request that produces a reading story. Everything the story depends
+ * on — profile, preferences, memory, genre, diversity recipe — is sent here
+ * once, because nothing downstream generates prose again.
+ */
+export function readingStoryPromptMessages(
 	genre: Genre,
 	learnerContext?: string | Partial<LearnerContext>,
 	recipe: ReadingStoryRecipe = createReadingStoryRecipe(),
 ): ChatMessage[] {
 	const context = normalizeLearnerContext(learnerContext);
 	return [
-		{ role: "system", content: READING_FRAME_PROMPT },
+		{ role: "system", content: READING_STORY_PROMPT },
 		...learnerProfileMessages(context.languageProfile),
 		...learnerPreferenceMessages(context.preferences),
 		...storyMemoryMessages(context.storyMemory),
 		storyRecipeMessage(recipe),
 		{
 			role: "user",
-			content: `Create the reading story frame for this genre: ${genre.label}.\nGenre guidance: ${genre.systemPrompt}`,
+			content: `Write the complete ${READING_STORY_TOTAL_PARTS}-part reading story for this genre: ${genre.label}.\nGenre guidance: ${genre.systemPrompt}`,
 		},
 	];
 }
 
-export function readingPartMessages(
-	frame: ReadingStoryFrame,
+/**
+ * The chat history a reading story carries once `partIndex` parts have been
+ * revealed. Reading never continues from this history — it exists so a reading
+ * save has the same shape as a typing save.
+ */
+export function readingStoryMessages(
+	genre: Genre,
+	story: ReadingStory,
 	partIndex: number,
-	previousParts: string[],
-	learnerContext?: string | Partial<LearnerContext>,
 ): ChatMessage[] {
-	const beat = frame.beats[partIndex - 1];
-	const explicitContext = normalizeLearnerContext(learnerContext);
-	const activeContext = {
-		languageProfile:
-			explicitContext.languageProfile ?? frame.learnerProfile ?? "",
-		preferences: explicitContext.preferences ?? frame.learnerPreferences ?? "",
-		storyMemory: explicitContext.storyMemory ?? frame.storyMemory ?? "",
-	};
 	return [
-		{ role: "system", content: READING_PART_SYSTEM_PROMPT },
-		...learnerProfileMessages(activeContext.languageProfile),
-		...learnerPreferenceMessages(activeContext.preferences),
-		...storyMemoryMessages(activeContext.storyMemory),
-		...(frame.storyRecipe ? [storyRecipeMessage(frame.storyRecipe)] : []),
-		{
-			role: "user",
-			content: JSON.stringify(
-				{
-					frame,
-					currentPart: partIndex,
-					currentBeat: beat,
-					previousParts,
-				},
-				null,
-				2,
-			),
-		},
+		{ role: "system", content: genre.systemPrompt },
+		...story.parts
+			.slice(0, partIndex)
+			.map((part): ChatMessage => ({ role: "assistant", content: part.text })),
 	];
 }
 
-export async function generateReadingFrame(
+/** Hidden image-generation context that keeps the character and place stable across sections. */
+export function readingVisualContext(story: ReadingStory): string {
+	return [
+		`Main character: ${story.mainCharacter}.`,
+		story.mainCharacterVisual
+			? `Stable visual identity: ${story.mainCharacterVisual}`
+			: "",
+		`Setting: ${story.setting}.`,
+	]
+		.filter(Boolean)
+		.join(" ");
+}
+
+/** What the finished story was about, folded into the learner profile and story memory. */
+export function readingStorySummary(story: ReadingStory): string {
+	return `${story.premise} Main character: ${story.mainCharacter}. Setting: ${story.setting}.`;
+}
+
+export async function generateReadingStory(
 	complete: Complete,
 	genre: Genre,
 	learnerContext?: string | Partial<LearnerContext>,
-): Promise<ReadingStoryFrame> {
+): Promise<ReadingStory> {
 	const context = normalizeLearnerContext(learnerContext);
-	const recipe = createReadingStoryRecipe();
 	const raw = await complete(
-		readingFrameMessages(genre, context, recipe),
-		READING_FRAME_MAX_TOKENS,
+		readingStoryPromptMessages(genre, context),
+		READING_STORY_MAX_TOKENS,
 	);
 	try {
-		return withLearnerContext(parseReadingStoryFrame(raw), context, recipe);
+		return parseReadingStory(raw);
 	} catch {
+		// One repair pass, then fail: a story that is short a part, or whose prose
+		// was cut off mid-sentence, must never be saved as if it were complete.
 		const repaired = await complete(
 			[
-				{ role: "system", content: READING_FRAME_REPAIR_PROMPT },
+				{ role: "system", content: READING_STORY_REPAIR_PROMPT },
 				{ role: "user", content: raw },
 			],
-			READING_FRAME_MAX_TOKENS,
+			READING_STORY_MAX_TOKENS,
 		);
-		return withLearnerContext(
-			parseReadingStoryFrame(repaired),
-			context,
-			recipe,
-		);
+		return parseReadingStory(repaired);
 	}
-}
-
-function withLearnerContext(
-	frame: ReadingStoryFrame,
-	learnerContext: Partial<LearnerContext>,
-	recipe?: ReadingStoryRecipe,
-): ReadingStoryFrame {
-	const languageProfile = learnerContext.languageProfile?.trim();
-	const preferences = learnerContext.preferences?.trim();
-	const storyMemory = learnerContext.storyMemory?.trim();
-	return {
-		...frame,
-		...(languageProfile ? { learnerProfile: languageProfile } : {}),
-		...(preferences ? { learnerPreferences: preferences } : {}),
-		...(storyMemory ? { storyMemory } : {}),
-		...(recipe ? { storyRecipe: recipe } : {}),
-	};
 }
 
 export function createReadingStoryRecipe(): ReadingStoryRecipe {
@@ -341,84 +321,102 @@ function pick(values: string[]): string {
 	return values[Math.floor(Math.random() * values.length)] ?? values[0] ?? "";
 }
 
-export function parseReadingStoryFrame(raw: string): ReadingStoryFrame {
+/**
+ * Accepts only a story the reading session can run end to end: six parts, each
+ * with prose, and the metadata the images and the recap depend on. Anything
+ * partial — a missing part, an empty text, output truncated mid-JSON — throws.
+ */
+export function parseReadingStory(raw: string): ReadingStory {
 	const jsonText = extractJsonObject(raw);
-	const parsed = JSON.parse(jsonText) as Partial<ReadingStoryFrame>;
-	if (
-		parsed.totalParts !== READING_STORY_TOTAL_PARTS ||
-		!isReadingStoryLevel(parsed.level) ||
-		typeof parsed.premise !== "string" ||
-		typeof parsed.mainCharacter !== "string" ||
-		typeof parsed.mainCharacterVisual !== "string" ||
-		typeof parsed.setting !== "string" ||
-		!Array.isArray(parsed.beats) ||
-		parsed.beats.length !== READING_STORY_TOTAL_PARTS
-	) {
-		throw new Error("The AI returned an invalid reading story frame.");
+	let parsed: Partial<ReadingStory>;
+	try {
+		parsed = JSON.parse(jsonText) as Partial<ReadingStory>;
+	} catch {
+		throw new Error("The AI returned an invalid reading story.");
 	}
 
-	const beats = parsed.beats.map((beat, index) => {
-		if (
-			!beat ||
-			beat.part !== index + 1 ||
-			typeof beat.role !== "string" ||
-			typeof beat.summary !== "string" ||
-			typeof beat.languageFocus !== "string"
-		) {
-			throw new Error("The AI returned an invalid reading story beat.");
+	if (!Array.isArray(parsed.parts)) {
+		throw new Error("The AI returned an invalid reading story.");
+	}
+	if (parsed.parts.length !== READING_STORY_TOTAL_PARTS) {
+		throw new Error(
+			`The AI returned ${parsed.parts.length} reading story parts instead of ${READING_STORY_TOTAL_PARTS}.`,
+		);
+	}
+
+	const title = requiredStoryField(parsed.title, "title");
+	const premise = requiredStoryField(parsed.premise, "premise");
+	const mainCharacter = requiredStoryField(
+		parsed.mainCharacter,
+		"mainCharacter",
+	);
+	const mainCharacterVisual = requiredStoryField(
+		parsed.mainCharacterVisual,
+		"mainCharacterVisual",
+	);
+	const setting = requiredStoryField(parsed.setting, "setting");
+
+	const parts = parsed.parts.map((part, index) => {
+		const label = `part ${index + 1}`;
+		if (!part || typeof part !== "object") {
+			throw new Error(`The AI returned an invalid reading story ${label}.`);
 		}
 		return {
-			part: beat.part,
-			role: beat.role,
-			summary: beat.summary,
-			languageFocus: beat.languageFocus,
+			role: requiredStoryField(part.role, `${label} role`),
+			languageFocus: requiredStoryField(
+				part.languageFocus,
+				`${label} languageFocus`,
+			),
+			text: requiredStoryField(part.text, `${label} text`),
 		};
 	});
 
 	return {
-		totalParts: READING_STORY_TOTAL_PARTS,
-		level: parsed.level,
-		premise: parsed.premise,
-		mainCharacter: parsed.mainCharacter,
+		title,
+		premise,
+		mainCharacter,
 		mainCharacterVisual: stabilizeMainCharacterVisual({
-			premise: parsed.premise,
-			mainCharacter: parsed.mainCharacter,
-			mainCharacterVisual: parsed.mainCharacterVisual,
-			beats,
+			premise,
+			mainCharacter,
+			mainCharacterVisual,
+			parts,
 		}),
-		setting: parsed.setting,
-		beats,
+		setting,
+		parts,
 	};
 }
 
-function isReadingStoryLevel(value: unknown): value is ReadingStoryLevel {
-	return value === "profile-adapted" || value === "beginner";
+function requiredStoryField(value: unknown, label: string): string {
+	if (typeof value !== "string" || !value.trim()) {
+		throw new Error(`The AI returned a reading story with no ${label}.`);
+	}
+	return value.trim();
 }
 
 function stabilizeMainCharacterVisual(
-	frame: Pick<
-		ReadingStoryFrame,
-		"premise" | "mainCharacter" | "mainCharacterVisual" | "beats"
+	story: Pick<
+		ReadingStory,
+		"premise" | "mainCharacter" | "mainCharacterVisual" | "parts"
 	>,
 ): string {
-	if (hasStableGenderPresentation(frame.mainCharacterVisual)) {
-		return frame.mainCharacterVisual;
+	if (hasStableGenderPresentation(story.mainCharacterVisual)) {
+		return story.mainCharacterVisual;
 	}
 
-	const presentation = inferGenderPresentation(frame);
-	if (!presentation) return frame.mainCharacterVisual;
+	const presentation = inferGenderPresentation(story);
+	if (!presentation) return story.mainCharacterVisual;
 
 	if (presentation === "woman") {
-		return frame.mainCharacterVisual
+		return story.mainCharacterVisual
 			.replace(/^Adult in their\b/i, "Woman in her")
 			.replace(/^Adult\b/i, "Woman");
 	}
 	if (presentation === "man") {
-		return frame.mainCharacterVisual
+		return story.mainCharacterVisual
 			.replace(/^Adult in their\b/i, "Man in his")
 			.replace(/^Adult\b/i, "Man");
 	}
-	return frame.mainCharacterVisual
+	return story.mainCharacterVisual
 		.replace(/^Adult in their\b/i, "Gender-neutral adult in their")
 		.replace(/^Adult\b/i, "Gender-neutral adult");
 }
@@ -429,19 +427,25 @@ function hasStableGenderPresentation(visual: string): boolean {
 	);
 }
 
+/**
+ * The image prompt needs a stable presentation, so where the visual line leaves
+ * it open we read it off the story: the English metadata first, then the
+ * Esperanto prose, where `ŝi`/`li` carry the same signal `she`/`he` do.
+ */
 function inferGenderPresentation(
-	frame: Pick<ReadingStoryFrame, "premise" | "mainCharacter" | "beats">,
+	story: Pick<ReadingStory, "premise" | "mainCharacter" | "parts">,
 ): "woman" | "man" | "gender-neutral" | null {
-	const text = [
-		frame.premise,
-		frame.mainCharacter,
-		...frame.beats.map((beat) => beat.summary),
-	].join(" ");
-	const hasFemalePronoun = /\b(she|her|hers)\b/i.test(text);
-	const hasMalePronoun = /\b(he|him|his)\b/i.test(text);
-	if (hasFemalePronoun && !hasMalePronoun) return "woman";
-	if (hasMalePronoun && !hasFemalePronoun) return "man";
-	if (/\b(they|them|their|theirs)\b/i.test(text)) return "gender-neutral";
+	const english = [story.premise, story.mainCharacter].join(" ");
+	const esperanto = story.parts.map((part) => part.text).join(" ");
+	const hasFemale =
+		/\b(she|her|hers)\b/i.test(english) ||
+		/\b(ŝi|ŝin|ŝia|ŝiaj)\b/i.test(esperanto);
+	const hasMale =
+		/\b(he|him|his)\b/i.test(english) ||
+		/\b(li|lin|lia|liaj)\b/i.test(esperanto);
+	if (hasFemale && !hasMale) return "woman";
+	if (hasMale && !hasFemale) return "man";
+	if (/\b(they|them|their|theirs)\b/i.test(english)) return "gender-neutral";
 	return null;
 }
 

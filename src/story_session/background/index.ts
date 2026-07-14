@@ -4,6 +4,7 @@ export {
 	fallbackBackgroundImage,
 	type StoryBackgroundFields,
 	shouldGenerateNextBackground,
+	shouldGenerateReadingBackground,
 } from "./backgroundImages";
 export {
 	backgroundLayerStyle,

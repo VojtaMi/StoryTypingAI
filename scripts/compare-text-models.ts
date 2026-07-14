@@ -12,11 +12,60 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { TEXT_MODELS, type TextModelId } from "../src/models.ts";
 import { normalizeStoryText } from "../src/server/http.ts";
-import {
-	type ChatMessage,
-	type ReadingStoryFrame,
-	readingPartMessages,
-} from "../src/story.ts";
+import type { ChatMessage } from "../src/story.ts";
+
+/**
+ * This benchmark scores models one story part at a time, against fixed frames,
+ * so that a model's parts can be judged and priced individually. The app itself
+ * generates a whole reading story in one call, so the per-part frame and its
+ * prompt live here, as benchmark fixtures, rather than in the app.
+ */
+interface ReadingStoryFrame {
+	totalParts: 6;
+	level: "profile-adapted" | "beginner";
+	premise: string;
+	mainCharacter: string;
+	mainCharacterVisual: string;
+	setting: string;
+	beats: Array<{
+		part: number;
+		role: string;
+		summary: string;
+		languageFocus: string;
+	}>;
+}
+
+const READING_PART_SYSTEM_PROMPT =
+	"Write one part of a six-part Esperanto reading story adapted to the learner profile and frame. " +
+	"Output only Esperanto story prose: no title, no headings, no English, no markdown. " +
+	"Use 3-5 sentences unless the profile clearly supports more complexity. Use concrete vocabulary, natural Esperanto word endings, and repetition that supports the learner's current edge. " +
+	"Avoid idioms and metaphorical phrases that are beyond the learner profile. Prefer concrete actions and visible details. " +
+	"Repeat important nouns instead of relying too much on pronouns when that helps the learner. " +
+	"Use character names that do not look like common Esperanto grammar words; do not use names like Mia. " +
+	"Follow the given frame beat exactly while preserving continuity with previous parts.";
+
+function readingPartMessages(
+	frame: ReadingStoryFrame,
+	partIndex: number,
+	previousParts: string[],
+): ChatMessage[] {
+	return [
+		{ role: "system", content: READING_PART_SYSTEM_PROMPT },
+		{
+			role: "user",
+			content: JSON.stringify(
+				{
+					frame,
+					currentPart: partIndex,
+					currentBeat: frame.beats[partIndex - 1],
+					previousParts,
+				},
+				null,
+				2,
+			),
+		},
+	];
+}
 
 type Provider = "openai" | "anthropic" | "gemini";
 

@@ -1,8 +1,8 @@
-import type { ChatMessage, ReadingStoryFrame, StoryMemory } from "../ai";
+import type { ChatMessage, ReadingStory, StoryMemory } from "../ai";
 import type { StoryPhase, StorySegment } from "../exercise_screen/types";
 import type { Genre } from "../genres";
 import type { NarrationVoiceId } from "../narrationVoice";
-import type { PreparedReadingPart, SavedStory } from "../saves";
+import type { SavedStory } from "../saves";
 import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
 import type { StoryRecapLesson } from "../storyRecap";
@@ -18,11 +18,10 @@ interface StorySaveSnapshotInput {
 	phase: StoryPhase;
 	backgroundIntro?: string;
 	narrationVoice?: NarrationVoiceId;
-	readingFrame?: ReadingStoryFrame;
+	readingStory?: ReadingStory;
 	readingPartIndex?: number;
 	backgroundImage?: StoryBackgroundImage | null;
 	openingAudio?: StoryOpeningAudio | null;
-	preparedNextPart?: PreparedReadingPart | null;
 	storyRecapLesson?: StoryRecapLesson | null;
 	storyFeedbackSubmittedAt?: string | null;
 }
@@ -61,11 +60,10 @@ export function buildStorySaveSnapshot({
 	phase,
 	backgroundIntro,
 	narrationVoice,
-	readingFrame,
+	readingStory,
 	readingPartIndex,
 	backgroundImage,
 	openingAudio,
-	preparedNextPart,
 	storyRecapLesson,
 	storyFeedbackSubmittedAt,
 }: StorySaveSnapshotInput): Omit<SavedStory, "updatedAt"> {
@@ -80,9 +78,8 @@ export function buildStorySaveSnapshot({
 		phase,
 		backgroundIntro,
 		narrationVoice,
-		readingFrame,
+		readingStory,
 		readingPartIndex,
-		preparedNextPart: preparedNextPart ?? undefined,
 		storyRecapLesson: storyRecapLesson ?? undefined,
 		...(backgroundImage ?? undefined),
 		...(openingAudio ?? undefined),

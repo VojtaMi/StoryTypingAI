@@ -34,6 +34,17 @@ When a single LLM call generates multiple distinct structured items (e.g. a less
 
 When part of an LLM's output must satisfy a structural invariant (e.g. "this sentence must not contain this word" so the app can render a blank), don't rely on a prompt instruction the model might ignore, and don't just validate-and-reject after the fact either — shrink what you ask the LLM for and derive the invariant deterministically in code. Example: ask for one natural sentence containing the word, then split on it client-side, rather than asking the LLM to pre-split the sentence around the word itself.
 
+## Development-Phase Compatibility
+
+This project is still under active development. Do not add migrations,
+compatibility adapters, fallback code, or legacy schema support for obsolete
+local saves, prepared queues, or generated artifacts unless the user explicitly
+requests it.
+
+Prefer the simplest current data model. Runtime-generated development data may
+be discarded and regenerated after schema changes. Do not delete local user
+data automatically; report when existing data has become unsupported.
+
 ## Verifying UI Changes
 
 A change with a UI surface is not done until the page has been rendered. `npm run verify:page -- <url> [--expect-text "..."]` drives a real browser and exits non-zero on navigation failure, any console error, any uncaught page error, any failed request, or missing text. Screenshots go to the gitignored `.artifacts/`.

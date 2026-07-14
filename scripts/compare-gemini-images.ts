@@ -6,15 +6,15 @@ import {
 	type GeminiImageModel,
 	generateStoryImage,
 } from "../src/server/images/index.ts";
+import type { ReadingStory } from "../src/story.ts";
 
 type StoryRecord = {
 	genreId?: string;
 	id?: string;
-	readingFrame?: {
-		mainCharacter?: string;
-		mainCharacterVisual?: string;
-		setting?: string;
-	};
+	readingStory?: Pick<
+		ReadingStory,
+		"mainCharacter" | "mainCharacterVisual" | "setting"
+	>;
 	segments?: Array<{
 		text?: string;
 	}>;
@@ -116,14 +116,16 @@ await writeFile(
 );
 
 function readingVisualContext(story: StoryRecord) {
-	const frame = story.readingFrame;
-	if (!frame) return undefined;
+	const readingStory = story.readingStory;
+	if (!readingStory) return undefined;
 	return [
-		frame.mainCharacter ? `Main character: ${frame.mainCharacter}.` : "",
-		frame.mainCharacterVisual
-			? `Stable visual identity: ${frame.mainCharacterVisual}`
+		readingStory.mainCharacter
+			? `Main character: ${readingStory.mainCharacter}.`
 			: "",
-		frame.setting ? `Setting: ${frame.setting}.` : "",
+		readingStory.mainCharacterVisual
+			? `Stable visual identity: ${readingStory.mainCharacterVisual}`
+			: "",
+		readingStory.setting ? `Setting: ${readingStory.setting}.` : "",
 	]
 		.filter(Boolean)
 		.join(" ");

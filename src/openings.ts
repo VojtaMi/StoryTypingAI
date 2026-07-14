@@ -1,4 +1,4 @@
-import type { ChatMessage, ReadingStoryFrame } from "./ai";
+import type { ChatMessage, ReadingStory } from "./ai";
 import type { GenreId } from "./genres";
 import { DEFAULT_TEXT_MODEL, type TextModelId } from "./models";
 import type { NarrationVoiceId } from "./narrationVoice";
@@ -30,7 +30,8 @@ export interface PreparedReadingOpening
 	title?: string;
 	text: string;
 	messages: ChatMessage[];
-	readingFrame: ReadingStoryFrame;
+	/** The complete story; `text` and the media fields above are its part 1. */
+	readingStory: ReadingStory;
 	readingPartIndex: number;
 	narrationVoice: NarrationVoiceId;
 	createdAt: string;

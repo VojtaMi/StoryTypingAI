@@ -11,10 +11,12 @@ import {
 } from "../narrationVoice";
 import {
 	type ChatMessage,
-	generateReadingFrame,
+	generateReadingStory,
 	generateTitle,
-	type ReadingStoryFrame,
-	readingPartMessages,
+	READING_STORY_TOTAL_PARTS,
+	type ReadingStory,
+	readingStoryMessages,
+	readingVisualContext,
 } from "../story";
 import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
@@ -44,13 +46,15 @@ interface PreparedOpening
 	text: string;
 	backgroundIntro?: string;
 	narrationVoice?: NarrationVoiceId;
-	messages: Array<{
-		role: "system" | "user" | "assistant";
-		content: string;
-	}>;
+	messages: ChatMessage[];
 	createdAt: string;
 }
 
+/**
+ * The single queued reading story. It holds the whole generated story, so
+ * starting it costs no text generation; `text` and the media fields are part 1,
+ * prepared ahead so the first screen appears immediately.
+ */
 interface PreparedReadingOpening
 	extends Partial<StoryBackgroundImage>,
 		Partial<StoryOpeningAudio> {
@@ -59,7 +63,7 @@ interface PreparedReadingOpening
 	title?: string;
 	text: string;
 	messages: ChatMessage[];
-	readingFrame: ReadingStoryFrame;
+	readingStory: ReadingStory;
 	readingPartIndex: number;
 	narrationVoice: NarrationVoiceId;
 	createdAt: string;
@@ -208,7 +212,7 @@ export async function prepareMissingReadingOpenings(
 							existing.id,
 							{
 								sectionIndex: 1,
-								visualContext: readingVisualContext(existing.readingFrame),
+								visualContext: readingVisualContext(existing.readingStory),
 							},
 						),
 					);
@@ -348,40 +352,21 @@ async function createPreparedReadingOpening(
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 ): Promise<PreparedReadingOpening> {
-	const complete = (messages: ChatMessage[], maxTokens: number) =>
-		completeAi(openai, messages, maxTokens, model, anthropicKey);
 	const learnerContext = await readLearnerContext();
-	const readingFrame = await generateReadingFrame(
-		complete,
+	const readingStory = await generateReadingStory(
+		(messages, maxTokens) =>
+			completeAi(openai, messages, maxTokens, model, anthropicKey),
 		genre,
 		learnerContext,
 	);
-	const text = await complete(readingPartMessages(readingFrame, 1, []), 260);
-	const messages: ChatMessage[] = [
-		{ role: "system", content: genre.systemPrompt },
-		{
-			role: "user",
-			content: `Six-part profile-adapted reading story frame:\n${JSON.stringify(
-				readingFrame,
-				null,
-				2,
-			)}`,
-		},
-		{ role: "assistant", content: text },
-	];
-	const title = await titleFromText(
-		openai,
-		text,
-		`${genre.label} Story`,
-		model,
-		anthropicKey,
-	);
+	const text = readingStory.parts[0].text;
+	const title = readingStory.title;
 	const id = createBundleId(title, randomUUID());
 	const narrationVoice = pickRandomNarrationVoice();
 	const [backgroundImage, openingAudio] = await Promise.all([
 		createBackgroundImage(openai, genre, text, id, {
 			sectionIndex: 1,
-			visualContext: readingVisualContext(readingFrame),
+			visualContext: readingVisualContext(readingStory),
 		}),
 		createOpeningAudio(openai, text, id, narrationVoice, { sectionIndex: 1 }),
 	]);
@@ -390,8 +375,8 @@ async function createPreparedReadingOpening(
 		genreId: genre.id,
 		title,
 		text,
-		messages,
-		readingFrame,
+		messages: readingStoryMessages(genre, readingStory, 1),
+		readingStory,
 		readingPartIndex: 1,
 		narrationVoice,
 		...backgroundImage,
@@ -434,6 +419,18 @@ async function createBackgroundIntro(
 	}
 }
 
+const backgroundImagesInFlight = new Map<
+	string,
+	Promise<StoryBackgroundImage>
+>();
+
+/**
+ * Generates a section's background image, or joins the request already
+ * generating that exact image. Reading prepares a section's media ahead and can
+ * also be asked for it on arrival; images are billed per call and are not
+ * content-addressed the way narration is, so identical concurrent requests
+ * share one provider call instead of paying twice for the same picture.
+ */
 export async function createBackgroundImage(
 	openai: OpenAI,
 	genre: Genre,
@@ -446,6 +443,34 @@ export async function createBackgroundImage(
 		storyText,
 		options.visualContext,
 	);
+	const key = [genre.id, storyId, options.sectionIndex ?? "none", prompt].join(
+		" ",
+	);
+	const inFlight = backgroundImagesInFlight.get(key);
+	if (inFlight) return inFlight;
+
+	const request = generateBackgroundImage(
+		openai,
+		genre,
+		storyText,
+		storyId,
+		prompt,
+		options,
+	).finally(() => {
+		backgroundImagesInFlight.delete(key);
+	});
+	backgroundImagesInFlight.set(key, request);
+	return request;
+}
+
+async function generateBackgroundImage(
+	openai: OpenAI,
+	genre: Genre,
+	storyText: string,
+	storyId: string,
+	prompt: string,
+	options: { sectionIndex?: number; visualContext?: string },
+): Promise<StoryBackgroundImage> {
 	try {
 		const image = await generateStoryImage({
 			genre,
@@ -476,18 +501,6 @@ export async function createBackgroundImage(
 	}
 }
 
-function readingVisualContext(frame: ReadingStoryFrame) {
-	return [
-		`Main character: ${frame.mainCharacter}.`,
-		frame.mainCharacterVisual
-			? `Stable visual identity: ${frame.mainCharacterVisual}`
-			: "",
-		`Setting: ${frame.setting}.`,
-	]
-		.filter(Boolean)
-		.join(" ");
-}
-
 async function readPreparedOpening(
 	genreId: GenreId,
 ): Promise<PreparedOpening | null> {
@@ -504,10 +517,23 @@ async function readPreparedReadingOpening(
 ): Promise<PreparedReadingOpening | null> {
 	try {
 		const text = await readFile(readingOpeningPath(genreId), "utf8");
-		return JSON.parse(text);
+		const opening = JSON.parse(text) as PreparedReadingOpening;
+		// The queue is a cache, not history: an entry written before stories were
+		// generated whole holds only a frame, so drop it and prepare a real one.
+		return isCompleteReadingStory(opening?.readingStory) ? opening : null;
 	} catch {
 		return null;
 	}
+}
+
+function isCompleteReadingStory(story: unknown): story is ReadingStory {
+	if (!story || typeof story !== "object") return false;
+	const parts = (story as ReadingStory).parts;
+	return (
+		Array.isArray(parts) &&
+		parts.length === READING_STORY_TOTAL_PARTS &&
+		parts.every((part) => Boolean(part?.text?.trim()))
+	);
 }
 
 async function writePreparedOpening(opening: PreparedOpening) {

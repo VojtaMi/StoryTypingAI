@@ -4,12 +4,11 @@ import {
 	type ChatMessage,
 	continueStoryStream,
 	generateOpeningAudio,
-	generateReadingStoryFrame,
-	generateReadingStoryPart,
+	generateReadingStory,
 	generateStoryBackgroundImage,
 	generateStoryIntro,
 	generateStoryRecapLesson,
-	type ReadingStoryFrame,
+	type ReadingStory,
 	refineLearnerProfileFromRecap,
 	refineLearnerProfileFromStory,
 	regenerateWordTranslation,
@@ -38,7 +37,12 @@ import {
 	prepareMissingOpenings,
 	prepareMissingReadingOpenings,
 } from "../openings";
-import { loadSavedStory, type PreparedReadingPart } from "../saves";
+import { loadSavedStory } from "../saves";
+import {
+	readingStoryMessages,
+	readingStorySummary,
+	readingVisualContext,
+} from "../story";
 import {
 	isStoryOpeningAudioForText,
 	type StoryOpeningAudio,
@@ -53,6 +57,11 @@ import {
 } from "./background";
 import { useStoryPersistence } from "./persistence/useStoryPersistence";
 import {
+	createReadingMedia,
+	type ReadingMediaSection,
+	type ReadingSectionMedia,
+} from "./readingMedia";
+import {
 	buildStorySaveSnapshot,
 	createSaveId,
 	fallbackTitle,
@@ -62,8 +71,6 @@ import {
 // "somewhere in the lesson flow" — it never branches on individual lesson views.
 type View = "menu" | "story" | "lesson";
 
-const PREPARED_READING_WAIT_MS = 1500;
-const PREPARED_READING_POLL_MS = 75;
 const STORY_WORD_PATTERN = /[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+/g;
 
 interface UseStorySessionOptions {
@@ -79,34 +86,35 @@ function describeError(err: unknown): string {
 	return `Something went wrong reaching the AI: ${message}`;
 }
 
+/** The image prompt for a reading section is that section's prose, nothing else. */
 function readingBackgroundMessages(
 	selected: Genre,
-	storyMessages: ChatMessage[],
+	partText: string,
 ): ChatMessage[] {
-	let latestStoryPart: ChatMessage | undefined;
-	for (const message of storyMessages) {
-		if (message.role === "assistant") latestStoryPart = message;
-	}
 	return [
 		{ role: "system", content: selected.systemPrompt },
-		...(latestStoryPart ? [latestStoryPart] : []),
+		{ role: "assistant", content: partText },
 	];
 }
 
-function readingVisualContext(frame: ReadingStoryFrame): string {
-	return [
-		`Main character: ${frame.mainCharacter}.`,
-		frame.mainCharacterVisual
-			? `Stable visual identity: ${frame.mainCharacterVisual}`
-			: "",
-		`Setting: ${frame.setting}.`,
-	]
-		.filter(Boolean)
-		.join(" ");
-}
-
-function readingStorySummary(frame: ReadingStoryFrame): string {
-	return `${frame.premise} Main character: ${frame.mainCharacter}. Setting: ${frame.setting}.`;
+/** Everything the media owner needs to produce one section's narration and image. */
+function readingMediaSection(
+	selected: Genre,
+	storyId: string,
+	story: ReadingStory,
+	partIndex: number,
+	narrationVoice: NarrationVoiceId,
+): ReadingMediaSection | null {
+	const part = story.parts[partIndex - 1];
+	if (!part) return null;
+	return {
+		storyId,
+		partIndex,
+		narrationVoice,
+		text: part.text,
+		genre: selected,
+		visualContext: readingVisualContext(story),
+	};
 }
 
 function completedAiSegment(
@@ -120,22 +128,6 @@ function completedAiSegment(
 		text,
 		narrationAudio: isStoryOpeningAudioForText(audio, text) ? audio : undefined,
 	};
-}
-
-function wait(ms: number) {
-	return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function isPendingPreparedReadingPart(
-	prepared: PreparedReadingPart | null,
-	partIndex: number,
-) {
-	return (
-		prepared !== null &&
-		prepared.partIndex === partIndex &&
-		prepared.status === "generating" &&
-		prepared.text === undefined
-	);
 }
 
 function storyWords(parts: string[]) {
@@ -175,15 +167,11 @@ export function useStorySession({
 		string,
 		string
 	> | null>(null);
-	const [readingFrame, setReadingFrame] = useState<ReadingStoryFrame | null>(
-		null,
-	);
+	const [readingStory, setReadingStory] = useState<ReadingStory | null>(null);
 	const [readingPartIndex, setReadingPartIndex] = useState<number | null>(null);
 	const [narrationVoice, setNarrationVoice] = useState<NarrationVoiceId>(
 		DEFAULT_NARRATION_VOICE,
 	);
-	const [preparedNextPart, setPreparedNextPart] =
-		useState<PreparedReadingPart | null>(null);
 	const [storyRecapLesson, setStoryRecapLesson] =
 		useState<StoryRecapLesson | null>(null);
 	const [storyRecapError, setStoryRecapError] = useState<string | null>(null);
@@ -198,23 +186,44 @@ export function useStorySession({
 	const currentTargetRef = useRef<string | null>(null);
 	const phaseRef = useRef<StoryPhase>("loading");
 	const openingAudioRef = useRef<StoryOpeningAudio | null>(null);
-	const readingFrameRef = useRef<ReadingStoryFrame | null>(null);
+	const readingStoryRef = useRef<ReadingStory | null>(null);
 	const readingPartIndexRef = useRef<number | null>(null);
 	const narrationVoiceRef = useRef<NarrationVoiceId>(DEFAULT_NARRATION_VOICE);
-	const preparedNextPartRef = useRef<PreparedReadingPart | null>(null);
 	const storyRecapLessonRef = useRef<StoryRecapLesson | null>(null);
 	const storyFeedbackSubmittedAtRef = useRef<string | null>(null);
-	const preloadGenerationRef = useRef(0);
 	const preparingOpeningsRef = useRef(false);
 	const prepareOpeningsAgainRef = useRef(false);
 	const preparingReadingOpeningsRef = useRef(false);
 	const prepareReadingOpeningsAgainRef = useRef(false);
-	const openingAudioRecoveryKeyRef = useRef<string | null>(null);
-	const restartSegmentsRef = useRef<StorySegment[] | null>(null);
-	const restartImageMapRef = useRef<Record<
-		number,
-		StoryBackgroundImage
-	> | null>(null);
+
+	// The one owner of every reading narration and background image: preparing a
+	// section ahead, arriving at it, and recovering it after a reload all ask the
+	// same owner, so a section is never generated twice.
+	const readingMediaRef = useRef(
+		createReadingMedia({
+			generateAudio: (section) =>
+				generateOpeningAudio(
+					section.text,
+					section.storyId,
+					section.narrationVoice,
+					{ sectionIndex: section.partIndex },
+				),
+			generateBackground: async (section) => {
+				const image = await generateStoryBackgroundImage(
+					section.genre.id,
+					readingBackgroundMessages(section.genre, section.text),
+					section.storyId,
+					{
+						sectionIndex: section.partIndex,
+						visualContext: section.visualContext,
+					},
+				);
+				// A fallback image is the genre's stock picture, not this section's:
+				// leave the previous background in place rather than swapping to it.
+				return image.backgroundImageSource === "generated" ? image : null;
+			},
+		}),
+	);
 
 	useEffect(() => {
 		activeSaveIdRef.current = activeSaveId;
@@ -249,8 +258,8 @@ export function useStorySession({
 	}, [openingAudio]);
 
 	useEffect(() => {
-		readingFrameRef.current = readingFrame;
-	}, [readingFrame]);
+		readingStoryRef.current = readingStory;
+	}, [readingStory]);
 
 	useEffect(() => {
 		readingPartIndexRef.current = readingPartIndex;
@@ -259,10 +268,6 @@ export function useStorySession({
 	useEffect(() => {
 		narrationVoiceRef.current = narrationVoice;
 	}, [narrationVoice]);
-
-	useEffect(() => {
-		preparedNextPartRef.current = preparedNextPart;
-	}, [preparedNextPart]);
 
 	useEffect(() => {
 		storyRecapLessonRef.current = storyRecapLesson;
@@ -314,12 +319,16 @@ export function useStorySession({
 		onTitleGenerated: setActiveTitle,
 	});
 
+	// Narration the learner is looking at but does not have — a reload mid-story,
+	// a section whose audio failed earlier. The media owner hands back the
+	// request already running for this section rather than starting another.
 	useEffect(() => {
 		if (
 			phase !== "reading" ||
 			!genre ||
 			!activeSaveId ||
 			!currentTarget ||
+			!readingStory ||
 			readingPartIndex === null ||
 			(openingAudio?.openingAudioText === currentTarget &&
 				openingAudio.openingAudioVoice === narrationVoice)
@@ -327,22 +336,22 @@ export function useStorySession({
 			return;
 		}
 
-		const recoveryKey = [
+		const section = readingMediaSection(
+			genre,
 			activeSaveId,
+			readingStory,
 			readingPartIndex,
 			narrationVoice,
-			currentTarget,
-		].join("\n");
-		if (openingAudioRecoveryKeyRef.current === recoveryKey) return;
-		openingAudioRecoveryKeyRef.current = recoveryKey;
+		);
+		if (!section || section.text !== currentTarget) return;
 
 		let cancelled = false;
-		generateOpeningAudio(currentTarget, activeSaveId, narrationVoice, {
-			sectionIndex: readingPartIndex,
-		})
+		void readingMediaRef.current
+			.requestAudio(section)
 			.then((nextOpeningAudio) => {
 				if (
 					cancelled ||
+					!nextOpeningAudio ||
 					activeSaveIdRef.current !== activeSaveId ||
 					currentTargetRef.current !== currentTarget ||
 					readingPartIndexRef.current !== readingPartIndex
@@ -364,15 +373,11 @@ export function useStorySession({
 						backgroundIntro: backgroundIntro ?? undefined,
 						backgroundImage: backgroundImage,
 						openingAudio: nextOpeningAudio,
-						readingFrame: readingFrameRef.current ?? undefined,
+						readingStory,
 						readingPartIndex,
 						narrationVoice,
-						preparedNextPart: preparedNextPartRef.current ?? undefined,
 					}),
 				);
-			})
-			.catch((err) => {
-				console.warn("Could not recover opening audio.", err);
 			});
 
 		return () => {
@@ -389,6 +394,7 @@ export function useStorySession({
 		persistStory,
 		phase,
 		readingPartIndex,
+		readingStory,
 	]);
 
 	const generateAndApplyStoryBackground = useCallback(
@@ -426,7 +432,7 @@ export function useStorySession({
 						phase: phaseRef.current,
 						backgroundImage: nextBackgroundImage,
 						openingAudio: openingAudioRef.current,
-						readingFrame: readingFrameRef.current ?? undefined,
+						readingStory: readingStoryRef.current ?? undefined,
 						readingPartIndex: readingPartIndexRef.current ?? undefined,
 						narrationVoice: narrationVoiceRef.current,
 						storyRecapLesson: storyRecapLessonRef.current,
@@ -447,117 +453,99 @@ export function useStorySession({
 		[generateAndApplyStoryBackground],
 	);
 
-	const preloadNextReadingPart = useCallback(
-		async ({
-			saveId,
-			genre: preloadGenre,
-			frame,
-			currentPartIndex,
-			currentSegments,
-			currentText,
-			currentMessages,
-		}: {
-			saveId: string;
-			genre: Genre;
-			frame: ReadingStoryFrame;
-			currentPartIndex: number;
-			currentSegments: StorySegment[];
-			currentText: string;
-			currentMessages: ChatMessage[];
-		}) => {
-			const nextPartIndex = currentPartIndex + 1;
-			if (nextPartIndex > frame.totalParts) return;
+	/** Shows a reading section's background as soon as the media owner has it. */
+	const applyReadingBackground = useCallback(
+		async (section: ReadingMediaSection) => {
+			const image = await readingMediaRef.current.requestBackground(section);
+			if (!image || activeSaveIdRef.current !== section.storyId) return;
 
-			const generationId = ++preloadGenerationRef.current;
-			setPreparedNextPart({ partIndex: nextPartIndex, status: "generating" });
-
-			const previousParts = [
-				...currentSegments.filter((s) => s.author === "ai").map((s) => s.text),
-				currentText,
-			];
-
-			try {
-				const { text } = await generateReadingStoryPart(
-					frame,
-					nextPartIndex,
-					previousParts,
-					model,
-				);
-
-				if (preloadGenerationRef.current !== generationId) return;
-
-				const preloadMessages: ChatMessage[] = [
-					...currentMessages,
-					{
-						role: "user",
-						content: `Continue the six-part reading story with part ${nextPartIndex} of ${frame.totalParts}.`,
-					},
-				];
-				const updatedMessages: ChatMessage[] = [
-					...preloadMessages,
-					{ role: "assistant", content: text },
-				];
-
-				setPreparedNextPart({
-					partIndex: nextPartIndex,
-					text,
-					messages: updatedMessages,
-					status: "generating",
-				});
-
-				const nextOpeningAudio = await generateOpeningAudio(
-					text,
-					saveId,
-					narrationVoiceRef.current,
-					{ sectionIndex: nextPartIndex },
-				).catch((err) => {
-					console.warn("Could not preload opening audio.", err);
-					return null;
-				});
-
-				if (preloadGenerationRef.current !== generationId) return;
-
-				let nextBackgroundImage: StoryBackgroundImage | null | undefined;
-
-				if (shouldGenerateNextBackground(updatedMessages)) {
-					nextBackgroundImage = await generateStoryBackgroundImage(
-						preloadGenre.id,
-						readingBackgroundMessages(preloadGenre, updatedMessages),
-						saveId,
-						{
-							sectionIndex: nextPartIndex,
-							visualContext: readingVisualContext(frame),
-						},
-					).catch((err) => {
-						console.warn("Could not preload background image.", err);
-						return null;
-					});
-					if (preloadGenerationRef.current !== generationId) return;
-				}
-
-				const ready: PreparedReadingPart = {
-					partIndex: nextPartIndex,
-					text,
-					messages: updatedMessages,
-					openingAudio: nextOpeningAudio,
-					status: "ready",
-				};
-				if (nextBackgroundImage !== undefined) {
-					ready.backgroundImage = nextBackgroundImage;
-				}
-
-				setPreparedNextPart(ready);
-			} catch (err) {
-				if (preloadGenerationRef.current !== generationId) return;
-				console.warn("Could not preload next reading part.", err);
-				setPreparedNextPart((prev) =>
-					prev?.partIndex === nextPartIndex
-						? { ...prev, status: "error" }
-						: prev,
-				);
-			}
+			setBackgroundImage(image);
+			void persistStory(
+				makeStorySaveSnapshot.current({
+					id: section.storyId,
+					genre: section.genre,
+					title: activeTitleRef.current ?? fallbackTitle(section.genre),
+					messages: messagesRef.current,
+					memory: memoryRef.current,
+					segments: segmentsRef.current,
+					currentTarget: currentTargetRef.current,
+					phase: phaseRef.current,
+					backgroundImage: image,
+					openingAudio: openingAudioRef.current,
+					readingStory: readingStoryRef.current ?? undefined,
+					readingPartIndex: readingPartIndexRef.current ?? undefined,
+					narrationVoice: narrationVoiceRef.current,
+					storyRecapLesson: storyRecapLessonRef.current,
+				}),
+			);
 		},
-		[model],
+		[persistStory],
+	);
+
+	/**
+	 * Hands the media owner everything a story already has: narration recorded on
+	 * the segments the learner has read, and the images the story has generated
+	 * across its sessions. Sections covered by this are never generated again.
+	 */
+	const seedReadingMediaFromHistory = useCallback(
+		({
+			selected,
+			saveId,
+			story,
+			voice,
+			segments: history,
+			imageMap,
+		}: {
+			selected: Genre;
+			saveId: string;
+			story: ReadingStory;
+			voice: NarrationVoiceId;
+			segments: StorySegment[];
+			imageMap: Record<number, StoryBackgroundImage>;
+		}) => {
+			story.parts.forEach((_part, index) => {
+				const partIndex = index + 1;
+				const section = readingMediaSection(
+					selected,
+					saveId,
+					story,
+					partIndex,
+					voice,
+				);
+				if (!section) return;
+
+				const media: Partial<ReadingSectionMedia> = {};
+				const audio = history[index]?.narrationAudio ?? null;
+				if (isStoryOpeningAudioForText(audio, section.text, voice)) {
+					media.openingAudio = audio;
+				}
+				const image = imageMap[partIndex];
+				if (image) media.backgroundImage = image;
+				readingMediaRef.current.seed(section, media);
+			});
+		},
+		[],
+	);
+
+	/** Warms the next section's media while the learner reads the current one. */
+	const prepareNextReadingSection = useCallback(
+		(
+			selected: Genre,
+			saveId: string,
+			story: ReadingStory,
+			currentPartIndex: number,
+		) => {
+			const section = readingMediaSection(
+				selected,
+				saveId,
+				story,
+				currentPartIndex + 1,
+				narrationVoiceRef.current,
+			);
+			if (!section) return;
+			void readingMediaRef.current.prepare(section);
+		},
+		[],
 	);
 
 	const prepareOpeningsInBackground = useCallback(async () => {
@@ -619,8 +607,7 @@ export function useStorySession({
 
 	const selectGenre = useCallback(
 		async (selected: Genre) => {
-			++preloadGenerationRef.current;
-			setPreparedNextPart(null);
+			readingMediaRef.current.reset();
 			storyFeedbackSubmittedAtRef.current = null;
 			setStoryFeedbackSubmittedAt(null);
 			setGenre(selected);
@@ -631,7 +618,7 @@ export function useStorySession({
 			setStreamingTarget("");
 			setError(null);
 			setOpeningAudio(null);
-			setReadingFrame(null);
+			setReadingStory(null);
 			setReadingPartIndex(null);
 			setStoryRecapLesson(null);
 			storyRecapLessonRef.current = null;
@@ -753,10 +740,7 @@ export function useStorySession({
 	const startReadingStory = useCallback(async () => {
 		const selected = genres.find((g) => g.id === "esperanto") ?? genres[0];
 
-		++preloadGenerationRef.current;
-		setPreparedNextPart(null);
-		restartSegmentsRef.current = null;
-		restartImageMapRef.current = null;
+		readingMediaRef.current.reset();
 		storyFeedbackSubmittedAtRef.current = null;
 		setStoryFeedbackSubmittedAt(null);
 		setGenre(selected);
@@ -767,7 +751,7 @@ export function useStorySession({
 		setStreamingTarget("");
 		setError(null);
 		setOpeningAudio(null);
-		setReadingFrame(null);
+		setReadingStory(null);
 		setReadingPartIndex(1);
 		setStoryRecapLesson(null);
 		storyRecapLessonRef.current = null;
@@ -793,44 +777,19 @@ export function useStorySession({
 			narrationVoiceRef.current = nextNarrationVoice;
 			setNarrationVoice(nextNarrationVoice);
 
-			const frame =
-				preparedOpening?.readingFrame ??
-				(await generateReadingStoryFrame(selected, model));
-			const { text, messages: seeded } = preparedOpening
-				? {
-						text: preparedOpening.text,
-						messages: preparedOpening.messages,
-					}
-				: await (async () => {
-						const generated = await generateReadingStoryPart(
-							frame,
-							1,
-							[],
-							model,
-						);
-						return {
-							text: generated.text,
-							messages: [
-								{ role: "system", content: selected.systemPrompt },
-								{
-									role: "user",
-									content: `Six-part profile-adapted reading story frame:\n${JSON.stringify(
-										frame,
-										null,
-										2,
-									)}`,
-								},
-								{ role: "assistant", content: generated.text },
-							] satisfies ChatMessage[],
-						};
-					})();
-
-			const title = preparedOpening?.title?.trim()
-				? preparedOpening.title
-				: await titleStory(seeded, model).catch(() => fallbackTitle(selected));
+			// The queued story is already complete; without one, generate a whole
+			// story here. Either way this is the last text generation this story makes.
+			const story =
+				preparedOpening?.readingStory ??
+				(await generateReadingStory(selected, model));
 			const usePreparedBundle = Boolean(
-				preparedOpening?.id && preparedOpening.title,
+				preparedOpening?.id && preparedOpening.readingStory,
 			);
+			const firstPart = story.parts[0];
+			if (!firstPart) throw new Error("The reading story has no parts.");
+
+			const text = firstPart.text;
+			const title = story.title.trim() || fallbackTitle(selected);
 			const saveId =
 				usePreparedBundle && preparedOpening?.id
 					? preparedOpening.id
@@ -839,34 +798,45 @@ export function useStorySession({
 			setActiveSaveId(saveId);
 			setActiveTitle(title);
 
-			const nextOpeningAudio =
-				usePreparedBundle &&
-				preparedOpening?.openingAudioUrl &&
-				preparedOpening.openingAudioSource === "generated" &&
-				preparedOpening.openingAudioVoice === nextNarrationVoice
-					? {
+			const seeded = readingStoryMessages(selected, story, 1);
+			const firstSection = readingMediaSection(
+				selected,
+				saveId,
+				story,
+				1,
+				nextNarrationVoice,
+			);
+			if (!firstSection) throw new Error("The reading story has no parts.");
+
+			// Part 1's media was prepared with the queued story: hand it to the media
+			// owner so nothing regenerates what we already have.
+			if (usePreparedBundle && preparedOpening) {
+				if (
+					preparedOpening.openingAudioUrl &&
+					preparedOpening.openingAudioSource === "generated" &&
+					preparedOpening.openingAudioVoice === nextNarrationVoice
+				) {
+					readingMediaRef.current.seed(firstSection, {
+						openingAudio: {
 							openingAudioUrl: preparedOpening.openingAudioUrl,
 							openingAudioSource: preparedOpening.openingAudioSource,
 							openingAudioText: preparedOpening.openingAudioText ?? text,
 							openingAudioVoice: preparedOpening.openingAudioVoice,
-						}
-					: await generateOpeningAudio(text, saveId, nextNarrationVoice, {
-							sectionIndex: 1,
-						}).catch((err) => {
-							console.warn("Could not generate opening audio.", err);
-							return null;
-						});
-			const nextBackgroundImage =
-				usePreparedBundle &&
-				preparedOpening?.backgroundImageUrl &&
-				(preparedOpening.backgroundImageSource === "generated" ||
-					preparedOpening.backgroundImageSource === "fallback")
-					? {
-							backgroundImageUrl: preparedOpening.backgroundImageUrl,
-							backgroundImagePrompt: preparedOpening.backgroundImagePrompt,
-							backgroundImageSource: preparedOpening.backgroundImageSource,
-						}
-					: fallbackBackgroundImage(selected);
+						},
+					});
+				}
+				if (preparedOpening.backgroundImageSource === "generated") {
+					readingMediaRef.current.seed(firstSection, {
+						backgroundImage: backgroundFromOpening(preparedOpening, selected),
+					});
+				}
+			}
+
+			const nextBackgroundImage = usePreparedBundle
+				? backgroundFromOpening(preparedOpening ?? {}, selected)
+				: fallbackBackgroundImage(selected);
+			const nextOpeningAudio =
+				await readingMediaRef.current.requestAudio(firstSection);
 			setMessages(seeded);
 			setMemory(undefined);
 			setCurrentTarget(text);
@@ -874,7 +844,8 @@ export function useStorySession({
 			setBackgroundIntro(null);
 			setBackgroundImage(nextBackgroundImage);
 			setOpeningAudio(nextOpeningAudio);
-			setReadingFrame(frame);
+			setReadingStory(story);
+			readingStoryRef.current = story;
 			setReadingPartIndex(1);
 			setPhase("reading");
 			void persistStory(
@@ -889,39 +860,23 @@ export function useStorySession({
 					phase: "reading",
 					backgroundImage: nextBackgroundImage,
 					openingAudio: nextOpeningAudio,
-					readingFrame: frame,
+					readingStory: story,
 					readingPartIndex: 1,
 					narrationVoice: nextNarrationVoice,
 				}),
 			);
-			if (!usePreparedBundle || !preparedOpening?.backgroundImageUrl) {
-				void generateAndApplyStoryBackground(
-					selected,
-					saveId,
-					readingBackgroundMessages(selected, seeded),
-					1,
-					readingVisualContext(frame),
-				);
-			}
-			void preloadNextReadingPart({
-				saveId,
-				genre: selected,
-				frame,
-				currentPartIndex: 1,
-				currentSegments: [],
-				currentText: text,
-				currentMessages: seeded,
-			});
+			void applyReadingBackground(firstSection);
+			prepareNextReadingSection(selected, saveId, story, 1);
 		} catch (err) {
 			setError(describeError(err));
 		}
 	}, [
-		generateAndApplyStoryBackground,
+		applyReadingBackground,
 		model,
 		onViewChange,
 		persistStory,
+		prepareNextReadingSection,
 		prepareReadingOpeningsInBackground,
-		preloadNextReadingPart,
 	]);
 
 	const startLessonStory = useCallback(
@@ -939,8 +894,7 @@ export function useStorySession({
 			];
 			const nextBackgroundImage = fallbackBackgroundImage(selected);
 
-			++preloadGenerationRef.current;
-			setPreparedNextPart(null);
+			readingMediaRef.current.reset();
 			storyFeedbackSubmittedAtRef.current = null;
 			setStoryFeedbackSubmittedAt(null);
 			narrationVoiceRef.current = nextNarrationVoice;
@@ -957,7 +911,7 @@ export function useStorySession({
 			setBackgroundIntro(null);
 			setBackgroundImage(nextBackgroundImage);
 			setOpeningAudio(null);
-			setReadingFrame(null);
+			setReadingStory(null);
 			setReadingPartIndex(null);
 			setStoryRecapLesson(null);
 			storyRecapLessonRef.current = null;
@@ -1155,7 +1109,7 @@ export function useStorySession({
 
 	const generateAndApplyStoryRecap = useCallback(
 		async (finishedSegments: StorySegment[]) => {
-			if (!genre || !activeSaveId || !readingFrame) return;
+			if (!genre || !activeSaveId || !readingStory) return;
 
 			setStoryRecapError(null);
 			setPhase("recap-loading");
@@ -1168,8 +1122,8 @@ export function useStorySession({
 				const lesson = await generateStoryRecapLesson(
 					{
 						storyParts,
-						languageFocuses: readingFrame.beats.map(
-							(beat) => `Part ${beat.part}: ${beat.languageFocus}`,
+						languageFocuses: readingStory.parts.map(
+							(part, index) => `Part ${index + 1}: ${part.languageFocus}`,
 						),
 						wordTranslations: translations,
 					},
@@ -1193,10 +1147,9 @@ export function useStorySession({
 						backgroundIntro: backgroundIntro ?? undefined,
 						backgroundImage,
 						openingAudio: null,
-						readingFrame,
-						readingPartIndex: readingPartIndex ?? readingFrame.totalParts,
+						readingStory,
+						readingPartIndex: readingPartIndex ?? readingStory.parts.length,
 						narrationVoice,
-						preparedNextPart: null,
 						storyRecapLesson: lesson,
 					}),
 				);
@@ -1217,10 +1170,9 @@ export function useStorySession({
 						backgroundIntro: backgroundIntro ?? undefined,
 						backgroundImage,
 						openingAudio: null,
-						readingFrame,
-						readingPartIndex: readingPartIndex ?? readingFrame.totalParts,
+						readingStory,
+						readingPartIndex: readingPartIndex ?? readingStory.parts.length,
 						narrationVoice,
-						preparedNextPart: null,
 						storyRecapLesson: storyRecapLessonRef.current,
 					}),
 				);
@@ -1237,172 +1189,67 @@ export function useStorySession({
 			model,
 			narrationVoice,
 			persistStory,
-			readingFrame,
+			readingStory,
 			readingPartIndex,
 		],
 	);
 
+	/**
+	 * Moves to the next section of the story that already exists. No text is
+	 * generated here: the next part is `readingStory.parts[nextIndex - 1]`, and
+	 * its narration was prepared while the learner read the current section.
+	 */
 	const continueReadingStory = useCallback(async () => {
 		if (
 			!genre ||
 			!activeSaveId ||
-			!readingFrame ||
+			!readingStory ||
 			readingPartIndex === null ||
 			currentTarget === null
 		) {
 			return;
 		}
 
-		if (restartSegmentsRef.current) {
-			const cachedSegments = restartSegmentsRef.current;
-			const totalParts = readingFrame.totalParts;
-			const nextSegments: StorySegment[] = [
-				...segments,
-				completedAiSegment(
-					segments.length,
-					currentTarget,
-					openingAudioRef.current,
-				),
-			];
-			setError(null);
+		const currentSection = readingMediaSection(
+			genre,
+			activeSaveId,
+			readingStory,
+			readingPartIndex,
+			narrationVoice,
+		);
+		if (!currentSection) return;
 
-			if (readingPartIndex >= totalParts) {
-				restartSegmentsRef.current = null;
-				restartImageMapRef.current = null;
-				++preloadGenerationRef.current;
-				setPreparedNextPart(null);
-				setSegments(nextSegments);
-				setCurrentTarget(null);
-				setStreamingTarget("");
-				setOpeningAudio(null);
-				setStoryRecapLesson(null);
-				storyRecapLessonRef.current = null;
-				setStoryRecapError(null);
-				setPhase("recap-loading");
-				void persistStory(
-					makeStorySaveSnapshot.current({
-						id: activeSaveId,
-						genre,
-						title: activeTitle ?? fallbackTitle(genre),
-						messages,
-						memory,
-						segments: nextSegments,
-						currentTarget: null,
-						phase: "recap-loading",
-						backgroundIntro: backgroundIntro ?? undefined,
-						backgroundImage,
-						openingAudio: null,
-						readingFrame,
-						readingPartIndex,
-						narrationVoice,
-						preparedNextPart: null,
-						storyRecapLesson: null,
-					}),
-				);
-				void generateAndApplyStoryRecap(nextSegments);
-				return;
-			}
-
-			const nextPartIndex = readingPartIndex + 1;
-			const nextCached = cachedSegments[nextPartIndex - 1];
-			if (nextCached) {
-				const nextImage = restartImageMapRef.current?.[nextPartIndex];
-				setSegments(nextSegments);
-				setCurrentTarget(nextCached.text);
-				setStreamingTarget("");
-				setOpeningAudio(nextCached.narrationAudio ?? null);
-				if (nextImage) setBackgroundImage(nextImage);
-				setReadingPartIndex(nextPartIndex);
-				setPhase("reading");
-				void persistStory(
-					makeStorySaveSnapshot.current({
-						id: activeSaveId,
-						genre,
-						title: activeTitle ?? fallbackTitle(genre),
-						messages,
-						memory,
-						segments: nextSegments,
-						currentTarget: nextCached.text,
-						phase: "reading",
-						backgroundIntro: backgroundIntro ?? undefined,
-						backgroundImage: nextImage ?? backgroundImage,
-						openingAudio: nextCached.narrationAudio ?? null,
-						readingFrame,
-						readingPartIndex: nextPartIndex,
-						narrationVoice,
-						preparedNextPart: null,
-					}),
-				);
-				return;
-			}
-			// Cached data missing unexpectedly — fall through to normal generation.
-			restartSegmentsRef.current = null;
-		}
-
-		// The current part's audio may still be generating (see the recovery
-		// effect above). Give it a brief window to land in state before
-		// finalizing the segment, so we don't persist it without narration.
-		const audioWaitUntil = Date.now() + PREPARED_READING_WAIT_MS;
-		while (
-			Date.now() < audioWaitUntil &&
-			!isStoryOpeningAudioForText(
-				openingAudioRef.current,
-				currentTarget,
-				narrationVoice,
-			)
-		) {
-			await wait(PREPARED_READING_POLL_MS);
-		}
-
-		let currentOpeningAudio = isStoryOpeningAudioForText(
+		const currentOpeningAudio = isStoryOpeningAudioForText(
 			openingAudioRef.current,
 			currentTarget,
 			narrationVoice,
 		)
 			? openingAudioRef.current
-			: null;
-		if (!currentOpeningAudio) {
-			currentOpeningAudio = await generateOpeningAudio(
-				currentTarget,
-				activeSaveId,
-				narrationVoice,
-				{ sectionIndex: readingPartIndex },
-			).catch((err) => {
-				console.warn("Could not recover current reading audio.", err);
-				return null;
-			});
-			if (
-				currentOpeningAudio &&
-				activeSaveIdRef.current === activeSaveId &&
-				currentTargetRef.current === currentTarget &&
-				readingPartIndexRef.current === readingPartIndex
-			) {
-				setOpeningAudio(currentOpeningAudio);
-			}
-			if (
-				activeSaveIdRef.current !== activeSaveId ||
-				currentTargetRef.current !== currentTarget ||
-				readingPartIndexRef.current !== readingPartIndex
-			) {
-				return;
-			}
+			: await readingMediaRef.current.requestAudio(currentSection);
+
+		if (
+			activeSaveIdRef.current !== activeSaveId ||
+			currentTargetRef.current !== currentTarget ||
+			readingPartIndexRef.current !== readingPartIndex
+		) {
+			return;
 		}
 		if (!currentOpeningAudio) {
 			setError("Narration is still preparing. Try again in a moment.");
 			return;
+		}
+		if (openingAudioRef.current !== currentOpeningAudio) {
+			setOpeningAudio(currentOpeningAudio);
 		}
 
 		const nextSegments: StorySegment[] = [
 			...segments,
 			completedAiSegment(segments.length, currentTarget, currentOpeningAudio),
 		];
-		const totalParts = readingFrame.totalParts;
+		const totalParts = readingStory.parts.length;
 		setError(null);
 
 		if (readingPartIndex >= totalParts) {
-			// Cancel any in-flight preload and clear stored prepared part.
-			++preloadGenerationRef.current;
-			setPreparedNextPart(null);
 			setSegments(nextSegments);
 			setCurrentTarget(null);
 			setStreamingTarget("");
@@ -1424,206 +1271,85 @@ export function useStorySession({
 					backgroundIntro: backgroundIntro ?? undefined,
 					backgroundImage,
 					openingAudio: null,
-					readingFrame,
+					readingStory,
 					readingPartIndex,
 					narrationVoice,
-					preparedNextPart: null,
 					storyRecapLesson: null,
 				}),
 			);
 			void refineLearnerProfileFromStory({
-				storySummary: readingStorySummary(readingFrame),
+				storySummary: readingStorySummary(readingStory),
 			});
 			void generateAndApplyStoryRecap(nextSegments);
 			return;
 		}
 
 		const nextPartIndex = readingPartIndex + 1;
-		let prepared = preparedNextPartRef.current;
-		const waitUntil = Date.now() + PREPARED_READING_WAIT_MS;
-		while (
-			isPendingPreparedReadingPart(prepared, nextPartIndex) &&
-			Date.now() < waitUntil
-		) {
-			await wait(PREPARED_READING_POLL_MS);
-			prepared = preparedNextPartRef.current;
-		}
+		const nextSection = readingMediaSection(
+			genre,
+			activeSaveId,
+			readingStory,
+			nextPartIndex,
+			narrationVoice,
+		);
+		if (!nextSection) return;
 
-		const preloadedTextPart =
-			prepared?.partIndex === nextPartIndex && prepared.text !== undefined
-				? prepared
-				: null;
+		const text = nextSection.text;
+		const updatedMessages = readingStoryMessages(
+			genre,
+			readingStory,
+			nextPartIndex,
+		);
+		const nextOpeningAudio =
+			await readingMediaRef.current.requestAudio(nextSection);
 
-		// Cancel any in-flight preload and clear stored prepared part.
-		++preloadGenerationRef.current;
-		setPreparedNextPart(null);
+		if (activeSaveIdRef.current !== activeSaveId) return;
 
-		if (preloadedTextPart) {
-			// Fast path: text was preloaded, so show it immediately. Audio recovery
-			// will fill in narration if the preload had not finished audio yet.
-			const text = preloadedTextPart.text as string;
-			const updatedMessages = preloadedTextPart.messages as ChatMessage[];
-			const nextOpeningAudio = preloadedTextPart.openingAudio ?? null;
-			const nextBackgroundImage = preloadedTextPart.backgroundImage; // undefined = cadence skipped it
-
-			if (nextBackgroundImage) setBackgroundImage(nextBackgroundImage);
-
-			setSegments(nextSegments);
-			setMessages(updatedMessages);
-			setCurrentTarget(text);
-			setStreamingTarget("");
-			setOpeningAudio(nextOpeningAudio);
-			setReadingPartIndex(nextPartIndex);
-			setPhase("reading");
-
-			void persistStory(
-				makeStorySaveSnapshot.current({
-					id: activeSaveId,
-					genre,
-					title: activeTitle ?? fallbackTitle(genre),
-					messages: updatedMessages,
-					memory,
-					segments: nextSegments,
-					currentTarget: text,
-					phase: "reading",
-					backgroundIntro: backgroundIntro ?? undefined,
-					backgroundImage: nextBackgroundImage ?? backgroundImage,
-					openingAudio: nextOpeningAudio,
-					readingFrame,
-					readingPartIndex: nextPartIndex,
-					narrationVoice,
-					preparedNextPart: null,
-				}),
-				{ generateTitle: activeTitle === fallbackTitle(genre) },
-			);
-
-			// If the preloaded part had no background image (cadence said skip or
-			// generation failed), let the normal cadence check run.
-			if (
-				nextBackgroundImage === undefined &&
-				shouldGenerateNextBackground(updatedMessages)
-			) {
-				void generateAndApplyStoryBackground(
-					genre,
-					activeSaveId,
-					readingBackgroundMessages(genre, updatedMessages),
-					nextPartIndex,
-					readingVisualContext(readingFrame),
-				);
-			}
-
-			void preloadNextReadingPart({
-				saveId: activeSaveId,
+		setSegments(nextSegments);
+		setMessages(updatedMessages);
+		setCurrentTarget(text);
+		setStreamingTarget("");
+		setOpeningAudio(nextOpeningAudio);
+		setReadingPartIndex(nextPartIndex);
+		setPhase("reading");
+		void persistStory(
+			makeStorySaveSnapshot.current({
+				id: activeSaveId,
 				genre,
-				frame: readingFrame,
-				currentPartIndex: nextPartIndex,
-				currentSegments: nextSegments,
-				currentText: text,
-				currentMessages: updatedMessages,
-			});
-
-			return;
-		}
-
-		// Slow path: preload wasn't ready — generate now, same as before.
-		const loadingMessages: ChatMessage[] = [
-			...messages,
-			{
-				role: "user",
-				content: `Continue the six-part reading story with part ${nextPartIndex} of ${totalParts}.`,
-			},
-		];
-		setPhase("loading");
-
-		try {
-			const { text } = await generateReadingStoryPart(
-				readingFrame,
-				nextPartIndex,
-				nextSegments
-					.filter((segment) => segment.author === "ai")
-					.map((segment) => segment.text),
-				model,
-			);
-			const updatedMessages: ChatMessage[] = [
-				...loadingMessages,
-				{ role: "assistant", content: text },
-			];
-			const nextOpeningAudio = await generateOpeningAudio(
-				text,
-				activeSaveId,
+				title: activeTitle ?? fallbackTitle(genre),
+				messages: updatedMessages,
+				memory,
+				segments: nextSegments,
+				currentTarget: text,
+				phase: "reading",
+				backgroundIntro: backgroundIntro ?? undefined,
+				backgroundImage,
+				openingAudio: nextOpeningAudio,
+				readingStory,
+				readingPartIndex: nextPartIndex,
 				narrationVoice,
-				{ sectionIndex: nextPartIndex },
-			).catch((err) => {
-				console.warn("Could not generate opening audio.", err);
-				return null;
-			});
+			}),
+		);
 
-			setSegments(nextSegments);
-			setMessages(updatedMessages);
-			setCurrentTarget(text);
-			setStreamingTarget("");
-			setOpeningAudio(nextOpeningAudio);
-			setReadingPartIndex(nextPartIndex);
-			setPhase("reading");
-			void persistStory(
-				makeStorySaveSnapshot.current({
-					id: activeSaveId,
-					genre,
-					title: activeTitle ?? fallbackTitle(genre),
-					messages: updatedMessages,
-					memory,
-					segments: nextSegments,
-					currentTarget: text,
-					phase: "reading",
-					backgroundIntro: backgroundIntro ?? undefined,
-					backgroundImage,
-					openingAudio: nextOpeningAudio,
-					readingFrame,
-					readingPartIndex: nextPartIndex,
-					narrationVoice,
-					preparedNextPart: null,
-				}),
-				{ generateTitle: activeTitle === fallbackTitle(genre) },
-			);
-			if (shouldGenerateNextBackground(updatedMessages)) {
-				void generateAndApplyStoryBackground(
-					genre,
-					activeSaveId,
-					readingBackgroundMessages(genre, updatedMessages),
-					nextPartIndex,
-					readingVisualContext(readingFrame),
-				);
-			}
-			void preloadNextReadingPart({
-				saveId: activeSaveId,
-				genre,
-				frame: readingFrame,
-				currentPartIndex: nextPartIndex,
-				currentSegments: nextSegments,
-				currentText: text,
-				currentMessages: updatedMessages,
-			});
-		} catch (err) {
-			setError(describeError(err));
-			setStreamingTarget("");
-			setPhase("reading");
-		}
+		// The background this section was prepared with, applied the moment it is
+		// there; sections the cadence skips keep the previous image.
+		void applyReadingBackground(nextSection);
+		prepareNextReadingSection(genre, activeSaveId, readingStory, nextPartIndex);
 	}, [
 		activeSaveId,
 		activeTitle,
+		applyReadingBackground,
 		backgroundImage,
 		backgroundIntro,
 		currentTarget,
 		genre,
 		memory,
 		messages,
-		model,
 		narrationVoice,
 		persistStory,
-		preloadNextReadingPart,
-		readingFrame,
+		prepareNextReadingSection,
+		readingStory,
 		readingPartIndex,
-		generateAndApplyStoryBackground,
 		generateAndApplyStoryRecap,
 		segments,
 	]);
@@ -1647,10 +1373,9 @@ export function useStorySession({
 					backgroundIntro: backgroundIntro ?? undefined,
 					backgroundImage,
 					openingAudio: null,
-					readingFrame: readingFrame ?? undefined,
+					readingStory: readingStory ?? undefined,
 					readingPartIndex: readingPartIndex ?? undefined,
 					narrationVoice,
-					preparedNextPart: null,
 					storyRecapLesson,
 				}),
 			);
@@ -1665,7 +1390,7 @@ export function useStorySession({
 			messages,
 			narrationVoice,
 			persistStory,
-			readingFrame,
+			readingStory,
 			readingPartIndex,
 			segments,
 			storyRecapLesson,
@@ -1680,10 +1405,16 @@ export function useStorySession({
 		completeStoryRecap();
 	}, [completeStoryRecap]);
 
+	/**
+	 * Reads the same story again from part 1. The prose is already in hand, and
+	 * so is the media: the narration hangs off the segments just read, and the
+	 * images are in the story's gallery. Seeding both into the media owner is
+	 * what keeps a restart from paying for a single provider call.
+	 */
 	const restartReadingStory = useCallback(async () => {
-		if (!genre || !activeSaveId || !readingFrame) return;
-		const first = segments[0];
-		if (!first) return;
+		if (!genre || !activeSaveId || !readingStory) return;
+		const firstPart = readingStory.parts[0];
+		if (!firstPart) return;
 
 		let imageMap: Record<number, StoryBackgroundImage> = {};
 		try {
@@ -1693,20 +1424,28 @@ export function useStorySession({
 			console.warn("Could not load story image gallery for restart.", err);
 		}
 
-		++preloadGenerationRef.current;
-		setPreparedNextPart(null);
-		restartSegmentsRef.current = segments;
-		restartImageMapRef.current = imageMap;
+		seedReadingMediaFromHistory({
+			selected: genre,
+			saveId: activeSaveId,
+			story: readingStory,
+			voice: narrationVoice,
+			segments,
+			imageMap,
+		});
+
 		storyFeedbackSubmittedAtRef.current = null;
 		setStoryFeedbackSubmittedAt(null);
 
 		setStoryRecapLesson(null);
 		storyRecapLessonRef.current = null;
 		setStoryRecapError(null);
+		const restartMessages = readingStoryMessages(genre, readingStory, 1);
+		const firstAudio = segments[0]?.narrationAudio ?? null;
+		setMessages(restartMessages);
 		setSegments([]);
-		setCurrentTarget(first.text);
+		setCurrentTarget(firstPart.text);
 		setStreamingTarget("");
-		setOpeningAudio(first.narrationAudio ?? null);
+		setOpeningAudio(firstAudio);
 		if (imageMap[1]) setBackgroundImage(imageMap[1]);
 		setReadingPartIndex(1);
 		setPhase("reading");
@@ -1715,21 +1454,21 @@ export function useStorySession({
 				id: activeSaveId,
 				genre,
 				title: activeTitle ?? fallbackTitle(genre),
-				messages,
+				messages: restartMessages,
 				memory,
 				segments: [],
-				currentTarget: first.text,
+				currentTarget: firstPart.text,
 				phase: "reading",
 				backgroundIntro: backgroundIntro ?? undefined,
 				backgroundImage: imageMap[1] ?? backgroundImage,
-				openingAudio: first.narrationAudio ?? null,
-				readingFrame,
+				openingAudio: firstAudio,
+				readingStory,
 				readingPartIndex: 1,
 				narrationVoice,
-				preparedNextPart: null,
 				storyRecapLesson: null,
 			}),
 		);
+		prepareNextReadingSection(genre, activeSaveId, readingStory, 1);
 	}, [
 		activeSaveId,
 		activeTitle,
@@ -1737,10 +1476,11 @@ export function useStorySession({
 		backgroundIntro,
 		genre,
 		memory,
-		messages,
 		narrationVoice,
 		persistStory,
-		readingFrame,
+		prepareNextReadingSection,
+		readingStory,
+		seedReadingMediaFromHistory,
 		segments,
 	]);
 
@@ -1759,17 +1499,14 @@ export function useStorySession({
 					backgroundIntro: backgroundIntro ?? undefined,
 					backgroundImage,
 					openingAudio,
-					readingFrame: readingFrame ?? undefined,
+					readingStory: readingStory ?? undefined,
 					readingPartIndex: readingPartIndex ?? undefined,
 					narrationVoice,
-					// Use the ref so preparedNextPart doesn't appear in the deps array and
-					// doesn't cause backToMenu to be recreated on every preload update.
-					preparedNextPart: preparedNextPartRef.current ?? undefined,
 					storyRecapLesson: storyRecapLessonRef.current,
 				}),
 			);
 		}
-		++preloadGenerationRef.current;
+		readingMediaRef.current.reset();
 		onViewChange("menu");
 		setGenre(null);
 		setMessages([]);
@@ -1782,9 +1519,8 @@ export function useStorySession({
 		setBackgroundIntro(null);
 		setBackgroundImage(null);
 		setOpeningAudio(null);
-		setReadingFrame(null);
+		setReadingStory(null);
 		setReadingPartIndex(null);
-		setPreparedNextPart(null);
 		setStoryRecapLesson(null);
 		storyRecapLessonRef.current = null;
 		setStoryRecapError(null);
@@ -1807,7 +1543,7 @@ export function useStorySession({
 		phase,
 		backgroundImage,
 		openingAudio,
-		readingFrame,
+		readingStory,
 		readingPartIndex,
 		narrationVoice,
 		segments,
@@ -1823,18 +1559,43 @@ export function useStorySession({
 				);
 				if (!selected) throw new Error(`Unknown genre: ${save.genreId}`);
 				activeSaveIdRef.current = save.id;
+				const readingTotalParts = save.readingStory?.parts.length;
 				const restoredPhase: StoryPhase =
 					save.phase === "reading" &&
 					save.currentTarget === null &&
-					save.readingFrame !== undefined &&
+					readingTotalParts !== undefined &&
 					save.segments.filter((segment) => segment.author === "ai").length >=
-						save.readingFrame.totalParts
+						readingTotalParts
 						? save.storyRecapLesson
 							? "recap"
 							: "recap-loading"
 						: save.phase === "recap-loading" && save.storyRecapLesson
 							? "recap"
 							: save.phase;
+				const savedNarrationVoice = isNarrationVoiceId(save.narrationVoice)
+					? save.narrationVoice
+					: DEFAULT_NARRATION_VOICE;
+				const savedBackgroundImage =
+					save.backgroundImageUrl &&
+					(save.backgroundImageSource === "generated" ||
+						save.backgroundImageSource === "fallback")
+						? {
+								backgroundImageUrl: save.backgroundImageUrl,
+								backgroundImagePrompt: save.backgroundImagePrompt,
+								backgroundImageSource: save.backgroundImageSource,
+							}
+						: fallbackBackgroundImage(selected);
+				const savedOpeningAudio =
+					save.openingAudioUrl && save.openingAudioSource === "generated"
+						? {
+								openingAudioUrl: save.openingAudioUrl,
+								openingAudioSource: save.openingAudioSource,
+								openingAudioText:
+									save.openingAudioText ?? save.currentTarget ?? "",
+								openingAudioVoice: save.openingAudioVoice,
+							}
+						: null;
+
 				setActiveSaveId(save.id);
 				setActiveTitle(save.title);
 				setGenre(selected);
@@ -1844,43 +1605,14 @@ export function useStorySession({
 				setCurrentTarget(save.currentTarget);
 				setStreamingTarget("");
 				setPhase(restoredPhase);
-				setReadingFrame(save.readingFrame ?? null);
+				setReadingStory(save.readingStory ?? null);
+				readingStoryRef.current = save.readingStory ?? null;
 				setReadingPartIndex(save.readingPartIndex ?? null);
-				const savedNarrationVoice = isNarrationVoiceId(save.narrationVoice)
-					? save.narrationVoice
-					: DEFAULT_NARRATION_VOICE;
 				narrationVoiceRef.current = savedNarrationVoice;
 				setNarrationVoice(savedNarrationVoice);
 				setBackgroundIntro(save.backgroundIntro ?? null);
-				setBackgroundImage(
-					save.backgroundImageUrl &&
-						(save.backgroundImageSource === "generated" ||
-							save.backgroundImageSource === "fallback")
-						? {
-								backgroundImageUrl: save.backgroundImageUrl,
-								backgroundImagePrompt: save.backgroundImagePrompt,
-								backgroundImageSource: save.backgroundImageSource,
-							}
-						: fallbackBackgroundImage(selected),
-				);
-				setOpeningAudio(
-					save.openingAudioUrl && save.openingAudioSource === "generated"
-						? {
-								openingAudioUrl: save.openingAudioUrl,
-								openingAudioSource: save.openingAudioSource,
-								openingAudioText:
-									save.openingAudioText ?? save.currentTarget ?? "",
-								openingAudioVoice: save.openingAudioVoice,
-							}
-						: null,
-				);
-				// Restore a preloaded part only if text was fully generated;
-				// partial state (no text) is useless and should not be resumed.
-				setPreparedNextPart(
-					save.preparedNextPart?.text !== undefined
-						? { ...save.preparedNextPart, status: "ready" }
-						: null,
-				);
+				setBackgroundImage(savedBackgroundImage);
+				setOpeningAudio(savedOpeningAudio);
 				storyRecapLessonRef.current = save.storyRecapLesson ?? null;
 				setStoryRecapLesson(save.storyRecapLesson ?? null);
 				storyFeedbackSubmittedAtRef.current =
@@ -1893,12 +1625,64 @@ export function useStorySession({
 				);
 				setError(null);
 				onViewChange("story");
+
+				const story = save.readingStory;
+				const partIndex = save.readingPartIndex;
+				if (!story || !partIndex || restoredPhase !== "reading") return;
+
+				// A resumed story keeps whatever media it has already generated: the
+				// narration on its segments, the images in its gallery. Only what is
+				// genuinely missing is prepared again.
+				readingMediaRef.current.reset();
+				const imageMap = await listStoryImages(save.id)
+					.then(buildSectionImageMap)
+					.catch((err) => {
+						console.warn("Could not load story images for resume.", err);
+						return {} as Record<number, StoryBackgroundImage>;
+					});
+				if (activeSaveIdRef.current !== save.id) return;
+
+				seedReadingMediaFromHistory({
+					selected,
+					saveId: save.id,
+					story,
+					voice: savedNarrationVoice,
+					segments: save.segments,
+					imageMap,
+				});
+				const currentSection = readingMediaSection(
+					selected,
+					save.id,
+					story,
+					partIndex,
+					savedNarrationVoice,
+				);
+				if (currentSection) {
+					readingMediaRef.current.seed(currentSection, {
+						...(isStoryOpeningAudioForText(
+							savedOpeningAudio,
+							currentSection.text,
+							savedNarrationVoice,
+						)
+							? { openingAudio: savedOpeningAudio }
+							: {}),
+						...(savedBackgroundImage.backgroundImageSource === "generated"
+							? { backgroundImage: savedBackgroundImage }
+							: {}),
+					});
+				}
+				prepareNextReadingSection(selected, save.id, story, partIndex);
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
 				onSavesError(`Could not load story: ${message}`);
 			}
 		},
-		[onSavesError, onViewChange],
+		[
+			onSavesError,
+			onViewChange,
+			prepareNextReadingSection,
+			seedReadingMediaFromHistory,
+		],
 	);
 
 	const submitStoryFeedback = useCallback(
@@ -1920,10 +1704,9 @@ export function useStorySession({
 						backgroundIntro: backgroundIntro ?? undefined,
 						backgroundImage,
 						openingAudio,
-						readingFrame: readingFrame ?? undefined,
+						readingStory: readingStory ?? undefined,
 						readingPartIndex: readingPartIndex ?? undefined,
 						narrationVoice,
-						preparedNextPart: preparedNextPartRef.current ?? undefined,
 						storyRecapLesson: storyRecapLessonRef.current,
 					}),
 				);
@@ -1943,7 +1726,7 @@ export function useStorySession({
 			narrationVoice,
 			persistStory,
 			phase,
-			readingFrame,
+			readingStory,
 			readingPartIndex,
 			segments,
 		],
@@ -1990,7 +1773,7 @@ export function useStorySession({
 		regenerateWordTranslation: handleRegenerateWord,
 		resumeStory,
 		readingPartIndex,
-		readingTotalParts: readingFrame?.totalParts ?? null,
+		readingTotalParts: readingStory?.parts.length ?? null,
 		restartReadingStory,
 		retryStoryRecap,
 		segments,

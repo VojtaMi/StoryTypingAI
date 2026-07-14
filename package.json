@@ -11,7 +11,7 @@
 		"bricks:test": "node --import ./scripts/register-css-loader.mjs --import tsx scripts/test-bricks.ts",
 		"build": "tsc -b && vite build && npm run build:server",
 		"build:server": "vite build --config vite.server.config.ts",
-		"check": "npm run build && npm run lint && npm run bricks:test && npm run lessons:test",
+		"check": "npm run build && npm run lint && npm run bricks:test && npm run lessons:test && npm run reading:test",
 		"dev": "concurrently \"npm:dev:api\" \"npm:dev:vite\"",
 		"dev:api": "PORT=3001 tsx watch --env-file-if-exists=.env.local src/server/production.ts",
 		"dev:vite": "vite",
@@ -27,6 +27,7 @@
 		"model:compare": "tsx --env-file-if-exists=.env.local scripts/compare-text-models.ts",
 		"prepare": "husky",
 		"preview": "vite preview",
+		"reading:test": "tsx scripts/test-reading-story.ts",
 		"test:opening": "tsx scripts/test-opening.ts",
 		"verify:page": "node scripts/verify-page.mjs",
 		"lessons:test": "node --import ./scripts/register-css-loader.mjs --import tsx scripts/test-lessons.ts"
