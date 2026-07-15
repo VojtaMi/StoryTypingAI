@@ -1276,6 +1276,7 @@ export function useStorySession({
 				}),
 			);
 			void refineLearnerProfileFromStory({
+				storyId: activeSaveId ?? undefined,
 				storySummary: readingStorySummary(readingStory),
 			});
 			void generateAndApplyStoryRecap(nextSegments);
@@ -1357,7 +1358,7 @@ export function useStorySession({
 			if (!genre || !activeSaveId) return;
 			setPhase("finished");
 			setStoryRecapError(null);
-			void refineLearnerProfileFromRecap(results);
+			void refineLearnerProfileFromRecap(results, activeSaveId);
 			void persistStory(
 				makeStorySaveSnapshot.current({
 					id: activeSaveId,
@@ -1709,7 +1710,10 @@ export function useStorySession({
 					}),
 				);
 			}
-			void refineLearnerProfileFromStory({ feedback });
+			void refineLearnerProfileFromStory({
+				storyId: activeSaveId ?? undefined,
+				feedback,
+			});
 		},
 		[
 			activeSaveId,

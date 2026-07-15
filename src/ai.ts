@@ -253,6 +253,7 @@ export async function refineLearnerProfileFromChat(
 }
 
 export interface StoryFinishFeedback {
+	storyId?: string;
 	storySummary?: string;
 	feedback?: string;
 }
@@ -266,7 +267,11 @@ export async function refineLearnerProfileFromStory(
 	evidence: StoryFinishFeedback,
 ): Promise<void> {
 	if (!evidence.storySummary?.trim() && !evidence.feedback?.trim()) return;
-	return refineLearnerProfile("refine-story", evidence);
+	return refineLearnerProfile("refine-story", {
+		storyId: evidence.storyId,
+		storySummary: evidence.storySummary,
+		feedback: evidence.feedback,
+	});
 }
 
 /**
@@ -275,9 +280,10 @@ export async function refineLearnerProfileFromStory(
  */
 export async function refineLearnerProfileFromRecap(
 	results: StoryRecapExerciseResult[],
+	storyId?: string,
 ): Promise<void> {
 	if (results.length === 0) return;
-	return refineLearnerProfile("refine-recap", { results });
+	return refineLearnerProfile("refine-recap", { storyId, results });
 }
 
 /**

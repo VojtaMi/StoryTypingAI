@@ -7,6 +7,7 @@ type AiTraceContext = {
 	requestId: string;
 	method: string;
 	pathname: string;
+	metadata?: Record<string, unknown>;
 };
 
 type AiTraceCall = {
@@ -76,6 +77,19 @@ export function withAiTraceContext<T>(
 	return traceContext.run(context, work);
 }
 
+/** Adds request-specific context to every provider call made in this scope. */
+export function withAiTraceMetadata<T>(
+	metadata: Record<string, unknown>,
+	work: () => T,
+): T {
+	const context = traceContext.getStore();
+	if (!context) return work();
+	return traceContext.run(
+		{ ...context, metadata: { ...context.metadata, ...metadata } },
+		work,
+	);
+}
+
 export async function traceAiCall<T>(
 	call: AiTraceCall,
 	work: () => Promise<T>,
@@ -105,6 +119,7 @@ function baseRecord(
 	start: number,
 ): Omit<AiTraceRecord, "ok"> {
 	const context = traceContext.getStore();
+	const metadata = { ...context?.metadata, ...call.metadata };
 	return {
 		timestamp: new Date().toISOString(),
 		requestId: context?.requestId,
@@ -116,7 +131,7 @@ function baseRecord(
 		stream: Boolean(call.stream),
 		durationMs: Math.round(performance.now() - start),
 		input: summarizePayload(call.input),
-		metadata: call.metadata,
+		...(Object.keys(metadata).length > 0 ? { metadata } : {}),
 	};
 }
 

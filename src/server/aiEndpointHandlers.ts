@@ -4,6 +4,7 @@ import type { ChatMessage } from "../ai";
 import { DEFAULT_TEXT_MODEL, STORY_SEGMENT_MAX_TOKENS } from "../models";
 import { isNarrationVoiceId } from "../narrationVoice";
 import { completeAi, streamAi, translateWords } from "./aiService";
+import { withAiTraceMetadata } from "./aiTrace";
 import { readBody, sendJson } from "./http";
 import {
 	refineLearnerPreferencesFromChat,
@@ -63,16 +64,20 @@ export async function handleBackgroundImageRequest(
 	sendJson(
 		res,
 		200,
-		await createBackgroundImage(
-			openai,
-			genre,
-			storyTextFromMessages(messages),
-			storyId,
-			{
-				sectionIndex: validSectionIndex(sectionIndex),
-				visualContext:
-					typeof visualContext === "string" ? visualContext : undefined,
-			},
+		await withAiTraceMetadata(
+			{ storyId, storyPhase: "media", mediaType: "background-image" },
+			() =>
+				createBackgroundImage(
+					openai,
+					genre,
+					storyTextFromMessages(messages),
+					storyId,
+					{
+						sectionIndex: validSectionIndex(sectionIndex),
+						visualContext:
+							typeof visualContext === "string" ? visualContext : undefined,
+					},
+				),
 		),
 	);
 }
@@ -121,14 +126,12 @@ export async function handleOpeningAudioRequest(
 		sendJson(res, 400, { error: "narrationVoice is required." });
 		return;
 	}
-	const audio = await createOpeningAudio(
-		openai,
-		text,
-		storyId,
-		narrationVoice,
-		{
-			sectionIndex: validSectionIndex(sectionIndex),
-		},
+	const audio = await withAiTraceMetadata(
+		{ storyId, storyPhase: "media", mediaType: "narration" },
+		() =>
+			createOpeningAudio(openai, text, storyId, narrationVoice, {
+				sectionIndex: validSectionIndex(sectionIndex),
+			}),
 	);
 	if (!audio) {
 		sendJson(res, 500, { error: "Could not generate opening audio." });
@@ -322,7 +325,14 @@ export async function handleLearnerProfileStoryRefineRequest(
 	openai: OpenAI,
 	anthropicKey: string,
 ) {
-	const { storySummary, feedback } = JSON.parse(await readBody(req));
+	const { storyId, storySummary, feedback } = JSON.parse(await readBody(req));
+	if (
+		storyId !== undefined &&
+		(typeof storyId !== "string" || !saveIdPattern.test(storyId))
+	) {
+		sendJson(res, 400, { error: "storyId must be a valid story ID." });
+		return;
+	}
 	if (storySummary !== undefined && typeof storySummary !== "string") {
 		sendJson(res, 400, { error: "storySummary must be a string." });
 		return;
@@ -336,41 +346,50 @@ export async function handleLearnerProfileStoryRefineRequest(
 	try {
 		const refineTask = learnerProfileRefineQueue
 			.catch(() => undefined)
-			.then(async () => {
-				const [current, currentStoryMemory, wordLookupSummary] =
-					await Promise.all([
-						readLearnerProfile(),
-						readStoryMemory(),
-						readWordLookupsSinceLastRefine(),
-					]);
-				const today = new Date().toISOString().slice(0, 10);
-				const [updated, updatedStoryMemory] = await Promise.all([
-					refineLearnerProfileFromStory(
-						openai,
-						current,
-						{ storySummary, feedback, wordLookups: wordLookupSummary.lookups },
-						anthropicKey,
-						today,
-					),
-					refineStoryMemoryFromStory(
-						openai,
-						currentStoryMemory,
-						{ storySummary, feedback },
-						anthropicKey,
-						today,
-					),
-				]);
-				await Promise.all([
-					writeLearnerProfile(updated),
-					writeStoryMemory(updatedStoryMemory),
-				]);
-				// Only mark these lookups consumed once they're durably folded into
-				// the written profile, so a failed refine or write can retry them.
-				if (wordLookupSummary.cursorCandidate) {
-					await advanceWordLogCursor(wordLookupSummary.cursorCandidate);
-				}
-				responseProfile = updated;
-			});
+			.then(() =>
+				withAiTraceMetadata(
+					{ ...(storyId ? { storyId } : {}), storyPhase: "finish" },
+					async () => {
+						const [current, currentStoryMemory, wordLookupSummary] =
+							await Promise.all([
+								readLearnerProfile(),
+								readStoryMemory(),
+								readWordLookupsSinceLastRefine(),
+							]);
+						const today = new Date().toISOString().slice(0, 10);
+						const [updated, updatedStoryMemory] = await Promise.all([
+							refineLearnerProfileFromStory(
+								openai,
+								current,
+								{
+									storySummary,
+									feedback,
+									wordLookups: wordLookupSummary.lookups,
+								},
+								anthropicKey,
+								today,
+							),
+							refineStoryMemoryFromStory(
+								openai,
+								currentStoryMemory,
+								{ storySummary, feedback },
+								anthropicKey,
+								today,
+							),
+						]);
+						await Promise.all([
+							writeLearnerProfile(updated),
+							writeStoryMemory(updatedStoryMemory),
+						]);
+						// Only mark these lookups consumed once they're durably folded into
+						// the written profile, so a failed refine or write can retry them.
+						if (wordLookupSummary.cursorCandidate) {
+							await advanceWordLogCursor(wordLookupSummary.cursorCandidate);
+						}
+						responseProfile = updated;
+					},
+				),
+			);
 		learnerProfileRefineQueue = refineTask.then(
 			() => undefined,
 			() => undefined,
@@ -390,7 +409,14 @@ export async function handleLearnerProfileRecapRefineRequest(
 	openai: OpenAI,
 	anthropicKey: string,
 ) {
-	const { results } = JSON.parse(await readBody(req));
+	const { storyId, results } = JSON.parse(await readBody(req));
+	if (
+		storyId !== undefined &&
+		(typeof storyId !== "string" || !saveIdPattern.test(storyId))
+	) {
+		sendJson(res, 400, { error: "storyId must be a valid story ID." });
+		return;
+	}
 	if (
 		!Array.isArray(results) ||
 		results.some(
@@ -413,19 +439,24 @@ export async function handleLearnerProfileRecapRefineRequest(
 	try {
 		const refineTask = learnerProfileRefineQueue
 			.catch(() => undefined)
-			.then(async () => {
-				const current = await readLearnerProfile();
-				const today = new Date().toISOString().slice(0, 10);
-				const updated = await refineLearnerProfileFromRecap(
-					openai,
-					current,
-					results,
-					anthropicKey,
-					today,
-				);
-				await writeLearnerProfile(updated);
-				responseProfile = updated;
-			});
+			.then(() =>
+				withAiTraceMetadata(
+					{ ...(storyId ? { storyId } : {}), storyPhase: "recap" },
+					async () => {
+						const current = await readLearnerProfile();
+						const today = new Date().toISOString().slice(0, 10);
+						const updated = await refineLearnerProfileFromRecap(
+							openai,
+							current,
+							results,
+							anthropicKey,
+							today,
+						);
+						await writeLearnerProfile(updated);
+						responseProfile = updated;
+					},
+				),
+			);
 		learnerProfileRefineQueue = refineTask.then(
 			() => undefined,
 			() => undefined,
