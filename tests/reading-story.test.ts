@@ -32,7 +32,6 @@ const genre: Genre = {
 
 function part(index: number) {
 	return {
-		role: `role ${index}`,
 		languageFocus: `focus ${index}`,
 		text: `Esperanta teksto de parto ${index}. Ĝi estas kompleta.`,
 	};
@@ -41,7 +40,7 @@ function part(index: number) {
 function storyJson(overrides: Record<string, unknown> = {}) {
 	return JSON.stringify({
 		title: "Kvieta Mateno",
-		premise: "A commuter notices a changed timetable.",
+		storySummary: "A commuter notices a changed timetable.",
 		mainCharacter: "Rikardo, an adult commuter",
 		mainCharacterVisual:
 			"Man in his forties, short grey hair, brown coat, canvas bag",
@@ -96,7 +95,7 @@ const rejected: Array<[string, string]> = [
 		storyJson({
 			parts: [
 				...Array.from({ length: 5 }, (_, i) => part(i + 1)),
-				{ role: "ending", languageFocus: "focus 6", text: "   " },
+				{ languageFocus: "focus 6", text: "   " },
 			],
 		}),
 	],
@@ -109,16 +108,8 @@ const rejected: Array<[string, string]> = [
 			],
 		}),
 	],
-	[
-		"a part with no role",
-		storyJson({
-			parts: [
-				...Array.from({ length: 5 }, (_, i) => part(i + 1)),
-				{ languageFocus: "focus 6", text: part(6).text },
-			],
-		}),
-	],
 	["no title", storyJson({ title: "" })],
+	["no storySummary", storyJson({ storySummary: "" })],
 	["no mainCharacterVisual", storyJson({ mainCharacterVisual: "" })],
 	["no setting", storyJson({ setting: "  " })],
 	["output truncated mid-JSON", storyJson().slice(0, storyJson().length - 40)],

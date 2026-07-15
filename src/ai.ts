@@ -259,7 +259,7 @@ export interface StoryFinishFeedback {
 
 /**
  * Folds evidence from a just-finished reading story (word lookups since the
- * last refine, the story's premise/character/setting, and optional learner
+ * last refine, the story summary/character/setting, and optional learner
  * difficulty feedback) into the learner handout.
  */
 export async function refineLearnerProfileFromStory(

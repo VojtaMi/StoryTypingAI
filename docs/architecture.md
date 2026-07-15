@@ -94,7 +94,7 @@ prepare queued reading story → consume it → reveal finite sections
 Concretely:
 
 1. While the menu is up, `story_session` asks the server to keep the reading
-   queue full. The server generates a **complete story** — title, premise,
+   queue full. The server generates a **complete story** — title, story summary,
    characters, setting, and all six parts of Esperanto prose — in a single call
    against the learner profile, preferences, story memory, and genre guidance,
    then prepares part 1's narration and image alongside it.
