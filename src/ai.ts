@@ -77,7 +77,18 @@ async function post(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(body),
 	});
-	if (!res.ok) throw new Error(`${label} failed: ${res.status}`);
+	if (!res.ok) {
+		let detail = `${res.status}`;
+		try {
+			const body = (await res.json()) as { error?: unknown };
+			if (typeof body.error === "string" && body.error.trim()) {
+				detail = body.error;
+			}
+		} catch {
+			// Keep the status when the server did not return JSON.
+		}
+		throw new Error(`${label} failed: ${detail}`);
+	}
 	return res;
 }
 

@@ -111,6 +111,9 @@ async function completeOpenAi(
 	maxTokens: number,
 	model: string,
 ): Promise<string> {
+	if (!process.env.OPENAI_API_KEY) {
+		throw new Error("OpenAI API key is not configured.");
+	}
 	const response = await traceAiCall(
 		{
 			kind: "text.complete",
@@ -144,6 +147,9 @@ async function streamOpenAi(
 	model: string,
 	onChunk: (chunk: string) => void,
 ): Promise<string> {
+	if (!process.env.OPENAI_API_KEY) {
+		throw new Error("OpenAI API key is not configured.");
+	}
 	return traceAiCall(
 		{
 			kind: "text.stream",

@@ -60,7 +60,9 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? "";
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? "";
 const distDir = join(__dirname, "dist");
 
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+// Keep the API server available without local credentials so the client can
+// show a useful setup message instead of failing during server startup.
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY || "missing-openai-key" });
 let preparePromise: Promise<void> | null = null;
 let prepareReadingPromise: Promise<void> | null = null;
 

@@ -11,6 +11,7 @@ export type StoryPhase =
 	| "typing"
 	| "authoring"
 	| "loading"
+	| "error"
 	| "reading"
 	| "recap-loading"
 	| "recap"

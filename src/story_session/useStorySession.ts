@@ -82,6 +82,13 @@ interface UseStorySessionOptions {
 
 function describeError(err: unknown): string {
 	const message = err instanceof Error ? err.message : String(err);
+	if (
+		/api key is not configured|environment variable is missing or empty/i.test(
+			message,
+		)
+	) {
+		return "AI setup is missing. Add the API key for the selected model to .env.local, then restart the dev server.";
+	}
 	return `Something went wrong reaching the AI: ${message}`;
 }
 
@@ -855,6 +862,7 @@ export function useStorySession({
 			void applyReadingBackground(firstSection);
 			prepareNextReadingSection(selected, saveId, story, 1);
 		} catch (err) {
+			setPhase("error");
 			setError(describeError(err));
 		}
 	}, [
@@ -1040,6 +1048,7 @@ export function useStorySession({
 				);
 				void refreshStoryBackground(genre, activeSaveId, updated);
 			} catch (err) {
+				setPhase("error");
 				setError(describeError(err));
 				setStreamingTarget("");
 			}
