@@ -30,7 +30,7 @@ The very first Esperanto words and the copula \`estas\`.
 
 # Shaky / watch for
 
-Unknown so far. Introduce new vocabulary slowly and repeat it often.
+Unknown so far. Introduce new vocabulary gradually and reuse it in meaningful contexts.
 
 # Recently practiced
 
@@ -38,7 +38,7 @@ Nothing yet — no stories finished so far.
 
 # About this learner
 
-New to Esperanto. Prefers short, concrete sentences with plenty of repetition.
+New to Esperanto. Prefers short, concrete sentences with clear context.
 `;
 
 export const DEFAULT_LEARNER_PREFERENCES = `---
@@ -50,23 +50,7 @@ updated: never
 
 # Desired feel
 
-Use beginner Esperanto, but choose adult-respectful premises by default.
-
-# Prefer
-
-Everyday adult or age-neutral situations, quiet mystery, travel, errands, cafes, apartments, libraries, markets, transit, work-adjacent settings, and practical small decisions.
-
-# Avoid
-
-Child protagonists by default unless specifically requested.
-
-Lost-and-found object plots.
-
-Animal rescue plots.
-
-Helpful adult or neighbor solves the problem for the main character.
-
-Overly kindergarten emotional stakes.
+Beginner Esperanto in adult-respectful, age-appropriate stories.
 `;
 
 export const DEFAULT_STORY_MEMORY = `---
@@ -86,7 +70,7 @@ Nothing yet.
 
 # Avoid next
 
-Avoid defaulting to a child protagonist, lost object, animal in need, park bench, garden, worried neighbor, or simple rescue/return plot unless the learner explicitly asks for one.
+Nothing yet.
 `;
 
 export async function readLearnerProfile(): Promise<string> {
