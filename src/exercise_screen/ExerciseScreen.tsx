@@ -7,6 +7,7 @@ import {
 import "../gallery/gallery.css";
 import { GalleryModal } from "../gallery/GalleryModal";
 import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
+import { isStoryName } from "../storyVocabulary";
 import { AuthoringInput } from "./authoring/AuthoringInput";
 import { EsperantoChatModal } from "./chatbot/EsperantoChatModal";
 import { ExerciseControls } from "./controls/ExerciseControls";
@@ -23,6 +24,7 @@ const WORD_PATTERN = /([a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+|[^a-zA-ZĉĝĥĵŝŭĈ�
 interface WordPopover {
 	word: string;
 	translation: string;
+	isName: boolean;
 	x: number;
 	y: number;
 }
@@ -41,6 +43,7 @@ interface ExerciseScreenProps {
 	readingTotalParts: number | null;
 	storyFeedbackSubmittedAt: string | null;
 	wordTranslations: Record<string, string> | null;
+	nonTranslatableWords: string[];
 	storyRecapLesson: StoryRecapLesson | null;
 	storyRecapError: string | null;
 	onRegenerateWord: (word: string) => Promise<string | null>;
@@ -70,6 +73,7 @@ export default function ExerciseScreen({
 	readingTotalParts,
 	storyFeedbackSubmittedAt,
 	wordTranslations,
+	nonTranslatableWords,
 	storyRecapLesson,
 	storyRecapError,
 	onRegenerateWord,
@@ -141,6 +145,7 @@ export default function ExerciseScreen({
 	const handleWordClick = (
 		token: string,
 		translation: string,
+		isName: boolean,
 		e: React.MouseEvent<HTMLButtonElement>,
 	) => {
 		void logLearnerWordClick(token);
@@ -150,6 +155,7 @@ export default function ExerciseScreen({
 		setPopover({
 			word: token.toLowerCase(),
 			translation,
+			isName,
 			x: rect.left + rect.width / 2,
 			y: rect.top,
 		});
@@ -189,13 +195,18 @@ export default function ExerciseScreen({
 							const token = match[1];
 							const isWord = /[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]/.test(token);
 							if (!isWord) return token;
-							const translation = wordTranslations?.[token.toLowerCase()];
+							const isName = isStoryName(token, nonTranslatableWords);
+							const translation = isName
+								? "(name)"
+								: wordTranslations?.[token.toLowerCase()];
 							return translation ? (
 								<button
 									key={match.index}
 									type="button"
 									className="story__word"
-									onClick={(e) => handleWordClick(token, translation, e)}
+									onClick={(e) =>
+										handleWordClick(token, translation, isName, e)
+									}
 								>
 									{token}
 								</button>
@@ -275,15 +286,17 @@ export default function ExerciseScreen({
 					style={{ left: popover.x, top: popover.y }}
 				>
 					<span>{popover.translation}</span>
-					<button
-						type="button"
-						className="story__word-popover__regenerate"
-						title="Regenerate translation"
-						disabled={regenerating}
-						onClick={handleRegenerate}
-					>
-						↺
-					</button>
+					{!popover.isName && (
+						<button
+							type="button"
+							className="story__word-popover__regenerate"
+							title="Regenerate translation"
+							disabled={regenerating}
+							onClick={handleRegenerate}
+						>
+							↺
+						</button>
+					)}
 				</div>
 			)}
 

@@ -14,6 +14,7 @@ import {
 	type ReadingMediaSection,
 } from "../src/story_session/readingMedia.ts";
 import type { StoryBackgroundImage } from "../src/storyBackground.ts";
+import { storyWords } from "../src/storyVocabulary.ts";
 
 /**
  * A reading story is generated once and then only read. These assert the two
@@ -45,6 +46,7 @@ function storyJson(overrides: Record<string, unknown> = {}) {
 		mainCharacterVisual:
 			"Man in his forties, short grey hair, brown coat, canvas bag",
 		setting: "A tram stop in light rain",
+		characterNames: ["Rikardo"],
 		parts: Array.from({ length: READING_STORY_TOTAL_PARTS }, (_, i) =>
 			part(i + 1),
 		),
@@ -59,6 +61,15 @@ assert.equal(parsed.parts.length, READING_STORY_TOTAL_PARTS);
 assert.equal(parsed.title, "Kvieta Mateno");
 assert.equal(parsed.parts[5].text, part(6).text);
 console.log("checked reading story: six complete parts accepted");
+
+assert.deepEqual(
+	storyWords(
+		["Rikardo vidas Rikardon. La stacidomo estas granda."],
+		["Rikardo"],
+	),
+	["vidas", "la", "stacidomo", "estas", "granda"],
+);
+console.log("checked reading vocabulary: names and accusative names excluded");
 
 assert.deepEqual(
 	parseReadingStory(`Here is the story:\n\`\`\`json\n${storyJson()}\n\`\`\``),

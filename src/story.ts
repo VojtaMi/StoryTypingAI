@@ -26,6 +26,7 @@ export interface ReadingStory {
 	mainCharacter: string;
 	mainCharacterVisual: string;
 	setting: string;
+	characterNames: string[];
 	parts: ReadingStoryPart[];
 }
 
@@ -62,7 +63,7 @@ export const READING_STORY_TOTAL_PARTS = 6;
 const READING_STORY_PROMPT =
 	`Write a complete ${READING_STORY_TOTAL_PARTS}-part Esperanto reading story adapted to the learner profile and preferences. ` +
 	"Return only valid JSON with this exact shape: " +
-	'{"title":"short title, 2-6 words","premise":"short English premise","mainCharacter":"short English description","mainCharacterVisual":"concrete hidden visual continuity description","setting":"short English setting","parts":[{"role":"beginning","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"inciting event","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"first attempt","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"complication","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"resolution attempt","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"ending","languageFocus":"English language focus","text":"Esperanto prose for this part"}]} ' +
+	'{"title":"short title, 2-6 words","premise":"short English premise","mainCharacter":"short English description","mainCharacterVisual":"concrete hidden visual continuity description","setting":"short English setting","characterNames":["exact character name"],"parts":[{"role":"beginning","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"inciting event","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"first attempt","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"complication","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"resolution attempt","languageFocus":"English language focus","text":"Esperanto prose for this part"},{"role":"ending","languageFocus":"English language focus","text":"Esperanto prose for this part"}]} ' +
 	`Write title, premise, mainCharacter, mainCharacterVisual, setting, role, and languageFocus in English. Write every part text in Esperanto only. Return exactly ${READING_STORY_TOTAL_PARTS} parts, in narrative order, each one finished. ` +
 	"Do not include comments, markdown, prose outside the JSON, trailing commas, or ellipses. " +
 	"Each part text is 3-5 sentences unless the profile clearly supports more complexity. Use concrete vocabulary, natural Esperanto word endings, and repetition that supports the learner's current edge. " +
@@ -70,6 +71,7 @@ const READING_STORY_PROMPT =
 	"Repeat important nouns instead of relying too much on pronouns when that helps the learner. " +
 	"The parts build one continuous arc: each part follows on from the previous one, and the last part ends the story. " +
 	"Use character names that do not look like common Esperanto grammar words; do not use names like Mia. " +
+	"characterNames must list every named character exactly as it appears in the Esperanto prose; do not include ordinary vocabulary. " +
 	"mainCharacterVisual is hidden image-generation context: state the main character's age bracket, stable gender presentation, hair, clothing, recurring object, and any stable distinctive detail. " +
 	"Do not leave the visual identity as only Adult or person when the story, name, or pronouns imply a specific presentation; mainCharacter, mainCharacterVisual, and the story's pronouns must agree. " +
 	"Use concrete, visible story details and match the tone, audience fit, and subject matter to learner preferences. " +
@@ -79,7 +81,7 @@ const READING_STORY_PROMPT =
 
 const READING_STORY_REPAIR_PROMPT =
 	`Repair this into valid JSON for a complete ${READING_STORY_TOTAL_PARTS}-part Esperanto reading story. ` +
-	`Return only JSON with title, premise, mainCharacter, mainCharacterVisual, setting, and exactly ${READING_STORY_TOTAL_PARTS} parts. ` +
+	`Return only JSON with title, premise, mainCharacter, mainCharacterVisual, setting, characterNames, and exactly ${READING_STORY_TOTAL_PARTS} parts. ` +
 	"Each part must have a nonempty role, languageFocus, and a finished Esperanto text of 3-5 sentences. Do not shorten, summarize, or drop any part; keep the Esperanto prose that is already there and complete anything that was cut off. " +
 	"mainCharacterVisual must be concrete hidden image-generation context with age bracket, stable gender presentation, hair, clothing, recurring object, and stable distinctive detail. " +
 	"Do not leave the visual identity as only Adult or person when the story, name, or pronouns imply a specific presentation. " +
@@ -355,6 +357,10 @@ export function parseReadingStory(raw: string): ReadingStory {
 		"mainCharacterVisual",
 	);
 	const setting = requiredStoryField(parsed.setting, "setting");
+	const characterNames = requiredStringArray(
+		parsed.characterNames,
+		"characterNames",
+	);
 
 	const parts = parsed.parts.map((part, index) => {
 		const label = `part ${index + 1}`;
@@ -382,8 +388,19 @@ export function parseReadingStory(raw: string): ReadingStory {
 			parts,
 		}),
 		setting,
+		characterNames,
 		parts,
 	};
+}
+
+function requiredStringArray(value: unknown, label: string): string[] {
+	if (
+		!Array.isArray(value) ||
+		value.some((item) => typeof item !== "string" || !item.trim())
+	) {
+		throw new Error(`The AI returned a reading story with invalid ${label}.`);
+	}
+	return value.map((item) => item.trim());
 }
 
 function requiredStoryField(value: unknown, label: string): string {

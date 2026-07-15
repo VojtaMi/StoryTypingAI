@@ -20,7 +20,8 @@ import {
 } from "../story";
 import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
-import { completeAi } from "./aiService";
+import { storyWords } from "../storyVocabulary";
+import { completeAi, translateWords } from "./aiService";
 import { buildStoryBackgroundPrompt, generateStoryImage } from "./images";
 import { readLearnerContext } from "./learnerProfileStore";
 import { createOpeningAudio } from "./storyAudioStore";
@@ -30,6 +31,7 @@ import {
 	createBundleId,
 	pathExists,
 } from "./storyBundleStore";
+import { lookupWords, storeTranslations } from "./translationCacheStore";
 
 const openingsDir = join(process.cwd(), "openings");
 const readingOpeningsDir = join(process.cwd(), "reading-openings");
@@ -369,6 +371,7 @@ async function createPreparedReadingOpening(
 			visualContext: readingVisualContext(readingStory),
 		}),
 		createOpeningAudio(openai, text, id, narrationVoice, { sectionIndex: 1 }),
+		prewarmReadingTranslations(openai, readingStory),
 	]);
 	return {
 		id,
@@ -383,6 +386,23 @@ async function createPreparedReadingOpening(
 		...(openingAudio ?? {}),
 		createdAt: new Date().toISOString(),
 	};
+}
+
+async function prewarmReadingTranslations(
+	openai: OpenAI,
+	readingStory: ReadingStory,
+): Promise<void> {
+	try {
+		const words = storyWords(
+			readingStory.parts.map((part) => part.text),
+			readingStory.characterNames,
+		);
+		const { misses } = await lookupWords(words);
+		if (misses.length === 0) return;
+		await storeTranslations(await translateWords(openai, misses));
+	} catch (err) {
+		console.warn("Could not prewarm reading-story translations.", err);
+	}
 }
 
 async function createBackgroundIntro(

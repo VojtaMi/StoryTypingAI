@@ -147,6 +147,7 @@ export default function App() {
 		handleTypingComplete,
 		openingAudio,
 		phase,
+		nonTranslatableWords,
 		readingPartIndex,
 		readingTotalParts,
 		storyFeedbackSubmittedAt,
@@ -323,6 +324,7 @@ export default function App() {
 					readingTotalParts={readingTotalParts}
 					storyFeedbackSubmittedAt={storyFeedbackSubmittedAt}
 					wordTranslations={wordTranslations}
+					nonTranslatableWords={nonTranslatableWords}
 					storyRecapLesson={storyRecapLesson}
 					storyRecapError={storyRecapError}
 					onRegenerateWord={regenerateWordTranslation}

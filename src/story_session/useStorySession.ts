@@ -49,6 +49,7 @@ import {
 } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
 import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
+import { storyWords } from "../storyVocabulary";
 import {
 	backgroundFromOpening,
 	buildSectionImageMap,
@@ -70,8 +71,6 @@ import {
 // The session only distinguishes "am I on the main menu" from "in a story" from
 // "somewhere in the lesson flow" — it never branches on individual lesson views.
 type View = "menu" | "story" | "lesson";
-
-const STORY_WORD_PATTERN = /[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+/g;
 
 interface UseStorySessionOptions {
 	model: TextModelId;
@@ -128,16 +127,6 @@ function completedAiSegment(
 		text,
 		narrationAudio: isStoryOpeningAudioForText(audio, text) ? audio : undefined,
 	};
-}
-
-function storyWords(parts: string[]) {
-	return [
-		...new Set(
-			parts
-				.flatMap((part) => part.match(STORY_WORD_PATTERN) ?? [])
-				.map((word) => word.toLowerCase()),
-		),
-	];
 }
 
 export function useStorySession({
@@ -291,12 +280,10 @@ export function useStorySession({
 			setWordTranslations(null);
 			return;
 		}
-		const wordPattern = /[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+/g;
-		const words = [
-			...new Set(
-				(currentTarget.match(wordPattern) ?? []).map((w) => w.toLowerCase()),
-			),
-		];
+		const words = storyWords(
+			[currentTarget],
+			readingStory?.characterNames ?? [],
+		);
 		if (words.length === 0) return;
 		let cancelled = false;
 		translateWords(words)
@@ -309,7 +296,7 @@ export function useStorySession({
 		return () => {
 			cancelled = true;
 		};
-	}, [phase, currentTarget]);
+	}, [currentTarget, phase, readingStory?.characterNames]);
 
 	const persistStory = useStoryPersistence({
 		model,
@@ -1118,7 +1105,9 @@ export function useStorySession({
 				const storyParts = finishedSegments
 					.filter((segment) => segment.author === "ai")
 					.map((segment) => segment.text);
-				const translations = await translateWords(storyWords(storyParts));
+				const translations = await translateWords(
+					storyWords(storyParts, readingStory.characterNames),
+				);
 				const lesson = await generateStoryRecapLesson(
 					{
 						storyParts,
@@ -1770,6 +1759,7 @@ export function useStorySession({
 				? openingAudio
 				: null,
 		narrationVoice,
+		nonTranslatableWords: readingStory?.characterNames ?? [],
 		regenerateWordTranslation: handleRegenerateWord,
 		resumeStory,
 		readingPartIndex,
