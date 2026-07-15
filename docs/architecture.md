@@ -96,8 +96,8 @@ Concretely:
 1. While the menu is up, `story_session` asks the server to keep the reading
    queue full. The server generates a **complete story** — title, premise,
    characters, setting, and all six parts of Esperanto prose — in a single call
-   against the learner profile, preferences, story memory, and a randomized
-   diversity recipe, then prepares part 1's narration and image alongside it.
+   against the learner profile, preferences, story memory, and genre guidance,
+   then prepares part 1's narration and image alongside it.
 2. Starting a reading story consumes that queued story whole. If the queue is
    empty, the session generates a complete story on the spot; either way **this
    is the last prose generation the story ever makes**.

@@ -24,7 +24,7 @@ everything else to OpenAI. Callers pick an operation, not a provider.
 
 | Operation | Owner | Notes |
 | --- | --- | --- |
-| **Story planning / generation** (reading) | [`src/server/openingsStore.ts`](../src/server/openingsStore.ts) when queued; [`src/story_session/`](../src/story_session/) when generated on demand. Prompt and parser in [`src/story.ts`](../src/story.ts). | One call produces a whole six-part story plus its metadata. Sent the learner profile, preferences, story memory, and a randomized diversity recipe. Validated as complete; repaired once, then rejected. |
+| **Story planning / generation** (reading) | [`src/server/openingsStore.ts`](../src/server/openingsStore.ts) when queued; [`src/story_session/`](../src/story_session/) when generated on demand. Prompt and parser in [`src/story.ts`](../src/story.ts). | One call produces a whole six-part story plus its metadata. Sent the learner profile, preferences, story memory, and genre guidance. Validated as complete; repaired once, then rejected. |
 | **Story opening** (typing) | [`src/server/openingsStore.ts`](../src/server/openingsStore.ts), or `startStory` in [`src/ai.ts`](../src/ai.ts) as fallback. | Includes a title and a second-person intro. |
 | **Story continuation** (typing) | [`src/story_session/`](../src/story_session/), streamed. | The only streaming operation. Reading stories never use it. |
 | **Story memory (rolling summary)** | [`src/story_memory/`](../src/story_memory/) | Compacts a long typing history so the prompt stays bounded. Fires only once the unsummarized buffer crosses its threshold — not on every turn. |
