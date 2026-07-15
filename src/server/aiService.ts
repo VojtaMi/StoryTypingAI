@@ -73,7 +73,7 @@ export async function translateWords(
 		{
 			role: "system",
 			content:
-				"You are an Esperanto-English dictionary. Given a JSON array of Esperanto words, return a JSON object where each key is the word and the value is its most common English translation. Return only the JSON object, no other text.",
+				"You are an Esperanto-English dictionary for a language-learning app. Given a JSON array of Esperanto words, return a JSON object where each key is the exact input word and each value is a concise, natural English translation. Preserve important Esperanto grammatical distinctions, including tense, modality, number, and object endings, whenever they affect the English meaning. Prefer context-appropriate translations. If a word genuinely has multiple useful common translations, you may provide concise alternatives separated by a slash. Do not omit any input word. Return only valid JSON, with no markdown or explanation.",
 		},
 		{ role: "user", content: JSON.stringify(words) },
 	];

@@ -41,7 +41,7 @@ export const STORY_SEGMENT_MAX_TOKENS = 400;
 export const READING_STORY_MAX_TOKENS = 4000;
 
 /** Default model used for batch word translations — not user-selectable. */
-export const TRANSLATION_MODEL = "gpt-5.6-luna";
+export const TRANSLATION_MODEL = "gpt-5.4-nano";
 
 /** Default model used for internal memory/refinement tasks — not user-selectable. */
 export const SYSTEM_AI_MODEL: TextModelId = "gpt-5.6-luna";
