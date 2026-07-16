@@ -1,7 +1,7 @@
 # Local data
 
 Running the app writes files into the working directory. Nothing here is a
-database — it is all plain JSON, Markdown, and media files written by the Node
+database — it is all plain JSON and media files written by the Node
 server ([`src/server/`](../src/server/)) and created lazily on first use.
 
 Everything below is **git-ignored**, with one exception noted in the table.
@@ -19,17 +19,22 @@ hold things that cannot be regenerated at all.
 | `story-audio/` | Generated | The same, for narration: older stories' section audio. Newer stories use `stories/<id>/audio/`. |
 | `openings/` | Generated (cache) | The prepared **typing** opening queue: one JSON per genre, holding the opening text, title, intro, narration, and background image. Consumed (deleted) when a typing story starts, and refilled in the background. |
 | `reading-openings/` | Generated (cache) | The prepared **reading** queue: one JSON per genre, holding a *complete* six-part story plus part 1's narration and image. Consumed when a reading story starts, and refilled in the background. |
-| `learner/` | **Source data** | What the app knows about the learner: `profile.md` (the language handout), `preferences.md` (taste), `story-memory.md` (anti-repetition motifs), and `word-log.json` / `word-log-cursor.json` (words looked up, and how far they have been folded into the profile). A word-log entry looked up while reading carries an optional `storyId`; those story-scoped lookups are folded by that story's finish baseline, never by the global cursor. Menu / standalone-tutor lookups stay unscoped and continue using the cursor. |
+| `learner/` | **Source data** | What the app knows about the learner: one validated, bounded `state.json` containing the language profile, story preferences/clarity guidance, and anti-repetition memory, plus `word-log.json` / `word-log-cursor.json`. A word-log entry looked up while reading carries an optional `storyId`; those story-scoped lookups are folded by that story's finish baseline, never by the global cursor. Menu / standalone-tutor lookups stay unscoped and continue using the cursor. |
 | `word-audio/` | Generated (cache) | One pronunciation file per Esperanto word, shared across every story and lesson. |
 | `lesson-audio/` | Generated (cache) — **tracked in git** | Lesson TTS output, one file per lesson and phrase. Unlike everything else here it is committed to the repository, so lessons have audio without every clone paying for it. |
 | `translation-cache.json` | Generated (cache) | Word → English translation, accumulated across all stories. |
 | `logs/` | Debugging artifact | `ai-calls.ndjson`, the AI trace log. Only written when `AI_CALL_LOG=1`. |
 | `.artifacts/` | Debugging artifact | Scratch output: `verify:page` screenshots, `ai-log:pretty` output. Nothing reads it back. |
 
+The former `profile.md`, `preferences.md`, and `story-memory.md` development
+files are no longer read. There is intentionally no runtime compatibility layer;
+preserve them only as a manual reference until their useful content has been
+represented in `state.json`.
+
 ## The story-finish finalization record
 
 `stories/<id>/finish-evidence.json` is the control state for folding a finished
-reading story's evidence into the learner handouts. It makes finalization
+reading story's evidence into the learner state. It makes finalization
 idempotent: `finalizedAt` guards the one-time finalization of the story summary,
 recap results, feedback, learner questions, and word lookups. It also stores the
 story summary, feedback, recap results, and separate aggregated story-scoped and
@@ -37,17 +42,17 @@ unscoped word lookups (audit only). If a late question or feedback arrives, only
 the new delta is applied. It is regenerated bookkeeping — safe to delete, at the
 cost of possibly re-folding a story's evidence if it is refinalized.
 
-**Recovery is not transactional.** The baseline writes the profile, the story
-memory, and this record as three separate files. A crash between them can leave a
-partial state; because `finalizedAt` is written *last*, recovery re-runs
-(repeats) a refinement rather than skipping a half-applied one. A transactional
-structured state is future work; for now a repeat is the accepted failure.
+The profile, preferences, and story memory are written together by atomically
+replacing `learner/state.json`, so they cannot diverge through partial writes.
+That replacement and `finish-evidence.json` are still separate writes. Because
+`finalizedAt` is written last, a crash between them re-runs the refinement
+rather than skipping an unapplied update; a repeat remains the accepted failure.
 
 ## What deleting costs
 
 - **`learner/` — the one to be careful with.** It is the only irreplaceable
   state in the app. Deleting it resets the learner to an absolute beginner:
-  future reading stories are generated against the default handout, the
+  future reading stories are generated against the default state, the
   preferences that steered them away from disliked motifs are gone, and the
   anti-repetition memory starts over. It cannot be rebuilt from the stories on
   disk. Back it up before you clear the working directory.

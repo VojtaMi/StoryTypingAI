@@ -28,9 +28,14 @@ const {
 const { readFinishEvidence, updateFinishEvidence } = await import(
 	"../src/server/storyFinishEvidenceStore.ts"
 );
-const { writeLearnerProfile, writeStoryMemory } = await import(
+const { readLearnerContext, writeLearnerContext } = await import(
 	"../src/server/learnerProfileStore.ts"
 );
+const {
+	parseLearnerLanguageProfile,
+	parseLearnerContext,
+	DEFAULT_LEARNER_PREFERENCES,
+} = await import("../src/learnerState.ts");
 const { finalizeStoryEvidence } = await import(
 	"../src/server/storyFinalizationService.ts"
 );
@@ -42,43 +47,23 @@ const storyA = "story-a--0001";
 const storyB = "story-b--0002";
 const storyC = "story-c--0003";
 
-const profile = `---
-type: learner-language-profile
-title: Esperanto learner language profile
-level: beginner
-updated: 2026-07-16
----
-
-# Confident
-Existing.
-
-# Currently learning (their edge)
-Existing.
-
-# Shaky / watch for
-Existing.
-
-# Recently practiced
-Existing.
-
-# About this learner
-Existing.
-`;
-const storyMemory = `---
-type: story-memory
-title: Recent Esperanto story motifs
-updated: 2026-07-16
----
-
-# Recently used motifs
-Existing.
-
-# Recently used objects and settings
-Existing.
-
-# Avoid next
-Existing.
-`;
+const profile = {
+	version: 1 as const,
+	updated: "2026-07-16",
+	level: "beginner" as const,
+	confident: ["Existing strength."],
+	learning: ["Existing target."],
+	shaky: ["Existing watch item."],
+	recentlyPracticed: ["Existing practice."],
+	notes: ["Existing note."],
+};
+const storyMemory = {
+	version: 1 as const,
+	updated: "2026-07-16",
+	recentMotifs: ["existing motif"],
+	recentElements: ["existing element"],
+	avoidNext: ["existing exclusion"],
+};
 
 try {
 	// --- Word-log scoping ---------------------------------------------------
@@ -186,10 +171,39 @@ try {
 		"checked finish-evidence: concurrent updates to one story serialize",
 	);
 
+	// --- Structured learner state: strict, bounded, and atomic --------------
+	assert.equal(
+		parseLearnerLanguageProfile({ ...profile, unexpected: true }),
+		null,
+		"unknown fields are rejected",
+	);
+	assert.equal(
+		parseLearnerLanguageProfile({
+			...profile,
+			confident: Array.from({ length: 11 }, (_, index) => `item ${index}`),
+		}),
+		null,
+		"over-limit arrays are rejected",
+	);
+	assert.equal(
+		parseLearnerContext({
+			languageProfile: profile,
+			preferences: DEFAULT_LEARNER_PREFERENCES,
+			storyMemory,
+			extra: true,
+		}),
+		null,
+		"the canonical state rejects extra top-level fields",
+	);
+	console.log("checked learner state: schemas are strict and bounded");
+
 	// --- Service-level finalization -----------------------------------------
 	process.env.OPENAI_API_KEY = "test-key";
-	await writeLearnerProfile(profile);
-	await writeStoryMemory(storyMemory);
+	await writeLearnerContext({
+		languageProfile: profile,
+		preferences: DEFAULT_LEARNER_PREFERENCES,
+		storyMemory,
+	});
 	let refinementCalls = 0;
 	const fakeOpenai = {
 		chat: {
@@ -200,11 +214,22 @@ try {
 					messages: Array<{ content: string }>;
 				}) => {
 					refinementCalls += 1;
-					const isMemory = messages[0]?.content.includes("story-generation");
+					const isMemory = messages[0]?.content.includes("anti-repetition");
+					const output = isMemory
+						? {
+								languageProfile: profile,
+								preferences: DEFAULT_LEARNER_PREFERENCES,
+								storyMemory,
+							}
+						: {
+								languageProfile: profile,
+								preferences: DEFAULT_LEARNER_PREFERENCES,
+								storyMemory,
+							};
 					return {
 						choices: [
 							{
-								message: { content: isMemory ? storyMemory : profile },
+								message: { content: JSON.stringify(output) },
 							},
 						],
 					};
@@ -222,17 +247,21 @@ try {
 	await finalizeStoryEvidence(fakeOpenai, evidence, "");
 	assert.equal(
 		refinementCalls,
-		2,
-		"first finalization refines profile and memory",
+		1,
+		"first finalization refines the complete learner state",
 	);
 	const firstRecord = await readFinishEvidence(storyC);
 	assert.ok(firstRecord.finalizedAt);
 	assert.deepEqual(firstRecord.learnerQuestions, evidence.learnerQuestions);
 	assert.deepEqual(firstRecord.recapResults, evidence.recapResults);
 	assert.equal(firstRecord.feedback, "just right");
+	assert.deepEqual((await readLearnerContext()).languageProfile, {
+		...profile,
+		updated: new Date().toISOString().slice(0, 10),
+	});
 
 	await finalizeStoryEvidence(fakeOpenai, evidence, "");
-	assert.equal(refinementCalls, 2, "identical finalization is a no-op");
+	assert.equal(refinementCalls, 1, "identical finalization is a no-op");
 	await finalizeStoryEvidence(
 		fakeOpenai,
 		{
@@ -241,7 +270,7 @@ try {
 		},
 		"",
 	);
-	assert.equal(refinementCalls, 3, "a late question applies one profile delta");
+	assert.equal(refinementCalls, 2, "a late question applies one state delta");
 	await finalizeStoryEvidence(
 		fakeOpenai,
 		{
@@ -252,7 +281,7 @@ try {
 	);
 	assert.equal(
 		refinementCalls,
-		3,
+		2,
 		"omitting existing feedback adds no evidence",
 	);
 	console.log(

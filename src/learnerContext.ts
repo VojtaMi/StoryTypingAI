@@ -1,5 +1,1 @@
-export interface LearnerContext {
-	languageProfile: string;
-	preferences: string;
-	storyMemory: string;
-}
+export type { LearnerContext } from "./learnerState";

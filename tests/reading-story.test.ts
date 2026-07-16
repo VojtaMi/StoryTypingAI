@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import type { Genre } from "../src/genres.ts";
 import type { NarrationVoiceId } from "../src/narrationVoice.ts";
+import { completeAi, completeStructuredAi } from "../src/server/aiService.ts";
 import {
 	type ChatMessage,
 	generateReadingStory,
@@ -14,6 +15,7 @@ import {
 	type ReadingMediaSection,
 } from "../src/story_session/readingMedia.ts";
 import type { StoryBackgroundImage } from "../src/storyBackground.ts";
+import { normalizeStoryText } from "../src/storyText.ts";
 import { storyWords } from "../src/storyVocabulary.ts";
 
 /**
@@ -124,6 +126,48 @@ for (const [label, raw] of rejected) {
 	console.log(`checked reading story: rejected ${label}`);
 }
 
+const storyWithCurlyDialogue = storyJson({
+	parts: [
+		{ ...part(1), text: "Mara diras: “Jes, la ĉambro estas preta.”" },
+		...Array.from({ length: READING_STORY_TOTAL_PARTS - 1 }, (_, index) =>
+			part(index + 2),
+		),
+	],
+});
+process.env.OPENAI_API_KEY = "test-key";
+const fakeStructuredOpenAi = {
+	chat: {
+		completions: {
+			create: async () => ({
+				choices: [
+					{
+						finish_reason: "stop",
+						message: { content: storyWithCurlyDialogue },
+					},
+				],
+			}),
+		},
+	},
+} as never;
+const rawStructuredStory = await completeStructuredAi(fakeStructuredOpenAi, []);
+assert.doesNotThrow(
+	() => parseReadingStory(rawStructuredStory),
+	"Structured completion must preserve valid JSON containing curly dialogue quotes.",
+);
+assert.equal(
+	normalizeStoryText("Mara diras: “Jes.”"),
+	'Mara diras: "Jes."',
+	"User-facing prose normalization keeps typing punctuation keyboard-friendly.",
+);
+assert.equal(
+	await completeAi(fakeStructuredOpenAi, []),
+	rawStructuredStory,
+	"Generic text completion must not apply typing-specific normalization.",
+);
+console.log(
+	"checked reading story: structured JSON bypasses prose normalization",
+);
+
 // A truncated story must fail even after the repair pass fails to fix it, and
 // the caller must see the failure rather than a partial story.
 await assert.rejects(
@@ -137,8 +181,15 @@ console.log("checked reading story: incomplete generation fails after repair");
 
 // The repair pass is allowed to rescue malformed output.
 let attempt = 0;
-const repaired = await generateReadingStory(async () => {
+const repaired = await generateReadingStory(async (messages) => {
 	attempt += 1;
+	if (attempt === 2) {
+		assert.match(
+			messages.at(-1)?.content ?? "",
+			/Validation failure:/,
+			"repair receives the concrete parse failure",
+		);
+	}
 	return attempt === 1 ? "```\n{oops," : storyJson();
 }, genre);
 assert.equal(attempt, 2);

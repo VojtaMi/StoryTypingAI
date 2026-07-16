@@ -16,9 +16,12 @@ call, writes any generated file, and caches what can be cached.
 feature code → src/ai.ts → /api/... → src/server/* → provider
 ```
 
-Text calls go through one pair of primitives (`completeAi`, `streamAi`) that
-dispatch on the model id — `claude-*` to Anthropic, `gemini-*` to Google,
-everything else to OpenAI. Callers pick an operation, not a provider.
+Text calls go through shared completion primitives that dispatch on the model
+id — `claude-*` to Anthropic, `gemini-*` to Google, everything else to OpenAI.
+Generic text and structured JSON preserve the provider output. Typing-story
+boundaries normalize curly quotes, dashes, ellipses, and lightweight emphasis
+into keyboard-friendly text. Callers pick an operation and output contract, not
+a provider.
 
 ## The operations
 
@@ -35,18 +38,17 @@ everything else to OpenAI. Callers pick an operation, not a provider.
 | **Translation** | [`src/server/aiEndpointHandlers.ts`](../src/server/aiEndpointHandlers.ts) over [`src/server/translationCacheStore.ts`](../src/server/translationCacheStore.ts). | Uses the fast `gpt-5.4-nano` dictionary model. Prepared reading stories warm the cache with all unique story words in one batch, excluding declared character names. The visible-section lookup remains a fallback; only words missing from the cache are sent. Ambiguous words may retain concise slash-separated alternatives. |
 | **Recap generation** | [`src/story_session/`](../src/story_session/), with the spec and parser in [`src/storyRecap.ts`](../src/storyRecap.ts). | Built from the finished prose, the per-part language focuses, the word translations, and the learner profile. |
 | **Lesson generation** | [`src/lessons/lessonGeneration.ts`](../src/lessons/lessonGeneration.ts), invoked through [`src/ai.ts`](../src/ai.ts). | The model authors body bricks only; exercises are derived from the parsed body in code. |
-| **Learner-profile refinement** | [`src/server/learnerProfileService.ts`](../src/server/learnerProfileService.ts) | Rewrites the whole one-page handout; never appends. Entry points: tutor-chat transcript; the **story-finish baseline** (summary + this story's word lookups + the learner's buffered tutor questions); a **late feedback-only** update tied to the same story; and recap results. The last three are keyed to a story and made idempotent by its `finish-evidence.json` — see [Story-finish finalization](#the-story-finish-evidence-manager). |
-| **Learner-preferences refinement** | [`src/server/learnerProfileService.ts`](../src/server/learnerProfileService.ts) | Refined from the tutor chat, alongside the profile. |
-| **Story-memory refinement** | [`src/server/learnerProfileService.ts`](../src/server/learnerProfileService.ts) | Refined when a reading story finishes. Extracts motifs, objects, and settings, and writes "avoid next" guidance for the following story. |
+| **Learner-state refinement** | [`src/server/learnerProfileService.ts`](../src/server/learnerProfileService.ts) | One provider call replaces the complete bounded JSON state: language profile, story preferences/clarity guidance, and anti-repetition memory. The model interprets ambiguous evidence; code enforces only shape, bounds, and lifecycle ownership. Invalid, oversized, or truncated output is rejected, preserving the previous state. |
 | **Esperanto tutor chat** | [`src/ai.ts`](../src/ai.ts) (`askEsperantoTutor`), rendered by [`src/exercise_screen/`](../src/exercise_screen/). | Story context is passed in. **Outside a reading story** the transcript refines the profile and preferences immediately when the modal closes. **Inside a reading story** the learner's own questions are instead buffered in the session and folded once into the finish baseline. |
 
 Refinement is fire-and-forget: it must never block or break the learner's flow,
-so failures leave the handout exactly as it was.
+so failures leave `learner/state.json` exactly as it was. Profile, preferences,
+and anti-repetition memory share one validated object and one atomic file write.
 
 ### The story-finish evidence manager
 
 When a reading story ends, the evidence it produced is folded into the learner
-handouts through a per-story record, `stories/<id>/finish-evidence.json`, owned by
+state through a per-story record, `stories/<id>/finish-evidence.json`, owned by
 [`src/server/storyFinishEvidenceStore.ts`](../src/server/storyFinishEvidenceStore.ts).
 It exists so finalization is **idempotent** and late feedback can never leak into
 the next story:
@@ -54,8 +56,8 @@ the next story:
 - **Finalization** (`finalize-story`) runs when the learner completes the recap and
   submits feedback, or leaves the finished story without custom feedback. It sends
   the story summary, recap results, feedback, buffered learner questions, and the
-  story's word evidence together. The server runs the profile and story-memory
-  refinements once and stamps `finalizedAt`; repeating the trigger is a no-op.
+  story's word evidence together. The server runs one complete learner-state
+  refinement and stamps `finalizedAt`; repeating the trigger is a no-op.
 - **Word lookups are story-scoped.** A lookup made while reading is tagged with its
   `storyId` and folded only by that story's baseline — never through the global
   cursor — so a delayed baseline can't consume the next story's lookups. Menu /
@@ -67,14 +69,16 @@ the next story:
 - Recap results are stored in the save until finalization, so abandoning the story
   before the recap is complete does not create a partial learner update.
 
-Recovery is not transactional across the three writes; `finalizedAt` is written
-last so a crash re-runs (repeats) rather than half-applies — see
-[local-data.md](./local-data.md).
+The learner-state replacement is atomic, but it is not transactional with the
+separate finish record. `finalizedAt` is written last, so a crash between those
+two writes re-runs the refinement rather than marking an unapplied update done.
+See [local-data.md](./local-data.md).
 
 All learner-supplied text (profile, preferences, memory, chat transcripts) is
 passed to the model as **untrusted data**, with explicit instructions not to
 treat it as commands. Keep that framing when adding a prompt that reads learner
-content.
+content. Story generation receives the validated bounded JSON objects, not
+free-form Markdown handouts.
 
 ## Caching, and why it matters for traces
 

@@ -1,124 +1,42 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { LearnerContext } from "../learnerContext";
+import {
+	DEFAULT_LEARNER_CONTEXT,
+	type LearnerContext,
+	parseLearnerContext,
+} from "../learnerState";
 
 const learnerDir = join(process.cwd(), "learner");
-const profilePath = join(learnerDir, "profile.md");
-const preferencesPath = join(learnerDir, "preferences.md");
-const storyMemoryPath = join(learnerDir, "story-memory.md");
-
-/**
- * The starting handout. It assumes a complete beginner, so day-one story
- * generation behaves as before; the refine pass improves it over time from what
- * the learner asks the tutor bot.
- */
-export const DEFAULT_LEARNER_PROFILE = `---
-type: learner-language-profile
-title: Esperanto learner language profile
-tags: [esperanto, learner, language]
-level: absolute-beginner
-updated: never
----
-
-# Confident
-
-Nothing yet — treat this learner as a complete beginner.
-
-# Currently learning (their edge)
-
-The very first Esperanto words and the copula \`estas\`.
-
-# Shaky / watch for
-
-Unknown so far. Introduce new vocabulary gradually and reuse it in meaningful contexts.
-
-# Recently practiced
-
-Nothing yet — no stories finished so far.
-
-# About this learner
-
-New to Esperanto. Prefers short, concrete sentences with clear context.
-`;
-
-export const DEFAULT_LEARNER_PREFERENCES = `---
-type: learner-preferences
-title: Esperanto story and lesson preferences
-tags: [esperanto, learner, preferences, stories]
-updated: never
----
-
-# Desired feel
-
-Beginner Esperanto in adult-respectful, age-appropriate stories.
-`;
-
-export const DEFAULT_STORY_MEMORY = `---
-type: story-memory
-title: Recent Esperanto story motifs
-tags: [esperanto, story-generation, anti-repetition]
-updated: never
----
-
-# Recently used motifs
-
-Nothing yet.
-
-# Recently used objects and settings
-
-Nothing yet.
-
-# Avoid next
-
-Nothing yet.
-`;
-
-export async function readLearnerProfile(): Promise<string> {
-	return readLearnerFile(profilePath, DEFAULT_LEARNER_PROFILE);
-}
-
-export async function readLearnerPreferences(): Promise<string> {
-	return readLearnerFile(preferencesPath, DEFAULT_LEARNER_PREFERENCES);
-}
-
-export async function readStoryMemory(): Promise<string> {
-	return readLearnerFile(storyMemoryPath, DEFAULT_STORY_MEMORY);
-}
+const statePath = join(learnerDir, "state.json");
+const temporaryStatePath = join(learnerDir, "state.json.tmp");
 
 export async function readLearnerContext(): Promise<LearnerContext> {
-	const [languageProfile, preferences, storyMemory] = await Promise.all([
-		readLearnerProfile(),
-		readLearnerPreferences(),
-		readStoryMemory(),
-	]);
-	return { languageProfile, preferences, storyMemory };
-}
-
-export async function writeLearnerProfile(content: string): Promise<void> {
-	return writeLearnerFile(profilePath, content);
-}
-
-export async function writeLearnerPreferences(content: string): Promise<void> {
-	return writeLearnerFile(preferencesPath, content);
-}
-
-export async function writeStoryMemory(content: string): Promise<void> {
-	return writeLearnerFile(storyMemoryPath, content);
-}
-
-async function readLearnerFile(
-	path: string,
-	defaultContent: string,
-): Promise<string> {
 	try {
-		return await readFile(path, "utf8");
-	} catch {
-		return defaultContent;
+		const raw = await readFile(statePath, "utf8");
+		const parsed = parseLearnerContext(JSON.parse(raw));
+		if (parsed) return parsed;
+		console.warn("Ignoring invalid learner/state.json; using default state.");
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+			console.warn(
+				"Could not read learner/state.json; using default state.",
+				error,
+			);
+		}
 	}
+	return structuredClone(DEFAULT_LEARNER_CONTEXT);
 }
 
-async function writeLearnerFile(path: string, content: string): Promise<void> {
+export async function writeLearnerContext(
+	context: LearnerContext,
+): Promise<void> {
+	const valid = parseLearnerContext(context);
+	if (!valid) throw new Error("Refusing to write invalid learner state.");
 	await mkdir(learnerDir, { recursive: true });
-	const normalized = content.endsWith("\n") ? content : `${content}\n`;
-	await writeFile(path, normalized, "utf8");
+	await writeFile(
+		temporaryStatePath,
+		`${JSON.stringify(valid, null, 2)}\n`,
+		"utf8",
+	);
+	await rename(temporaryStatePath, statePath);
 }

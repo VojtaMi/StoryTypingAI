@@ -11,8 +11,8 @@ import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { TEXT_MODELS, type TextModelId } from "../src/models.ts";
-import { normalizeStoryText } from "../src/server/http.ts";
 import type { ChatMessage } from "../src/story.ts";
+import { normalizeStoryText } from "../src/storyText.ts";
 
 /**
  * This benchmark scores models one story part at a time, against fixed frames,

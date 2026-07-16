@@ -1,17 +1,12 @@
 import type OpenAI from "openai";
+import type { LearnerLanguageProfile } from "../learnerState";
 import { withAiTraceMetadata } from "./aiTrace";
 import { enqueueLearnerProfileMutation } from "./learnerProfileMutationQueue";
 import {
-	refineLearnerProfileFromStory,
-	refineStoryMemoryFromStory,
+	refineLearnerStateFromStory,
 	type StoryRecapEvidenceItem,
 } from "./learnerProfileService";
-import {
-	readLearnerProfile,
-	readStoryMemory,
-	writeLearnerProfile,
-	writeStoryMemory,
-} from "./learnerProfileStore";
+import { readLearnerContext, writeLearnerContext } from "./learnerProfileStore";
 import {
 	advanceWordLogCursor,
 	pruneWordLogForStory,
@@ -37,25 +32,26 @@ async function applyLateEvidence(
 	learnerQuestions: string[],
 	feedback: string | undefined,
 	anthropicKey: string,
-): Promise<string> {
-	const current = await readLearnerProfile();
+): Promise<LearnerLanguageProfile> {
+	const current = await readLearnerContext();
 	const today = new Date().toISOString().slice(0, 10);
-	const updated = await refineLearnerProfileFromStory(
+	const updated = await refineLearnerStateFromStory(
 		openai,
 		current,
 		{ storySummary, learnerQuestions, feedback },
+		"delta",
 		anthropicKey,
 		today,
 	);
-	await writeLearnerProfile(updated);
-	return updated;
+	await writeLearnerContext(updated);
+	return updated.languageProfile;
 }
 
 async function finalizeOnce(
 	openai: OpenAI,
 	evidence: StoryFinalizationInput,
 	anthropicKey: string,
-): Promise<string> {
+): Promise<LearnerLanguageProfile> {
 	const record = await readFinishEvidence(evidence.storyId);
 	const incomingQuestions = evidence.learnerQuestions;
 	const storedQuestions = record.learnerQuestions ?? [];
@@ -70,7 +66,7 @@ async function finalizeOnce(
 
 	if (record.finalizedAt) {
 		if (!newQuestions.length && newFeedback === undefined) {
-			return readLearnerProfile();
+			return (await readLearnerContext()).languageProfile;
 		}
 		const updated = await applyLateEvidence(
 			openai,
@@ -86,38 +82,28 @@ async function finalizeOnce(
 		return updated;
 	}
 
-	const [current, currentStoryMemory, scoped, unscoped] = await Promise.all([
-		readLearnerProfile(),
-		readStoryMemory(),
+	const [current, scoped, unscoped] = await Promise.all([
+		readLearnerContext(),
 		readWordLookupsForStory(evidence.storyId),
 		readWordLookupsSinceLastRefine(),
 	]);
 	const today = new Date().toISOString().slice(0, 10);
-	const [updated, updatedStoryMemory] = await Promise.all([
-		refineLearnerProfileFromStory(
-			openai,
-			current,
-			{
-				storySummary: evidence.storySummary,
-				wordLookups: [...scoped.lookups, ...unscoped.lookups],
-				learnerQuestions: incomingQuestions,
-				recapResults: evidence.recapResults,
-				feedback,
-			},
-			anthropicKey,
-			today,
-		),
-		refineStoryMemoryFromStory(
-			openai,
-			currentStoryMemory,
-			{ storySummary: evidence.storySummary },
-			anthropicKey,
-			today,
-		),
-	]);
+	const updated = await refineLearnerStateFromStory(
+		openai,
+		current,
+		{
+			storySummary: evidence.storySummary,
+			wordLookups: [...scoped.lookups, ...unscoped.lookups],
+			learnerQuestions: incomingQuestions,
+			recapResults: evidence.recapResults,
+			feedback,
+		},
+		"story",
+		anthropicKey,
+		today,
+	);
 
-	await writeLearnerProfile(updated);
-	await writeStoryMemory(updatedStoryMemory);
+	await writeLearnerContext(updated);
 	await pruneWordLogForStory(evidence.storyId);
 	if (unscoped.cursorCandidate) {
 		await advanceWordLogCursor(unscoped.cursorCandidate);
@@ -131,15 +117,15 @@ async function finalizeOnce(
 		wordLookups: scoped.aggregated,
 		globalWordLookups: unscoped.aggregated,
 	});
-	return updated;
+	return updated.languageProfile;
 }
 
 export async function finalizeStoryEvidence(
 	openai: OpenAI,
 	evidence: StoryFinalizationInput,
 	anthropicKey: string,
-): Promise<string> {
-	let result = await readLearnerProfile();
+): Promise<LearnerLanguageProfile> {
+	let result = (await readLearnerContext()).languageProfile;
 	const task = enqueueLearnerProfileMutation(() =>
 		withAiTraceMetadata(
 			{ storyId: evidence.storyId, storyPhase: "finalize" },

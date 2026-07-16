@@ -3,21 +3,17 @@ import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
 import { DEFAULT_TEXT_MODEL, STORY_SEGMENT_MAX_TOKENS } from "../models";
 import { isNarrationVoiceId } from "../narrationVoice";
-import { completeAi, streamAi, translateWords } from "./aiService";
+import {
+	completeAi,
+	completeStructuredAi,
+	streamAi,
+	translateWords,
+} from "./aiService";
 import { withAiTraceMetadata } from "./aiTrace";
 import { readBody, sendJson } from "./http";
 import { enqueueLearnerProfileMutation } from "./learnerProfileMutationQueue";
-import {
-	refineLearnerPreferencesFromChat,
-	refineLearnerProfile,
-} from "./learnerProfileService";
-import {
-	readLearnerContext,
-	readLearnerPreferences,
-	readLearnerProfile,
-	writeLearnerPreferences,
-	writeLearnerProfile,
-} from "./learnerProfileStore";
+import { refineLearnerStateFromChat } from "./learnerProfileService";
+import { readLearnerContext, writeLearnerContext } from "./learnerProfileStore";
 import { appendLearnerWordLogEntry } from "./learnerWordLogStore";
 import { startNdjsonResponse, writeJsonLine } from "./ndjson";
 import { createBackgroundImage, findGenre } from "./openingsStore";
@@ -225,9 +221,16 @@ export async function handleCompleteRequest(
 		messages,
 		maxTokens = STORY_SEGMENT_MAX_TOKENS,
 		model = DEFAULT_TEXT_MODEL,
+		responseFormat = "text",
 	} = JSON.parse(await readBody(req));
+	if (responseFormat !== "text" && responseFormat !== "json") {
+		sendJson(res, 400, { error: "responseFormat must be text or json." });
+		return;
+	}
+	const complete =
+		responseFormat === "json" ? completeStructuredAi : completeAi;
 	sendJson(res, 200, {
-		text: await completeAi(openai, messages, maxTokens, model, anthropicKey),
+		text: await complete(openai, messages, maxTokens, model, anthropicKey),
 	});
 }
 
@@ -236,10 +239,7 @@ export async function handleLearnerProfileGetRequest(
 	res: ServerResponse,
 ) {
 	const context = await readLearnerContext();
-	sendJson(res, 200, {
-		profile: context.languageProfile,
-		...context,
-	});
+	sendJson(res, 200, context);
 }
 
 export async function handleLearnerProfileRefineRequest(
@@ -269,35 +269,20 @@ export async function handleLearnerProfileRefineRequest(
 		return;
 	}
 
-	let responseProfile = await readLearnerProfile();
+	let responseProfile = (await readLearnerContext()).languageProfile;
 	try {
 		const refineTask = enqueueLearnerProfileMutation(async () => {
-			const [currentProfile, currentPreferences] = await Promise.all([
-				readLearnerProfile(),
-				readLearnerPreferences(),
-			]);
+			const current = await readLearnerContext();
 			const today = new Date().toISOString().slice(0, 10);
-			const [updated, updatedPreferences] = await Promise.all([
-				refineLearnerProfile(
-					openai,
-					currentProfile,
-					messages,
-					anthropicKey,
-					today,
-				),
-				refineLearnerPreferencesFromChat(
-					openai,
-					currentPreferences,
-					messages,
-					anthropicKey,
-					today,
-				),
-			]);
-			await Promise.all([
-				writeLearnerProfile(updated),
-				writeLearnerPreferences(updatedPreferences),
-			]);
-			responseProfile = updated;
+			const updated = await refineLearnerStateFromChat(
+				openai,
+				current,
+				messages,
+				anthropicKey,
+				today,
+			);
+			await writeLearnerContext(updated);
+			responseProfile = updated.languageProfile;
 		});
 		await refineTask;
 		sendJson(res, 200, { profile: responseProfile });

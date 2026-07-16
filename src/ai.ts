@@ -1,5 +1,6 @@
 import type { Genre, GenreId } from "./genres";
 import type { LearnerContext } from "./learnerContext";
+import { DEFAULT_LEARNER_CONTEXT, parseLearnerContext } from "./learnerState";
 import {
 	buildLessonPrompt,
 	DEFAULT_LESSON_GENERATION_SELECTION,
@@ -33,6 +34,7 @@ import {
 	type StoryRecapExerciseResult,
 	type StoryRecapLesson,
 } from "./storyRecap";
+import { normalizeStoryText } from "./storyText";
 import { slugify } from "./structuredGeneration";
 
 export type { ChatMessage, ReadingStory, ReadingStoryPart, StoryMemory };
@@ -106,10 +108,11 @@ async function complete(
 	messages: ChatMessage[],
 	model: TextModelId,
 	maxTokens = STORY_SEGMENT_MAX_TOKENS,
+	responseFormat: "text" | "json" = "text",
 ): Promise<string> {
 	const { text } = await postJson<{ text?: string }>(
 		"/api/ai/complete",
-		{ messages, maxTokens, model },
+		{ messages, maxTokens, model, responseFormat },
 		"AI request",
 	);
 	if (!text) throw new Error("The AI returned an empty response.");
@@ -170,13 +173,18 @@ function httpCompleter(model: TextModelId): Complete {
 	return (messages, maxTokens) => complete(messages, model, maxTokens);
 }
 
+/** Structured output must reach its parser without prose normalization. */
+function structuredHttpCompleter(model: TextModelId): Complete {
+	return (messages, maxTokens) => complete(messages, model, maxTokens, "json");
+}
+
 /** Begins a new story for the given genre. Returns the opening and the seeded history. */
 export async function startStory(
 	genre: Genre,
 	model: TextModelId = DEFAULT_TEXT_MODEL,
 ): Promise<{ text: string; messages: ChatMessage[] }> {
 	const messages = openingMessages(genre);
-	const text = await complete(messages, model);
+	const text = normalizeStoryText(await complete(messages, model));
 	messages.push({ role: "assistant", content: text });
 	return { text, messages };
 }
@@ -195,7 +203,7 @@ export function invalidateLearnerProfile() {
  */
 export async function fetchLearnerProfile(): Promise<string> {
 	const context = await fetchLearnerContext();
-	return context.languageProfile;
+	return JSON.stringify(context.languageProfile);
 }
 
 async function fetchLearnerContext(): Promise<LearnerContext> {
@@ -203,17 +211,9 @@ async function fetchLearnerContext(): Promise<LearnerContext> {
 		learnerContextPromise = (async () => {
 			const res = await fetch("/api/learner-profile");
 			if (!res.ok) throw new Error(`Profile request failed: ${res.status}`);
-			const body = (await res.json()) as {
-				profile?: string;
-				languageProfile?: string;
-				preferences?: string;
-				storyMemory?: string;
-			};
-			return {
-				languageProfile: body.languageProfile ?? body.profile ?? "",
-				preferences: body.preferences ?? "",
-				storyMemory: body.storyMemory ?? "",
-			};
+			const context = parseLearnerContext(await res.json());
+			if (!context) throw new Error("Profile response has an invalid shape.");
+			return context;
 		})();
 	}
 
@@ -221,7 +221,7 @@ async function fetchLearnerContext(): Promise<LearnerContext> {
 		return await learnerContextPromise;
 	} catch {
 		learnerContextPromise = null;
-		return { languageProfile: "", preferences: "", storyMemory: "" };
+		return structuredClone(DEFAULT_LEARNER_CONTEXT);
 	}
 }
 
@@ -282,7 +282,11 @@ export async function generateReadingStory(
 	model: TextModelId = DEFAULT_TEXT_MODEL,
 ): Promise<ReadingStory> {
 	const learnerContext = await fetchLearnerContext();
-	return generateReadingStoryText(httpCompleter(model), genre, learnerContext);
+	return generateReadingStoryText(
+		structuredHttpCompleter(model),
+		genre,
+		learnerContext,
+	);
 }
 
 interface GenerateStoryRecapLessonInput {
@@ -327,6 +331,7 @@ export async function generateStoryRecapLesson(
 		],
 		model,
 		STORY_RECAP_MAX_TOKENS,
+		"json",
 	);
 	return parseStoryRecapLesson(text);
 }
@@ -365,6 +370,7 @@ export async function generateLesson(
 		],
 		model,
 		LESSON_GENERATION_MAX_TOKENS,
+		"json",
 	);
 	return parseGeneratedLesson(
 		text,

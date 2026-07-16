@@ -20,8 +20,9 @@ import {
 } from "../story";
 import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
+import { normalizeStoryText } from "../storyText";
 import { storyWords } from "../storyVocabulary";
-import { completeAi, translateWords } from "./aiService";
+import { completeAi, completeStructuredAi, translateWords } from "./aiService";
 import { buildStoryBackgroundPrompt, generateStoryImage } from "./images";
 import { readLearnerContext } from "./learnerProfileStore";
 import { createOpeningAudio } from "./storyAudioStore";
@@ -319,7 +320,9 @@ async function createPreparedOpening(
 		{ role: "system", content: genre.systemPrompt },
 		{ role: "user", content: userContent },
 	];
-	const text = await completeAi(openai, messages, 200, model, anthropicKey);
+	const text = normalizeStoryText(
+		await completeAi(openai, messages, 200, model, anthropicKey),
+	);
 	const title = await titleFromText(
 		openai,
 		text,
@@ -357,7 +360,7 @@ async function createPreparedReadingOpening(
 	const learnerContext = await readLearnerContext();
 	const readingStory = await generateReadingStory(
 		(messages, maxTokens) =>
-			completeAi(openai, messages, maxTokens, model, anthropicKey),
+			completeStructuredAi(openai, messages, maxTokens, model, anthropicKey),
 		genre,
 		learnerContext,
 	);

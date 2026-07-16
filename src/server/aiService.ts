@@ -6,8 +6,8 @@ import {
 	STORY_SEGMENT_MAX_TOKENS,
 	TRANSLATION_MODEL,
 } from "../models";
+import { normalizeStoryText } from "../storyText";
 import { traceAiCall } from "./aiTrace";
-import { normalizeStoryText } from "./http";
 
 type AnthropicMessages = {
 	systemContent: string;
@@ -31,6 +31,8 @@ type GeminiGenerateContentResponse = {
 	}>;
 };
 
+type CompletionOutput = "text" | "structured";
+
 export async function completeAi(
 	openai: OpenAI,
 	messages: ChatMessage[],
@@ -38,13 +40,49 @@ export async function completeAi(
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 ): Promise<string> {
+	return completeAiOutput(
+		openai,
+		messages,
+		maxTokens,
+		model,
+		anthropicKey,
+		"text",
+	);
+}
+
+/** Completes a structured request without prose normalization corrupting JSON. */
+export async function completeStructuredAi(
+	openai: OpenAI,
+	messages: ChatMessage[],
+	maxTokens = STORY_SEGMENT_MAX_TOKENS,
+	model = DEFAULT_TEXT_MODEL,
+	anthropicKey = "",
+): Promise<string> {
+	return completeAiOutput(
+		openai,
+		messages,
+		maxTokens,
+		model,
+		anthropicKey,
+		"structured",
+	);
+}
+
+async function completeAiOutput(
+	openai: OpenAI,
+	messages: ChatMessage[],
+	maxTokens: number,
+	model: string,
+	anthropicKey: string,
+	output: CompletionOutput,
+): Promise<string> {
 	if (model.startsWith("claude-")) {
-		return completeAnthropic(messages, maxTokens, model, anthropicKey);
+		return completeAnthropic(messages, maxTokens, model, anthropicKey, output);
 	}
 	if (model.startsWith("gemini-")) {
-		return completeGemini(messages, maxTokens, model);
+		return completeGemini(messages, maxTokens, model, output);
 	}
-	return completeOpenAi(openai, messages, maxTokens, model);
+	return completeOpenAi(openai, messages, maxTokens, model, output);
 }
 
 export async function streamAi(
@@ -110,6 +148,7 @@ async function completeOpenAi(
 	messages: ChatMessage[],
 	maxTokens: number,
 	model: string,
+	output: CompletionOutput,
 ): Promise<string> {
 	if (!process.env.OPENAI_API_KEY) {
 		throw new Error("OpenAI API key is not configured.");
@@ -134,10 +173,7 @@ async function completeOpenAi(
 	const choice = response.choices[0];
 	const raw = choice?.message?.content?.trim();
 	if (!raw) throw new Error("The AI returned an empty response.");
-	const text = normalizeStoryText(raw);
-	return choice?.finish_reason === "length"
-		? trimToSentenceBoundary(text)
-		: text;
+	return finishCompletion(raw, choice?.finish_reason === "length", output);
 }
 
 async function streamOpenAi(
@@ -191,6 +227,7 @@ async function completeAnthropic(
 	maxTokens: number,
 	model: string,
 	apiKey: string,
+	output: CompletionOutput,
 ): Promise<string> {
 	if (!apiKey) throw new Error("Anthropic API key is not configured.");
 	const anthropic = new Anthropic({ apiKey });
@@ -220,10 +257,11 @@ async function completeAnthropic(
 	const block = response.content[0];
 	if (block?.type !== "text")
 		throw new Error("The AI returned an empty response.");
-	const text = normalizeStoryText(block.text);
-	return response.stop_reason === "max_tokens"
-		? trimToSentenceBoundary(text)
-		: text;
+	return finishCompletion(
+		block.text,
+		response.stop_reason === "max_tokens",
+		output,
+	);
 }
 
 async function streamAnthropic(
@@ -283,6 +321,7 @@ async function completeGemini(
 	messages: ChatMessage[],
 	maxTokens: number,
 	model: string,
+	output: CompletionOutput = "text",
 ): Promise<string> {
 	const response = await requestGemini(messages, maxTokens, model);
 	const choice = response.candidates?.[0];
@@ -291,10 +330,7 @@ async function completeGemini(
 		.join("")
 		.trim();
 	if (!raw) throw new Error("The AI returned an empty response.");
-	const text = normalizeStoryText(raw);
-	return choice?.finishReason === "MAX_TOKENS"
-		? trimToSentenceBoundary(text)
-		: text;
+	return finishCompletion(raw, choice?.finishReason === "MAX_TOKENS", output);
 }
 
 async function streamGemini(
@@ -306,6 +342,17 @@ async function streamGemini(
 	const text = await completeGemini(messages, maxTokens, model);
 	onChunk(text);
 	return text;
+}
+
+function finishCompletion(
+	raw: string,
+	truncated: boolean,
+	output: CompletionOutput,
+): string {
+	const text = raw.trim();
+	return truncated && output !== "structured"
+		? trimToSentenceBoundary(text)
+		: text;
 }
 
 async function requestGemini(

@@ -61,14 +61,3 @@ export function sendBufferWithRangeSupport(
 	res.setHeader("Content-Length", end - start + 1);
 	res.end(buffer.subarray(start, end + 1));
 }
-
-export function normalizeStoryText(text: string): string {
-	return text
-		.replace(/[‘’‚‛]/g, "'")
-		.replace(/[“”„‟]/g, '"')
-		.replace(/\*\*([^*\n]+)\*\*/g, "$1")
-		.replace(/(^|[\s(["])\*([^*\n]+)\*(?=[\s.,;:!?")\]]|$)/g, "$1$2")
-		.replace(/–/g, "-")
-		.replace(/—/g, "--")
-		.replace(/…/g, "...");
-}
