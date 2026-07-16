@@ -1,0 +1,197 @@
+import assert from "node:assert/strict";
+
+/**
+ * The reading-story lifecycle exists to enforce one ordering: the next story is
+ * never generated until the finished story's evidence has landed. A story
+ * prepared too early is generated against the learner state and story memory its
+ * predecessor was about to replace, and repeats that story's premise.
+ *
+ * `runReadingPreparation` is the pass that carries the ordering, taking its
+ * effects as arguments, so these assert the property directly — no React, no
+ * provider.
+ */
+const { runReadingPreparation, decideReadingPreparationOnLoad } = await import(
+	"../src/story_session/useReadingPreparation.ts"
+);
+
+type Status = string;
+
+function recorder() {
+	const statuses: Status[] = [];
+	return { statuses, setStatus: (status: Status) => statuses.push(status) };
+}
+
+/** Silence the lifecycle's expected warnings while asserting failure paths. */
+async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
+	const original = console.warn;
+	console.warn = () => {};
+	try {
+		return await run();
+	} finally {
+		console.warn = original;
+	}
+}
+
+{
+	// The ordering itself: preparation must not start while finalization is
+	// still in flight, however long finalization takes.
+	const { statuses, setStatus } = recorder();
+	let finalized = false;
+	let preparedWhileFinalizing = false;
+
+	await runReadingPreparation({
+		finalize: async () => {
+			await new Promise((resolve) => setTimeout(resolve, 5));
+			finalized = true;
+		},
+		prepare: async () => {
+			if (!finalized) preparedWhileFinalizing = true;
+			return { length: 1 };
+		},
+		setStatus,
+	});
+
+	assert.equal(
+		preparedWhileFinalizing,
+		false,
+		"preparation started before finalization resolved",
+	);
+	assert.deepEqual(statuses, ["finalizing", "preparing", "ready"]);
+	console.log("checked reading preparation: finalization precedes generation");
+}
+
+{
+	// The settled status is what tells the caller whether the persisted evidence
+	// can be dropped. Reporting "ready" for a lifecycle that failed would discard
+	// the evidence a resume needs, stranding the next story for good.
+	const settledReady = await runReadingPreparation({
+		finalize: async () => {},
+		prepare: async () => ({ length: 1 }),
+		setStatus: () => {},
+	});
+	assert.equal(settledReady, "ready");
+
+	const settledError = await withoutWarnings(() =>
+		runReadingPreparation({
+			finalize: () => Promise.reject(new Error("finalize failed")),
+			prepare: async () => ({ length: 1 }),
+			setStatus: () => {},
+		}),
+	);
+	assert.equal(settledError, "error");
+	console.log(
+		"checked reading preparation: settled status reports the outcome",
+	);
+}
+
+{
+	// A failed finalization must not fall through to generation: the next story
+	// would be built from exactly the stale state finalization was fixing.
+	const { statuses, setStatus } = recorder();
+	let prepareCalls = 0;
+
+	await withoutWarnings(() =>
+		runReadingPreparation({
+			finalize: () => Promise.reject(new Error("finalize failed")),
+			prepare: async () => {
+				prepareCalls += 1;
+				return { length: 1 };
+			},
+			setStatus,
+		}),
+	);
+
+	assert.equal(
+		prepareCalls,
+		0,
+		"generated a story despite failed finalization",
+	);
+	assert.deepEqual(statuses, ["finalizing", "error"]);
+	console.log(
+		"checked reading preparation: failed finalization blocks generation",
+	);
+}
+
+{
+	// A failed preparation must surface retry rather than strand the button.
+	const { statuses, setStatus } = recorder();
+
+	await withoutWarnings(() =>
+		runReadingPreparation({
+			finalize: async () => {},
+			prepare: () => Promise.reject(new Error("prepare failed")),
+			setStatus,
+		}),
+	);
+
+	assert.deepEqual(statuses, ["finalizing", "preparing", "error"]);
+	console.log("checked reading preparation: failed generation offers retry");
+}
+
+{
+	// Preparation that reports an empty queue is a failure too — "ready" would
+	// promise a story the menu cannot consume.
+	const { statuses, setStatus } = recorder();
+
+	await runReadingPreparation({
+		finalize: async () => {},
+		prepare: async () => ({ length: 0 }),
+		setStatus,
+	});
+
+	assert.deepEqual(statuses, ["finalizing", "preparing", "error"]);
+	console.log("checked reading preparation: an empty queue is not ready");
+}
+
+{
+	// Reload while the next story is being made. The lifecycle lives in the page,
+	// so nothing survives to finish it: the load must pick it back up.
+	assert.equal(
+		decideReadingPreparationOnLoad({
+			preparedCount: 0,
+			hasPendingEvidence: true,
+		}),
+		"resume",
+		"a reload mid-lifecycle left the next story with nobody preparing it",
+	);
+
+	// Enabling the button here would let the learner start a story generated
+	// outside the lifecycle, racing the finalization it is meant to follow.
+	assert.notEqual(
+		decideReadingPreparationOnLoad({
+			preparedCount: 0,
+			hasPendingEvidence: true,
+		}),
+		"idle",
+	);
+
+	// A queued story means the lifecycle completed; the leftover evidence is
+	// stale and must not re-run anything.
+	assert.equal(
+		decideReadingPreparationOnLoad({
+			preparedCount: 1,
+			hasPendingEvidence: true,
+		}),
+		"ready",
+	);
+
+	// Nothing finished, nothing queued: a first-ever story is started on demand.
+	assert.equal(
+		decideReadingPreparationOnLoad({
+			preparedCount: 0,
+			hasPendingEvidence: false,
+		}),
+		"idle",
+	);
+
+	assert.equal(
+		decideReadingPreparationOnLoad({
+			preparedCount: 1,
+			hasPendingEvidence: false,
+		}),
+		"ready",
+	);
+	console.log("checked reading preparation: a reload resumes a dead lifecycle");
+}
+
+console.log("reading preparation checks passed");

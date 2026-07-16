@@ -3,7 +3,6 @@ import {
 	autoContinueStoryStream,
 	type ChatMessage,
 	continueStoryStream,
-	finalizeReadingStoryEvidence,
 	generateOpeningAudio,
 	generateReadingStory,
 	generateStoryBackgroundImage,
@@ -34,7 +33,6 @@ import {
 	consumePreparedOpening,
 	consumePreparedReadingOpening,
 	prepareMissingOpenings,
-	prepareMissingReadingOpenings,
 } from "../openings";
 import { loadSavedStory } from "../saves";
 import {
@@ -66,6 +64,7 @@ import {
 	createSaveId,
 	fallbackTitle,
 } from "./storySnapshot";
+import { useReadingPreparation } from "./useReadingPreparation";
 
 // The session only distinguishes "am I on the main menu" from "in a story" from
 // "somewhere in the lesson flow" — it never branches on individual lesson views.
@@ -201,8 +200,14 @@ export function useStorySession({
 	const botQuestionsRef = useRef<string[]>([]);
 	const preparingOpeningsRef = useRef(false);
 	const prepareOpeningsAgainRef = useRef(false);
-	const preparingReadingOpeningsRef = useRef(false);
-	const prepareReadingOpeningsAgainRef = useRef(false);
+
+	// Owns finalize-then-prepare for the next reading story, and the menu's
+	// readiness for it.
+	const readingPreparation = useReadingPreparation(model);
+	const {
+		makeNextStory: makeNextReadingStory,
+		markConsumed: markReadingStoryConsumed,
+	} = readingPreparation;
 
 	// The one owner of every reading narration and background image: preparing a
 	// section ahead, arriving at it, and recovering it after a reload all ask the
@@ -590,43 +595,22 @@ export function useStorySession({
 		}
 	}, [model]);
 
-	const prepareReadingOpeningsInBackground = useCallback(async () => {
-		if (preparingReadingOpeningsRef.current) {
-			prepareReadingOpeningsAgainRef.current = true;
-			return;
-		}
-		preparingReadingOpeningsRef.current = true;
-		try {
-			await prepareMissingReadingOpenings(model);
-		} catch (err) {
-			console.warn("Could not prepare reading story openings.", err);
-		} finally {
-			preparingReadingOpeningsRef.current = false;
-			if (prepareReadingOpeningsAgainRef.current) {
-				prepareReadingOpeningsAgainRef.current = false;
-				void prepareReadingOpeningsInBackground();
-			}
-		}
-	}, [model]);
-
 	useEffect(() => {
 		void (async () => {
 			await onSavedStoriesChanged();
 			void prepareOpeningsInBackground();
-			void prepareReadingOpeningsInBackground();
 		})();
-	}, [
-		onSavedStoriesChanged,
-		prepareOpeningsInBackground,
-		prepareReadingOpeningsInBackground,
-	]);
+	}, [onSavedStoriesChanged, prepareOpeningsInBackground]);
 
+	// Typing openings are cheap to hold and are prefetched on menu entry. Reading
+	// stories are not: each one is prepared by `useReadingPreparation` as the
+	// consequence of finishing the previous story, so that it sees that story's
+	// evidence. Opening the menu must not start one.
 	useEffect(() => {
 		if (view === "menu") {
 			void prepareOpeningsInBackground();
-			void prepareReadingOpeningsInBackground();
 		}
-	}, [view, prepareOpeningsInBackground, prepareReadingOpeningsInBackground]);
+	}, [view, prepareOpeningsInBackground]);
 
 	const selectGenre = useCallback(
 		async (selected: Genre) => {
@@ -796,7 +780,9 @@ export function useStorySession({
 			} catch (err) {
 				console.warn("Could not consume a prepared reading opening.", err);
 			}
-			void prepareReadingOpeningsInBackground();
+			// The queue is empty from here until this story is finished and
+			// finalized; nothing prepares a replacement in the meantime.
+			markReadingStoryConsumed();
 
 			const nextNarrationVoice = isNarrationVoiceId(
 				preparedOpening?.narrationVoice,
@@ -902,11 +888,11 @@ export function useStorySession({
 		}
 	}, [
 		applyReadingBackground,
+		markReadingStoryConsumed,
 		model,
 		onViewChange,
 		persistStory,
 		prepareNextReadingSection,
-		prepareReadingOpeningsInBackground,
 	]);
 
 	const startLessonStory = useCallback(
@@ -1517,20 +1503,27 @@ export function useStorySession({
 		segments,
 	]);
 
-	const finalizeReadingEvidence = useCallback((feedback?: string) => {
-		const story = readingStoryRef.current;
-		const saveId = activeSaveIdRef.current;
-		if (!story || !saveId || phaseRef.current !== "finished") return;
-		void finalizeReadingStoryEvidence({
-			storyId: saveId,
-			storySummary: readingStorySummary(story),
-			learnerQuestions: botQuestionsRef.current,
-			recapResults: storyRecapResultsRef.current,
-			...(feedback?.trim() ? { feedback: feedback.trim() } : {}),
-		}).catch((err) => {
-			console.warn("Could not finalize reading story evidence.", err);
-		});
-	}, []);
+	/**
+	 * Hands the finished reading story to the preparation lifecycle: its evidence
+	 * is finalized, and only then is the next story prepared. The evidence is
+	 * captured here rather than read when finalization runs, because the caller
+	 * clears the session as it navigates away.
+	 */
+	const finalizeReadingEvidence = useCallback(
+		(feedback?: string) => {
+			const story = readingStoryRef.current;
+			const saveId = activeSaveIdRef.current;
+			if (!story || !saveId || phaseRef.current !== "finished") return;
+			makeNextReadingStory({
+				storyId: saveId,
+				storySummary: readingStorySummary(story),
+				learnerQuestions: botQuestionsRef.current,
+				recapResults: storyRecapResultsRef.current,
+				...(feedback?.trim() ? { feedback: feedback.trim() } : {}),
+			});
+		},
+		[makeNextReadingStory],
+	);
 
 	const backToMenu = useCallback(() => {
 		if (readingStory && activeSaveId && phase === "finished") {
@@ -1893,6 +1886,8 @@ export function useStorySession({
 		regenerateWordTranslation: handleRegenerateWord,
 		resumeStory,
 		readingPartIndex,
+		readingPreparationStatus: readingPreparation.status,
+		retryReadingPreparation: readingPreparation.retry,
 		readingTotalParts: readingStory?.parts.length ?? null,
 		captureBotQuestions,
 		restartReadingStory,

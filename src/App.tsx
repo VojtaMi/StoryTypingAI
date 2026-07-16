@@ -152,6 +152,8 @@ export default function App() {
 		phase,
 		nonTranslatableWords,
 		readingPartIndex,
+		readingPreparationStatus,
+		retryReadingPreparation,
 		readingTotalParts,
 		storyFeedbackSubmittedAt,
 		restartReadingStory,
@@ -289,6 +291,8 @@ export default function App() {
 					onSelect={selectGenre}
 					onStartLesson={openLessonsMenu}
 					onStartReadingStory={startReadingStory}
+					readingStoryStatus={readingPreparationStatus}
+					onRetryReadingStory={retryReadingPreparation}
 					onResume={resumeStory}
 					onDelete={removeSavedStory}
 				/>

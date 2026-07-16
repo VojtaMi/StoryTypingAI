@@ -95,6 +95,34 @@
 	border-color: rgba(244, 251, 239, 0.84);
 }
 
+/* The next reading story is being made and cannot be started yet. */
+.lesson-hero__start--making {
+	cursor: progress;
+	animation: lesson-hero-making 1.6s ease-in-out infinite;
+}
+
+.lesson-hero__start--making:hover {
+	background: transparent;
+	transform: none;
+}
+
+@keyframes lesson-hero-making {
+	0%,
+	100% {
+		opacity: 0.45;
+	}
+	50% {
+		opacity: 0.8;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.lesson-hero__start--making {
+		animation: none;
+		opacity: 0.55;
+	}
+}
+
 .menu__settings {
 	display: flex;
 	align-items: center;

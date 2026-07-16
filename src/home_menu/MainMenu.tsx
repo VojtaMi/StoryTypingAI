@@ -3,6 +3,7 @@ import { genres } from "../genres";
 import { ModelSelector } from "../modelSelection/ModelSelector";
 import type { TextModelId } from "../models";
 import type { SavedStorySummary } from "../saves";
+import type { ReadingPreparationStatus } from "../story_session/useReadingPreparation";
 import "./menu.css";
 import { SavedStories } from "./savedStories/SavedStories";
 
@@ -11,10 +12,12 @@ interface MainMenuProps {
 	savesError: string | null;
 	model: TextModelId;
 	hasLessonProgress: boolean;
+	readingStoryStatus: ReadingPreparationStatus;
 	onModelChange: (id: TextModelId) => void;
 	onSelect: (genre: Genre) => void;
 	onStartLesson: () => void;
 	onStartReadingStory: () => void;
+	onRetryReadingStory: () => void;
 	onResume: (id: string) => void;
 	onDelete: (id: string) => void;
 }
@@ -24,10 +27,12 @@ export default function MainMenu({
 	savesError,
 	model,
 	hasLessonProgress,
+	readingStoryStatus,
 	onModelChange,
 	onSelect,
 	onStartLesson,
 	onStartReadingStory,
+	onRetryReadingStory,
 	onResume,
 	onDelete,
 }: MainMenuProps) {
@@ -36,6 +41,9 @@ export default function MainMenu({
 	const lessonSaves = savedStories.filter(
 		(story) => story.genreId === "esperanto",
 	);
+	const makingReadingStory =
+		readingStoryStatus === "finalizing" || readingStoryStatus === "preparing";
+	const readingStoryFailed = readingStoryStatus === "error";
 
 	return (
 		<div className="menu">
@@ -59,10 +67,20 @@ export default function MainMenu({
 						</button>
 						<button
 							type="button"
-							className="lesson-hero__start lesson-hero__start--secondary"
-							onClick={onStartReadingStory}
+							className={`lesson-hero__start lesson-hero__start--secondary${
+								makingReadingStory ? " lesson-hero__start--making" : ""
+							}`}
+							onClick={
+								readingStoryFailed ? onRetryReadingStory : onStartReadingStory
+							}
+							disabled={makingReadingStory}
+							aria-busy={makingReadingStory}
 						>
-							Reading Story
+							{makingReadingStory
+								? "Making story…"
+								: readingStoryFailed
+									? "Retry story"
+									: "Reading Story"}
 						</button>
 					</div>
 				</div>
