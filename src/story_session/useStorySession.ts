@@ -4,7 +4,6 @@ import {
 	type ChatMessage,
 	continueStoryStream,
 	generateOpeningAudio,
-	generateReadingStory,
 	generateStoryBackgroundImage,
 	generateStoryIntro,
 	generateStoryRecapLesson,
@@ -206,6 +205,7 @@ export function useStorySession({
 	const readingPreparation = useReadingPreparation(model);
 	const {
 		makeNextStory: makeNextReadingStory,
+		retry: retryReadingPreparationLifecycle,
 		markConsumed: markReadingStoryConsumed,
 	} = readingPreparation;
 
@@ -750,6 +750,27 @@ export function useStorySession({
 	const startReadingStory = useCallback(async () => {
 		const selected = genres.find((g) => g.id === "esperanto") ?? genres[0];
 
+		let preparedOpening: Awaited<
+			ReturnType<typeof consumePreparedReadingOpening>
+		> = null;
+		try {
+			preparedOpening = await consumePreparedReadingOpening(selected.id);
+		} catch (err) {
+			console.warn("Could not consume a prepared reading opening.", err);
+		}
+		if (!preparedOpening) {
+			// Nothing was consumed, so there is no queued story to start and
+			// nothing for the lifecycle to fold in. Generating one here would
+			// bypass the lifecycle that keeps prepared stories in sync with
+			// finalized evidence, so refuse instead and leave the menu in place
+			// for preparation (or a retry of it) to fill the queue.
+			retryReadingPreparationLifecycle();
+			return;
+		}
+		// The queue is empty from here until this story is finished and
+		// finalized; nothing prepares a replacement in the meantime.
+		markReadingStoryConsumed();
+
 		readingMediaRef.current.reset();
 		storyFeedbackSubmittedAtRef.current = null;
 		botQuestionsRef.current = [];
@@ -772,43 +793,21 @@ export function useStorySession({
 		setPhase("loading");
 		onViewChange("story");
 		try {
-			let preparedOpening: Awaited<
-				ReturnType<typeof consumePreparedReadingOpening>
-			> = null;
-			try {
-				preparedOpening = await consumePreparedReadingOpening(selected.id);
-			} catch (err) {
-				console.warn("Could not consume a prepared reading opening.", err);
-			}
-			// The queue is empty from here until this story is finished and
-			// finalized; nothing prepares a replacement in the meantime.
-			markReadingStoryConsumed();
-
 			const nextNarrationVoice = isNarrationVoiceId(
-				preparedOpening?.narrationVoice,
+				preparedOpening.narrationVoice,
 			)
 				? preparedOpening.narrationVoice
 				: pickRandomNarrationVoice();
 			narrationVoiceRef.current = nextNarrationVoice;
 			setNarrationVoice(nextNarrationVoice);
 
-			// The queued story is already complete; without one, generate a whole
-			// story here. Either way this is the last text generation this story makes.
-			const story =
-				preparedOpening?.readingStory ??
-				(await generateReadingStory(selected, model));
-			const usePreparedBundle = Boolean(
-				preparedOpening?.id && preparedOpening.readingStory,
-			);
+			const story = preparedOpening.readingStory;
 			const firstPart = story.parts[0];
 			if (!firstPart) throw new Error("The reading story has no parts.");
 
 			const text = firstPart.text;
 			const title = story.title.trim() || fallbackTitle(selected);
-			const saveId =
-				usePreparedBundle && preparedOpening?.id
-					? preparedOpening.id
-					: createSaveId(title);
+			const saveId = preparedOpening.id;
 			activeSaveIdRef.current = saveId;
 			setActiveSaveId(saveId);
 			setActiveTitle(title);
@@ -825,31 +824,30 @@ export function useStorySession({
 
 			// Part 1's media was prepared with the queued story: hand it to the media
 			// owner so nothing regenerates what we already have.
-			if (usePreparedBundle && preparedOpening) {
-				if (
-					preparedOpening.openingAudioUrl &&
-					preparedOpening.openingAudioSource === "generated" &&
-					preparedOpening.openingAudioVoice === nextNarrationVoice
-				) {
-					readingMediaRef.current.seed(firstSection, {
-						openingAudio: {
-							openingAudioUrl: preparedOpening.openingAudioUrl,
-							openingAudioSource: preparedOpening.openingAudioSource,
-							openingAudioText: preparedOpening.openingAudioText ?? text,
-							openingAudioVoice: preparedOpening.openingAudioVoice,
-						},
-					});
-				}
-				if (preparedOpening.backgroundImageSource === "generated") {
-					readingMediaRef.current.seed(firstSection, {
-						backgroundImage: backgroundFromOpening(preparedOpening, selected),
-					});
-				}
+			if (
+				preparedOpening.openingAudioUrl &&
+				preparedOpening.openingAudioSource === "generated" &&
+				preparedOpening.openingAudioVoice === nextNarrationVoice
+			) {
+				readingMediaRef.current.seed(firstSection, {
+					openingAudio: {
+						openingAudioUrl: preparedOpening.openingAudioUrl,
+						openingAudioSource: preparedOpening.openingAudioSource,
+						openingAudioText: preparedOpening.openingAudioText ?? text,
+						openingAudioVoice: preparedOpening.openingAudioVoice,
+					},
+				});
+			}
+			if (preparedOpening.backgroundImageSource === "generated") {
+				readingMediaRef.current.seed(firstSection, {
+					backgroundImage: backgroundFromOpening(preparedOpening, selected),
+				});
 			}
 
-			const nextBackgroundImage = usePreparedBundle
-				? backgroundFromOpening(preparedOpening ?? {}, selected)
-				: fallbackBackgroundImage(selected);
+			const nextBackgroundImage = backgroundFromOpening(
+				preparedOpening,
+				selected,
+			);
 			const nextOpeningAudio =
 				await readingMediaRef.current.requestAudio(firstSection);
 			setMessages(seeded);
@@ -889,10 +887,10 @@ export function useStorySession({
 	}, [
 		applyReadingBackground,
 		markReadingStoryConsumed,
-		model,
 		onViewChange,
 		persistStory,
 		prepareNextReadingSection,
+		retryReadingPreparationLifecycle,
 	]);
 
 	const startLessonStory = useCallback(

@@ -3,7 +3,10 @@ import { genres } from "../genres";
 import { ModelSelector } from "../modelSelection/ModelSelector";
 import type { TextModelId } from "../models";
 import type { SavedStorySummary } from "../saves";
-import type { ReadingPreparationStatus } from "../story_session/useReadingPreparation";
+import {
+	isReadingPreparationBusy,
+	type ReadingPreparationStatus,
+} from "../story_session/useReadingPreparation";
 import "./menu.css";
 import { SavedStories } from "./savedStories/SavedStories";
 
@@ -41,8 +44,7 @@ export default function MainMenu({
 	const lessonSaves = savedStories.filter(
 		(story) => story.genreId === "esperanto",
 	);
-	const makingReadingStory =
-		readingStoryStatus === "finalizing" || readingStoryStatus === "preparing";
+	const makingReadingStory = isReadingPreparationBusy(readingStoryStatus);
 	const readingStoryFailed = readingStoryStatus === "error";
 
 	return (

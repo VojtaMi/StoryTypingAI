@@ -93,14 +93,24 @@ prepare queued reading story → consume it → reveal finite sections
 
 Concretely:
 
-1. While the menu is up, `story_session` asks the server to keep the reading
-   queue full. The server generates a **complete story** — title, story summary,
-   characters, setting, and all six parts of Esperanto prose — in a single call
-   against the learner profile, preferences, story memory, and genre guidance,
-   then prepares part 1's narration and image alongside it.
-2. Starting a reading story consumes that queued story whole. If the queue is
-   empty, the session generates a complete story on the spot; either way **this
-   is the last prose generation the story ever makes**.
+1. The reading queue holds at most one story, and `useReadingPreparation`
+   (`src/story_session/useReadingPreparation.ts`) is its only writer. Unlike
+   typing openings, nothing prepares a reading story just because the menu is
+   up: finishing a story finalizes its evidence, then prepares exactly the next
+   one, so the story generated always sees the state the one before it just
+   produced. The exception is the very first story — nothing has finished yet,
+   so there is no evidence to finalize, and preparation runs immediately with
+   that step skipped. Either way, the server generates a **complete story** —
+   title, story summary, characters, setting, and all six parts of Esperanto
+   prose — in a single call against the learner profile, preferences, story
+   memory, and genre guidance, then prepares part 1's narration and image
+   alongside it.
+2. Starting a reading story consumes that queued story whole — **this is the
+   last prose generation the story ever makes**. If the queue is empty,
+   `startReadingStory` refuses to start rather than generating one on the
+   spot: doing so would bypass the finalize-then-prepare ordering above.
+   Instead it (re)triggers preparation and leaves the learner on the menu,
+   where the button is disabled until a story is ready.
 3. A story is only accepted if it parses as a complete six-part story with
    non-empty prose in every part. A truncated or short story is repaired once,
    and then rejected — a partial story is never saved as if it were complete.

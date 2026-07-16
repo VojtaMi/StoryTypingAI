@@ -55,6 +55,8 @@ data automatically; report when existing data has become unsupported.
 
 A change with a UI surface is not done until the page has been rendered. `npm run verify:page -- <url> [--expect-text "..."]` drives a real browser and exits non-zero on navigation failure, any console error, any uncaught page error, any failed request, or missing text. Screenshots go to the gitignored `.artifacts/`.
 
+Before running `npm run dev`, check whether it's already running (`ss -ltnp | grep -E ':(3001|5173)'`). This repo's dev server is often left running across sessions; starting a second instance fails on `EADDRINUSE` for the API port (3001) while silently spawning a duplicate Vite instance on the next port up.
+
 ## Delegating Implementation to Codex
 
 Use the `delegate-to-codex` skill, and run it via `scripts/delegate-to-codex.sh`. Codex's sandbox flags are load-bearing: without them it cannot render the page it just changed, and will report the work as done anyway.

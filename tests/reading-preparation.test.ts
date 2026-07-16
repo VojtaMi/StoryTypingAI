@@ -10,9 +10,12 @@ import assert from "node:assert/strict";
  * effects as arguments, so these assert the property directly — no React, no
  * provider.
  */
-const { runReadingPreparation, decideReadingPreparationOnLoad } = await import(
-	"../src/story_session/useReadingPreparation.ts"
-);
+const {
+	runReadingPreparation,
+	runInitialReadingPreparation,
+	decideReadingPreparationOnLoad,
+	isReadingPreparationBusy,
+} = await import("../src/story_session/useReadingPreparation.ts");
 
 type Status = string;
 
@@ -175,13 +178,23 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 		"ready",
 	);
 
-	// Nothing finished, nothing queued: a first-ever story is started on demand.
+	// Nothing finished, nothing queued: an empty initial queue (a fresh install,
+	// or every reading story and the queue having been cleared) must start
+	// preparation, not sit idle with an enabled button and no story behind it.
 	assert.equal(
 		decideReadingPreparationOnLoad({
 			preparedCount: 0,
 			hasPendingEvidence: false,
 		}),
+		"initial",
+	);
+	assert.notEqual(
+		decideReadingPreparationOnLoad({
+			preparedCount: 0,
+			hasPendingEvidence: false,
+		}),
 		"idle",
+		"an empty initial queue must not be reported as idle",
 	);
 
 	assert.equal(
@@ -192,6 +205,66 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 		"ready",
 	);
 	console.log("checked reading preparation: a reload resumes a dead lifecycle");
+}
+
+{
+	// The very first reading story has no previous story to finalize, so the
+	// initial pass must skip straight to `preparing` — never `finalizing`.
+	const { statuses, setStatus } = recorder();
+
+	const settled = await runInitialReadingPreparation({
+		prepare: async () => ({ length: 1 }),
+		setStatus,
+	});
+
+	assert.equal(settled, "ready");
+	assert.deepEqual(statuses, ["preparing", "ready"]);
+	console.log(
+		"checked reading preparation: initial preparation skips finalizing",
+	);
+}
+
+{
+	// An empty result from the initial pass is a failure too, exactly like the
+	// finalize-first lifecycle — "ready" would promise a story the menu cannot
+	// consume.
+	const { statuses, setStatus } = recorder();
+
+	const settled = await runInitialReadingPreparation({
+		prepare: async () => ({ length: 0 }),
+		setStatus,
+	});
+
+	assert.equal(settled, "error");
+	assert.deepEqual(statuses, ["preparing", "error"]);
+	console.log(
+		"checked reading preparation: an empty initial queue is not ready",
+	);
+}
+
+{
+	// The button-disabled property the menu relies on: the empty-initial-queue
+	// decision must land on a status that reports busy, so the "Reading Story"
+	// button is disabled instead of falling through to a direct-generation
+	// fallback.
+	const decision = decideReadingPreparationOnLoad({
+		preparedCount: 0,
+		hasPendingEvidence: false,
+	});
+	assert.equal(decision, "initial");
+	assert.equal(
+		isReadingPreparationBusy("preparing"),
+		true,
+		"the status an initial decision leads to must disable the button",
+	);
+	assert.equal(
+		isReadingPreparationBusy("idle"),
+		false,
+		"idle does not disable the button, which is exactly why an empty initial queue must not resolve to idle",
+	);
+	console.log(
+		"checked reading preparation: an empty initial queue disables the Reading Story button",
+	);
 }
 
 console.log("reading preparation checks passed");
