@@ -111,7 +111,10 @@ export function OpeningAudioControl({
 
 	const previewSeek = useCallback(
 		(event: React.ChangeEvent<HTMLInputElement>) => {
-			setCurrentTime(Number(event.target.value));
+			const nextTime = Number(event.target.value);
+			setCurrentTime(nextTime);
+			const audio = audioRef.current;
+			if (audio) audio.currentTime = nextTime;
 		},
 		[],
 	);
