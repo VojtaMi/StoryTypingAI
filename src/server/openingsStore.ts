@@ -467,7 +467,7 @@ export async function createBackgroundImage(
 		options.visualContext,
 	);
 	const key = [genre.id, storyId, options.sectionIndex ?? "none", prompt].join(
-		" ",
+		"\0",
 	);
 	const inFlight = backgroundImagesInFlight.get(key);
 	if (inFlight) return inFlight;
