@@ -30,18 +30,16 @@ hold things that cannot be regenerated at all.
 
 `stories/<id>/finish-evidence.json` is the control state for folding a finished
 reading story's evidence into the learner handouts. It makes finalization
-idempotent: `baselineRefinedAt` guards the one-time baseline (the profile +
-story-memory refine from the story summary, this story's word lookups, and the
-learner's tutor questions), `feedbackRefinedAt` + `appliedFeedback` guard a late
-feedback-only update tied to this same story, and `recapRefinedAt` +
-`recapResultsHash` guard the recap refine. It also stores the story summary (as
-context for a later feedback update) and separate aggregated story-scoped and
-unscoped word lookups (audit only). It is regenerated bookkeeping — safe to delete, at the cost of possibly
-re-folding a story's evidence if it is refinalized.
+idempotent: `finalizedAt` guards the one-time finalization of the story summary,
+recap results, feedback, learner questions, and word lookups. It also stores the
+story summary, feedback, recap results, and separate aggregated story-scoped and
+unscoped word lookups (audit only). If a late question or feedback arrives, only
+the new delta is applied. It is regenerated bookkeeping — safe to delete, at the
+cost of possibly re-folding a story's evidence if it is refinalized.
 
 **Recovery is not transactional.** The baseline writes the profile, the story
 memory, and this record as three separate files. A crash between them can leave a
-partial state; because `baselineRefinedAt` is written *last*, recovery re-runs
+partial state; because `finalizedAt` is written *last*, recovery re-runs
 (repeats) a refinement rather than skipping a half-applied one. A transactional
 structured state is future work; for now a repeat is the accepted failure.
 

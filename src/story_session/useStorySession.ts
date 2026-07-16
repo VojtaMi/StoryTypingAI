@@ -3,18 +3,16 @@ import {
 	autoContinueStoryStream,
 	type ChatMessage,
 	continueStoryStream,
+	finalizeReadingStoryEvidence,
 	generateOpeningAudio,
 	generateReadingStory,
 	generateStoryBackgroundImage,
 	generateStoryIntro,
 	generateStoryRecapLesson,
 	type ReadingStory,
-	refineLearnerProfileFromRecap,
-	refineLearnerProfileFromStory,
 	regenerateWordTranslation,
 	type StoryMemory,
 	startStory,
-	submitStoryFeedbackRefine,
 	titleStory,
 	translateWords,
 } from "../ai";
@@ -194,6 +192,8 @@ export function useStorySession({
 	const readingPartIndexRef = useRef<number | null>(null);
 	const narrationVoiceRef = useRef<NarrationVoiceId>(DEFAULT_NARRATION_VOICE);
 	const storyRecapLessonRef = useRef<StoryRecapLesson | null>(null);
+	const storyRecapResultsRef = useRef<StoryRecapExerciseResult[]>([]);
+	const storyFeedbackRef = useRef<string | null>(null);
 	const storyFeedbackSubmittedAtRef = useRef<string | null>(null);
 	// Interactive continuity: the learner's tutor questions asked while reading are
 	// buffered here (deduped, bounded) and folded once into the baseline at story
@@ -289,6 +289,9 @@ export function useStorySession({
 		(input: Parameters<typeof buildStorySaveSnapshot>[0]) =>
 			buildStorySaveSnapshot({
 				...input,
+				storyRecapResults: storyRecapResultsRef.current,
+				storyLearnerQuestions: botQuestionsRef.current,
+				storyFeedback: storyFeedbackRef.current ?? undefined,
 				storyFeedbackSubmittedAt:
 					storyFeedbackSubmittedAtRef.current ?? undefined,
 			}),
@@ -630,6 +633,8 @@ export function useStorySession({
 			readingMediaRef.current.reset();
 			storyFeedbackSubmittedAtRef.current = null;
 			botQuestionsRef.current = [];
+			storyFeedbackRef.current = null;
+			storyRecapResultsRef.current = [];
 			setStoryFeedbackSubmittedAt(null);
 			setGenre(selected);
 			setMessages([]);
@@ -764,6 +769,8 @@ export function useStorySession({
 		readingMediaRef.current.reset();
 		storyFeedbackSubmittedAtRef.current = null;
 		botQuestionsRef.current = [];
+		storyFeedbackRef.current = null;
+		storyRecapResultsRef.current = [];
 		setStoryFeedbackSubmittedAt(null);
 		setGenre(selected);
 		setMessages([]);
@@ -920,6 +927,8 @@ export function useStorySession({
 			readingMediaRef.current.reset();
 			storyFeedbackSubmittedAtRef.current = null;
 			botQuestionsRef.current = [];
+			storyFeedbackRef.current = null;
+			storyRecapResultsRef.current = [];
 			setStoryFeedbackSubmittedAt(null);
 			narrationVoiceRef.current = nextNarrationVoice;
 			activeSaveIdRef.current = saveId;
@@ -1296,13 +1305,6 @@ export function useStorySession({
 					storyRecapLesson: null,
 				}),
 			);
-			if (activeSaveId) {
-				void refineLearnerProfileFromStory({
-					storyId: activeSaveId,
-					storySummary: readingStorySummary(readingStory),
-					learnerQuestions: botQuestionsRef.current,
-				});
-			}
 			void generateAndApplyStoryRecap(nextSegments);
 			return;
 		}
@@ -1385,9 +1387,9 @@ export function useStorySession({
 	const completeStoryRecap = useCallback(
 		(results: StoryRecapExerciseResult[] = []) => {
 			if (!genre || !activeSaveId) return;
+			storyRecapResultsRef.current = results;
 			setPhase("finished");
 			setStoryRecapError(null);
-			void refineLearnerProfileFromRecap(results, activeSaveId);
 			void persistStory(
 				makeStorySaveSnapshot.current({
 					id: activeSaveId,
@@ -1463,6 +1465,8 @@ export function useStorySession({
 
 		storyFeedbackSubmittedAtRef.current = null;
 		botQuestionsRef.current = [];
+		storyFeedbackRef.current = null;
+		storyRecapResultsRef.current = [];
 		setStoryFeedbackSubmittedAt(null);
 
 		setStoryRecapLesson(null);
@@ -1513,7 +1517,25 @@ export function useStorySession({
 		segments,
 	]);
 
+	const finalizeReadingEvidence = useCallback((feedback?: string) => {
+		const story = readingStoryRef.current;
+		const saveId = activeSaveIdRef.current;
+		if (!story || !saveId || phaseRef.current !== "finished") return;
+		void finalizeReadingStoryEvidence({
+			storyId: saveId,
+			storySummary: readingStorySummary(story),
+			learnerQuestions: botQuestionsRef.current,
+			recapResults: storyRecapResultsRef.current,
+			...(feedback?.trim() ? { feedback: feedback.trim() } : {}),
+		}).catch((err) => {
+			console.warn("Could not finalize reading story evidence.", err);
+		});
+	}, []);
+
 	const backToMenu = useCallback(() => {
+		if (readingStory && activeSaveId && phase === "finished") {
+			finalizeReadingEvidence(storyFeedbackRef.current ?? undefined);
+		}
 		if (genre && activeSaveId) {
 			void persistStory(
 				makeStorySaveSnapshot.current({
@@ -1576,6 +1598,7 @@ export function useStorySession({
 		readingPartIndex,
 		narrationVoice,
 		segments,
+		finalizeReadingEvidence,
 	]);
 
 	const resumeStory = useCallback(
@@ -1644,6 +1667,9 @@ export function useStorySession({
 				setOpeningAudio(savedOpeningAudio);
 				storyRecapLessonRef.current = save.storyRecapLesson ?? null;
 				setStoryRecapLesson(save.storyRecapLesson ?? null);
+				storyRecapResultsRef.current = save.storyRecapResults ?? [];
+				botQuestionsRef.current = save.storyLearnerQuestions ?? [];
+				storyFeedbackRef.current = save.storyFeedback ?? null;
 				storyFeedbackSubmittedAtRef.current =
 					save.storyFeedbackSubmittedAt ?? null;
 				setStoryFeedbackSubmittedAt(save.storyFeedbackSubmittedAt ?? null);
@@ -1717,6 +1743,8 @@ export function useStorySession({
 	const submitStoryFeedback = useCallback(
 		(feedback: string) => {
 			const submittedAt = new Date().toISOString();
+			const cleanFeedback = feedback.trim();
+			storyFeedbackRef.current = cleanFeedback;
 			storyFeedbackSubmittedAtRef.current = submittedAt;
 			setStoryFeedbackSubmittedAt(submittedAt);
 			if (genre && activeSaveId) {
@@ -1740,10 +1768,8 @@ export function useStorySession({
 					}),
 				);
 			}
-			// A late, feedback-only update tied to THIS story — never the baseline,
-			// so it can't consume the next story's word lookups.
-			if (activeSaveId) {
-				void submitStoryFeedbackRefine(activeSaveId, feedback);
+			if (readingStory && phase === "finished") {
+				finalizeReadingEvidence(cleanFeedback);
 			}
 		},
 		[
@@ -1762,22 +1788,65 @@ export function useStorySession({
 			readingStory,
 			readingPartIndex,
 			segments,
+			finalizeReadingEvidence,
 		],
 	);
 
 	// The tutor chat hands the learner's questions here as it closes, instead of
 	// refining the profile immediately, so they fold once into the baseline at
 	// story end. Deduped and bounded so repeated opens can't bloat the evidence.
-	const captureBotQuestions = useCallback((questions: string[]) => {
-		const seen = new Set(botQuestionsRef.current);
-		for (const raw of questions) {
-			if (botQuestionsRef.current.length >= MAX_BUFFERED_BOT_QUESTIONS) break;
-			const question = raw.trim().slice(0, MAX_BOT_QUESTION_CHARS);
-			if (!question || seen.has(question)) continue;
-			seen.add(question);
-			botQuestionsRef.current.push(question);
-		}
-	}, []);
+	const captureBotQuestions = useCallback(
+		(questions: string[]) => {
+			const seen = new Set(botQuestionsRef.current);
+			let changed = false;
+			for (const raw of questions) {
+				if (botQuestionsRef.current.length >= MAX_BUFFERED_BOT_QUESTIONS) break;
+				const question = raw.trim().slice(0, MAX_BOT_QUESTION_CHARS);
+				if (!question || seen.has(question)) continue;
+				seen.add(question);
+				botQuestionsRef.current.push(question);
+				changed = true;
+			}
+			if (changed && genre && activeSaveId && readingStory) {
+				void persistStory(
+					makeStorySaveSnapshot.current({
+						id: activeSaveId,
+						genre,
+						title: activeTitle ?? fallbackTitle(genre),
+						messages,
+						memory,
+						segments,
+						currentTarget,
+						phase,
+						backgroundIntro: backgroundIntro ?? undefined,
+						backgroundImage,
+						openingAudio,
+						readingStory,
+						readingPartIndex: readingPartIndex ?? undefined,
+						narrationVoice,
+						storyRecapLesson: storyRecapLessonRef.current,
+					}),
+				);
+			}
+		},
+		[
+			activeSaveId,
+			activeTitle,
+			backgroundImage,
+			backgroundIntro,
+			currentTarget,
+			genre,
+			memory,
+			messages,
+			narrationVoice,
+			openingAudio,
+			persistStory,
+			phase,
+			readingPartIndex,
+			readingStory,
+			segments,
+		],
+	);
 
 	const handleRegenerateWord = useCallback(
 		async (word: string): Promise<string | null> => {

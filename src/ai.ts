@@ -254,8 +254,10 @@ export async function refineLearnerProfileFromChat(
 
 export interface StoryFinishEvidence {
 	storyId: string;
-	storySummary?: string;
+	storySummary: string;
 	learnerQuestions?: string[];
+	recapResults: StoryRecapExerciseResult[];
+	feedback?: string;
 }
 
 /**
@@ -264,38 +266,10 @@ export interface StoryFinishEvidence {
  * and the learner's buffered tutor questions into the handout. Idempotent on the
  * server, so calling it more than once for a story is safe.
  */
-export async function refineLearnerProfileFromStory(
+export async function finalizeReadingStoryEvidence(
 	evidence: StoryFinishEvidence,
 ): Promise<void> {
-	return refineLearnerProfile("refine-story", {
-		storyId: evidence.storyId,
-		storySummary: evidence.storySummary,
-		learnerQuestions: evidence.learnerQuestions,
-	});
-}
-
-/**
- * A late custom-feedback update, applied to this story only. Never touches the
- * global word cursor, so it can't consume the next story's lookups.
- */
-export async function submitStoryFeedbackRefine(
-	storyId: string,
-	feedback: string,
-): Promise<void> {
-	if (!feedback.trim()) return;
-	return refineLearnerProfile("refine-story-feedback", { storyId, feedback });
-}
-
-/**
- * Folds the learner's answers on the end-of-story recap quiz (correct on first
- * attempt vs. needed retries) into the learner handout.
- */
-export async function refineLearnerProfileFromRecap(
-	results: StoryRecapExerciseResult[],
-	storyId?: string,
-): Promise<void> {
-	if (results.length === 0) return;
-	return refineLearnerProfile("refine-recap", { storyId, results });
+	return refineLearnerProfile("finalize-story", evidence);
 }
 
 /**

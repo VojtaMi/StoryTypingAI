@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import type { StoryRecapEvidenceItem } from "./learnerProfileService";
 import { bundledFinishEvidencePath } from "./storyBundleStore";
 
 /** One word looked up during a reading story, with how many times it was clicked. */
@@ -11,31 +12,25 @@ export interface FinishEvidenceLookup {
 /**
  * The per-story finalization record, persisted beside the story save at
  * `stories/<storyId>/finish-evidence.json`. It is the control state that makes
- * story-finish finalization idempotent: the baseline evidence is applied once
- * (guarded by `baselineRefinedAt`), a late feedback update is applied to this
- * same story only (never leaking into the next), and each stamp records when a
- * refinement was durably folded into the Markdown handouts.
+ * story-finish finalization idempotent: the complete evidence bundle is applied
+ * once, and late evidence is applied to this same story only.
  */
 export interface StoryFinishEvidenceRecord {
 	storyId: string;
-	/** Set LAST, once the profile + story-memory writes for the baseline complete. */
-	baselineRefinedAt?: string;
-	/** Set once a late custom-feedback update has been folded in. */
-	feedbackRefinedAt?: string;
-	/** Set once the recap quiz results have been folded in. */
-	recapRefinedAt?: string;
-	/** Stable hash of the last recap results, so an identical resubmit is a no-op. */
-	recapResultsHash?: string;
+	/** Set once the complete story evidence bundle has been folded. */
+	finalizedAt?: string;
+	/** Learner questions included in the final evidence bundle. */
+	learnerQuestions?: string[];
+	/** Recap results included in the final evidence bundle. */
+	recapResults?: StoryRecapEvidenceItem[];
+	/** Custom feedback included in the final evidence bundle. */
+	feedback?: string;
 	/** The story summary, kept purely as context for a later feedback update. */
 	storySummary?: string;
 	/** The aggregated, story-scoped word lookups folded at baseline. Audit only. */
 	wordLookups?: FinishEvidenceLookup[];
 	/** Unscoped menu/tutor lookups folded through the global cursor at baseline. Audit only. */
 	globalWordLookups?: FinishEvidenceLookup[];
-	/** Feedback that arrived before the baseline finished; applied when it does. */
-	pendingFeedback?: string;
-	/** The last feedback applied, so re-submitting identical feedback is a no-op. */
-	appliedFeedback?: string;
 }
 
 const writeQueues = new Map<string, Promise<void>>();
@@ -53,7 +48,30 @@ export async function readFinishEvidence(
 			await readFile(bundledFinishEvidencePath(storyId), "utf8"),
 		) as StoryFinishEvidenceRecord;
 		if (parsed && typeof parsed === "object") {
-			return { ...parsed, storyId };
+			return {
+				storyId,
+				...(typeof parsed.finalizedAt === "string"
+					? { finalizedAt: parsed.finalizedAt }
+					: {}),
+				...(Array.isArray(parsed.learnerQuestions)
+					? { learnerQuestions: parsed.learnerQuestions }
+					: {}),
+				...(Array.isArray(parsed.recapResults)
+					? { recapResults: parsed.recapResults }
+					: {}),
+				...(typeof parsed.feedback === "string"
+					? { feedback: parsed.feedback }
+					: {}),
+				...(typeof parsed.storySummary === "string"
+					? { storySummary: parsed.storySummary }
+					: {}),
+				...(Array.isArray(parsed.wordLookups)
+					? { wordLookups: parsed.wordLookups }
+					: {}),
+				...(Array.isArray(parsed.globalWordLookups)
+					? { globalWordLookups: parsed.globalWordLookups }
+					: {}),
+			};
 		}
 	} catch {
 		// Missing or unreadable → treat as "never finalized".

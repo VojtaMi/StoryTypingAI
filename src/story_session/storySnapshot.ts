@@ -5,7 +5,7 @@ import type { NarrationVoiceId } from "../narrationVoice";
 import type { SavedStory } from "../saves";
 import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
-import type { StoryRecapLesson } from "../storyRecap";
+import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
 
 interface StorySaveSnapshotInput {
 	id: string;
@@ -23,6 +23,9 @@ interface StorySaveSnapshotInput {
 	backgroundImage?: StoryBackgroundImage | null;
 	openingAudio?: StoryOpeningAudio | null;
 	storyRecapLesson?: StoryRecapLesson | null;
+	storyRecapResults?: StoryRecapExerciseResult[];
+	storyLearnerQuestions?: string[];
+	storyFeedback?: string | null;
 	storyFeedbackSubmittedAt?: string | null;
 }
 
@@ -65,6 +68,9 @@ export function buildStorySaveSnapshot({
 	backgroundImage,
 	openingAudio,
 	storyRecapLesson,
+	storyRecapResults,
+	storyLearnerQuestions,
+	storyFeedback,
 	storyFeedbackSubmittedAt,
 }: StorySaveSnapshotInput): Omit<SavedStory, "updatedAt"> {
 	return {
@@ -81,6 +87,9 @@ export function buildStorySaveSnapshot({
 		readingStory,
 		readingPartIndex,
 		storyRecapLesson: storyRecapLesson ?? undefined,
+		storyRecapResults: storyRecapResults ?? undefined,
+		storyLearnerQuestions: storyLearnerQuestions ?? undefined,
+		storyFeedback: storyFeedback ?? undefined,
 		...(backgroundImage ?? undefined),
 		...(openingAudio ?? undefined),
 		...(storyFeedbackSubmittedAt ? { storyFeedbackSubmittedAt } : {}),

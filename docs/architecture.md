@@ -119,16 +119,13 @@ Concretely:
    previous one on screen. Because the whole story is known up front, that
    cadence is a property of the section number, not of accumulated history.
 7. After the last section the session generates a recap lesson from the finished
-   prose, and runs the **finish baseline**: it refines the learner profile from the
-   story summary, this story's word lookups, and the learner's buffered tutor
-   questions, and the story memory from the story's motifs. The baseline is
-   idempotent — it runs at most once per story, guarded by the story's
-   `finish-evidence.json`. See [ai-workflows.md](./ai-workflows.md#the-story-finish-evidence-manager).
-8. Completing the recap refines the profile again from the quiz results
-   (first-try answers are strong evidence of real command; retries are evidence
-   of a gap). Story feedback, if the learner gives it, applies a late
-   feedback-only update to that same story — never the baseline, so it can't
-   consume the next story's evidence.
+   prose and stores it in the save. No learner handout refinement runs yet.
+8. When the learner completes the recap and submits feedback, or leaves the
+   finished story without custom feedback, one finalization request sends the
+   recap results, feedback, story-scoped word lookups, and buffered learner tutor
+   questions together. The server refines the profile and story memory once per
+   story, guarded by `finish-evidence.json`; repeated navigation is safe. See
+   [ai-workflows.md](./ai-workflows.md#the-story-finish-evidence-manager).
 
 ### Why they stay separate
 

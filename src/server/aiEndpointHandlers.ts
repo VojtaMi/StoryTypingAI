@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
@@ -7,37 +6,27 @@ import { isNarrationVoiceId } from "../narrationVoice";
 import { completeAi, streamAi, translateWords } from "./aiService";
 import { withAiTraceMetadata } from "./aiTrace";
 import { readBody, sendJson } from "./http";
+import { enqueueLearnerProfileMutation } from "./learnerProfileMutationQueue";
 import {
 	refineLearnerPreferencesFromChat,
 	refineLearnerProfile,
-	refineLearnerProfileFromRecap,
-	refineLearnerProfileFromStory,
-	refineStoryMemoryFromStory,
 } from "./learnerProfileService";
 import {
 	readLearnerContext,
 	readLearnerPreferences,
 	readLearnerProfile,
-	readStoryMemory,
 	writeLearnerPreferences,
 	writeLearnerProfile,
-	writeStoryMemory,
 } from "./learnerProfileStore";
-import {
-	advanceWordLogCursor,
-	appendLearnerWordLogEntry,
-	pruneWordLogForStory,
-	readWordLookupsForStory,
-	readWordLookupsSinceLastRefine,
-} from "./learnerWordLogStore";
+import { appendLearnerWordLogEntry } from "./learnerWordLogStore";
 import { startNdjsonResponse, writeJsonLine } from "./ndjson";
 import { createBackgroundImage, findGenre } from "./openingsStore";
 import { saveIdPattern } from "./savesStore";
 import { createOpeningAudio } from "./storyAudioStore";
 import {
-	readFinishEvidence,
-	updateFinishEvidence,
-} from "./storyFinishEvidenceStore";
+	finalizeStoryEvidence,
+	type StoryFinalizationInput,
+} from "./storyFinalizationService";
 import {
 	evictWord,
 	lookupWords,
@@ -49,7 +38,6 @@ import {
 	wordFilePattern,
 } from "./wordAudioStore";
 
-let learnerProfileRefineQueue: Promise<void> = Promise.resolve();
 const learnerWordPattern = /^[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+$/u;
 
 export async function handleBackgroundImageRequest(
@@ -283,40 +271,34 @@ export async function handleLearnerProfileRefineRequest(
 
 	let responseProfile = await readLearnerProfile();
 	try {
-		const refineTask = learnerProfileRefineQueue
-			.catch(() => undefined)
-			.then(async () => {
-				const [currentProfile, currentPreferences] = await Promise.all([
-					readLearnerProfile(),
-					readLearnerPreferences(),
-				]);
-				const today = new Date().toISOString().slice(0, 10);
-				const [updated, updatedPreferences] = await Promise.all([
-					refineLearnerProfile(
-						openai,
-						currentProfile,
-						messages,
-						anthropicKey,
-						today,
-					),
-					refineLearnerPreferencesFromChat(
-						openai,
-						currentPreferences,
-						messages,
-						anthropicKey,
-						today,
-					),
-				]);
-				await Promise.all([
-					writeLearnerProfile(updated),
-					writeLearnerPreferences(updatedPreferences),
-				]);
-				responseProfile = updated;
-			});
-		learnerProfileRefineQueue = refineTask.then(
-			() => undefined,
-			() => undefined,
-		);
+		const refineTask = enqueueLearnerProfileMutation(async () => {
+			const [currentProfile, currentPreferences] = await Promise.all([
+				readLearnerProfile(),
+				readLearnerPreferences(),
+			]);
+			const today = new Date().toISOString().slice(0, 10);
+			const [updated, updatedPreferences] = await Promise.all([
+				refineLearnerProfile(
+					openai,
+					currentProfile,
+					messages,
+					anthropicKey,
+					today,
+				),
+				refineLearnerPreferencesFromChat(
+					openai,
+					currentPreferences,
+					messages,
+					anthropicKey,
+					today,
+				),
+			]);
+			await Promise.all([
+				writeLearnerProfile(updated),
+				writeLearnerPreferences(updatedPreferences),
+			]);
+			responseProfile = updated;
+		});
 		await refineTask;
 		sendJson(res, 200, { profile: responseProfile });
 	} catch (err) {
@@ -326,320 +308,67 @@ export async function handleLearnerProfileRefineRequest(
 	}
 }
 
-/**
- * Folds a story's own difficulty feedback into the profile and story memory.
- * Used both when late feedback arrives (feedback-only, same story) and when a
- * baseline finds feedback that raced ahead of it. Deliberately does NOT re-send
- * word lookups: those were already folded at baseline, and re-sending them would
- * teach the same words twice. `storySummary` is context only (which story).
- */
-async function applyStoryFeedbackUpdate(
-	openai: OpenAI,
-	anthropicKey: string,
-	storySummary: string | undefined,
-	feedback: string,
-): Promise<string> {
-	const [current, currentStoryMemory] = await Promise.all([
-		readLearnerProfile(),
-		readStoryMemory(),
-	]);
-	const today = new Date().toISOString().slice(0, 10);
-	const [updated, updatedStoryMemory] = await Promise.all([
-		refineLearnerProfileFromStory(
-			openai,
-			current,
-			{ storySummary, feedback },
-			anthropicKey,
-			today,
-		),
-		refineStoryMemoryFromStory(
-			openai,
-			currentStoryMemory,
-			{ storySummary, feedback },
-			anthropicKey,
-			today,
-		),
-	]);
-	await Promise.all([
-		writeLearnerProfile(updated),
-		writeStoryMemory(updatedStoryMemory),
-	]);
-	return updated;
-}
-
-/**
- * Baseline finalization when a reading story ends. Idempotent: the finish-evidence
- * record's `baselineRefinedAt` guards it so the two baseline calls (profile +
- * story memory) run at most once per story. Folds this story's scoped word
- * lookups plus any unscoped (menu/standalone) lookups since the global cursor,
- * plus the learner's buffered tutor questions. Applies any feedback that raced
- * ahead of it in the same pass.
- */
-export async function handleLearnerProfileStoryRefineRequest(
+export async function handleFinalizeStoryEvidenceRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
 	openai: OpenAI,
 	anthropicKey: string,
 ) {
-	const { storyId, storySummary, learnerQuestions } = JSON.parse(
+	const body = JSON.parse(
 		await readBody(req),
-	);
-	if (typeof storyId !== "string" || !saveIdPattern.test(storyId)) {
+	) as Partial<StoryFinalizationInput>;
+	if (typeof body.storyId !== "string" || !saveIdPattern.test(body.storyId)) {
 		sendJson(res, 400, { error: "storyId must be a valid story ID." });
 		return;
 	}
-	if (storySummary !== undefined && typeof storySummary !== "string") {
-		sendJson(res, 400, { error: "storySummary must be a string." });
+	if (typeof body.storySummary !== "string" || !body.storySummary.trim()) {
+		sendJson(res, 400, { error: "storySummary must be a non-empty string." });
 		return;
 	}
 	if (
-		learnerQuestions !== undefined &&
-		(!Array.isArray(learnerQuestions) ||
-			learnerQuestions.some((question) => typeof question !== "string"))
+		!Array.isArray(body.learnerQuestions) ||
+		body.learnerQuestions.some((question) => typeof question !== "string")
 	) {
-		sendJson(res, 400, { error: "learnerQuestions must be strings." });
+		sendJson(res, 400, {
+			error: "learnerQuestions must be an array of strings.",
+		});
 		return;
 	}
-
-	let responseProfile = await readLearnerProfile();
-	try {
-		const refineTask = learnerProfileRefineQueue
-			.catch(() => undefined)
-			.then(() =>
-				withAiTraceMetadata({ storyId, storyPhase: "finish" }, async () => {
-					const record = await readFinishEvidence(storyId);
-					if (record.baselineRefinedAt) {
-						// Apply-once: the baseline already ran for this story.
-						responseProfile = await readLearnerProfile();
-						return;
-					}
-
-					const [current, currentStoryMemory, scoped, unscoped] =
-						await Promise.all([
-							readLearnerProfile(),
-							readStoryMemory(),
-							readWordLookupsForStory(storyId),
-							readWordLookupsSinceLastRefine(),
-						]);
-					const today = new Date().toISOString().slice(0, 10);
-					const [updated, updatedStoryMemory] = await Promise.all([
-						refineLearnerProfileFromStory(
-							openai,
-							current,
-							{
-								storySummary,
-								wordLookups: [...scoped.lookups, ...unscoped.lookups],
-								learnerQuestions,
-							},
-							anthropicKey,
-							today,
-						),
-						refineStoryMemoryFromStory(
-							openai,
-							currentStoryMemory,
-							{ storySummary },
-							anthropicKey,
-							today,
-						),
-					]);
-					// Write order matters: durable handouts first, cursor/prune next, and
-					// the `baselineRefinedAt` stamp LAST — a crash before the stamp lands
-					// re-runs the baseline (a repeat) rather than skipping a partial write.
-					await writeLearnerProfile(updated);
-					await writeStoryMemory(updatedStoryMemory);
-					await pruneWordLogForStory(storyId);
-					if (unscoped.cursorCandidate) {
-						await advanceWordLogCursor(unscoped.cursorCandidate);
-					}
-
-					const now = new Date().toISOString();
-					let finalProfile = updated;
-					const patch: Parameters<typeof updateFinishEvidence>[1] = {
-						baselineRefinedAt: now,
-						storySummary,
-						wordLookups: scoped.aggregated,
-						globalWordLookups: unscoped.aggregated,
-					};
-					if (record.pendingFeedback?.trim()) {
-						finalProfile = await applyStoryFeedbackUpdate(
-							openai,
-							anthropicKey,
-							storySummary,
-							record.pendingFeedback,
-						);
-						patch.feedbackRefinedAt = now;
-						patch.appliedFeedback = record.pendingFeedback;
-						patch.pendingFeedback = undefined;
-					}
-					await updateFinishEvidence(storyId, patch);
-					responseProfile = finalProfile;
-				}),
-			);
-		learnerProfileRefineQueue = refineTask.then(
-			() => undefined,
-			() => undefined,
-		);
-		await refineTask;
-		sendJson(res, 200, { profile: responseProfile });
-	} catch (err) {
-		// Never break the story-finish flow: keep the existing profile on failure.
-		console.warn("Could not refine learner profile from story.", err);
-		sendJson(res, 200, { profile: responseProfile });
-	}
-}
-
-/**
- * A late custom-feedback update, applied to one story only. It never reads or
- * advances the global word cursor, so feedback submitted after the next story
- * has begun can't consume that story's lookups. If the baseline hasn't run yet,
- * the feedback is stashed as pending and applied when the baseline completes.
- */
-export async function handleStoryFeedbackRefineRequest(
-	req: IncomingMessage,
-	res: ServerResponse,
-	openai: OpenAI,
-	anthropicKey: string,
-) {
-	const { storyId, feedback } = JSON.parse(await readBody(req));
-	if (typeof storyId !== "string" || !saveIdPattern.test(storyId)) {
-		sendJson(res, 400, { error: "storyId must be a valid story ID." });
-		return;
-	}
-	if (typeof feedback !== "string" || !feedback.trim()) {
-		sendJson(res, 400, { error: "feedback must be a non-empty string." });
-		return;
-	}
-
-	let responseProfile = await readLearnerProfile();
-	try {
-		const refineTask = learnerProfileRefineQueue
-			.catch(() => undefined)
-			.then(() =>
-				withAiTraceMetadata({ storyId, storyPhase: "feedback" }, async () => {
-					const record = await readFinishEvidence(storyId);
-					if (!record.baselineRefinedAt) {
-						// Baseline hasn't run; don't reconstruct it. Stash the feedback so
-						// the baseline op (same queue) folds it when it completes.
-						await updateFinishEvidence(storyId, { pendingFeedback: feedback });
-						responseProfile = await readLearnerProfile();
-						return;
-					}
-					if (record.feedbackRefinedAt && record.appliedFeedback === feedback) {
-						// Idempotent: this exact feedback was already applied.
-						responseProfile = await readLearnerProfile();
-						return;
-					}
-					const updated = await applyStoryFeedbackUpdate(
-						openai,
-						anthropicKey,
-						record.storySummary,
-						feedback,
-					);
-					await updateFinishEvidence(storyId, {
-						feedbackRefinedAt: new Date().toISOString(),
-						appliedFeedback: feedback,
-					});
-					responseProfile = updated;
-				}),
-			);
-		learnerProfileRefineQueue = refineTask.then(
-			() => undefined,
-			() => undefined,
-		);
-		await refineTask;
-		sendJson(res, 200, { profile: responseProfile });
-	} catch (err) {
-		// Never break the story-finish flow: keep the existing profile on failure.
-		console.warn("Could not refine learner profile from feedback.", err);
-		sendJson(res, 200, { profile: responseProfile });
-	}
-}
-
-export async function handleLearnerProfileRecapRefineRequest(
-	req: IncomingMessage,
-	res: ServerResponse,
-	openai: OpenAI,
-	anthropicKey: string,
-) {
-	const { storyId, results } = JSON.parse(await readBody(req));
-	if (
-		storyId !== undefined &&
-		(typeof storyId !== "string" || !saveIdPattern.test(storyId))
-	) {
-		sendJson(res, 400, { error: "storyId must be a valid story ID." });
-		return;
-	}
-	if (
-		!Array.isArray(results) ||
-		results.some(
-			(result) =>
+	const invalidRecapResults =
+		!Array.isArray(body.recapResults) ||
+		body.recapResults.some((result) => {
+			return (
 				!result ||
 				typeof result.type !== "string" ||
 				typeof result.label !== "string" ||
 				typeof result.attempts !== "number" ||
 				!Number.isFinite(result.attempts) ||
-				result.attempts < 1,
-		)
-	) {
+				result.attempts < 1
+			);
+		});
+	if (invalidRecapResults) {
 		sendJson(res, 400, {
-			error: "results must be an array of {type, label, attempts}.",
+			error: "recapResults must be an array of {type, label, attempts}.",
 		});
 		return;
 	}
-
-	let responseProfile = await readLearnerProfile();
-	try {
-		const refineTask = learnerProfileRefineQueue
-			.catch(() => undefined)
-			.then(() =>
-				withAiTraceMetadata(
-					{ ...(storyId ? { storyId } : {}), storyPhase: "recap" },
-					async () => {
-						const resultsHash = createHash("sha256")
-							.update(JSON.stringify(results))
-							.digest("hex");
-						if (storyId) {
-							const record = await readFinishEvidence(storyId);
-							if (
-								record.recapRefinedAt &&
-								record.recapResultsHash === resultsHash
-							) {
-								// Idempotent: these exact recap results were already applied.
-								responseProfile = await readLearnerProfile();
-								return;
-							}
-						}
-						const current = await readLearnerProfile();
-						const today = new Date().toISOString().slice(0, 10);
-						const updated = await refineLearnerProfileFromRecap(
-							openai,
-							current,
-							results,
-							anthropicKey,
-							today,
-						);
-						await writeLearnerProfile(updated);
-						if (storyId) {
-							await updateFinishEvidence(storyId, {
-								recapRefinedAt: new Date().toISOString(),
-								recapResultsHash: resultsHash,
-							});
-						}
-						responseProfile = updated;
-					},
-				),
-			);
-		learnerProfileRefineQueue = refineTask.then(
-			() => undefined,
-			() => undefined,
-		);
-		await refineTask;
-		sendJson(res, 200, { profile: responseProfile });
-	} catch (err) {
-		// Never break the story-finish flow: keep the existing profile on failure.
-		console.warn("Could not refine learner profile from recap.", err);
-		sendJson(res, 200, { profile: responseProfile });
+	if (body.feedback !== undefined && typeof body.feedback !== "string") {
+		sendJson(res, 400, { error: "feedback must be a string." });
+		return;
 	}
+
+	const profile = await finalizeStoryEvidence(
+		openai,
+		{
+			storyId: body.storyId,
+			storySummary: body.storySummary,
+			learnerQuestions: body.learnerQuestions ?? [],
+			recapResults: body.recapResults ?? [],
+			feedback: body.feedback,
+		},
+		anthropicKey,
+	);
+	sendJson(res, 200, { profile });
 }
 
 export async function handleLearnerWordLogRequest(

@@ -4,7 +4,7 @@ import type { GenreId } from "./genres";
 import type { NarrationVoiceId } from "./narrationVoice";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
-import type { StoryRecapLesson } from "./storyRecap";
+import type { StoryRecapExerciseResult, StoryRecapLesson } from "./storyRecap";
 
 export interface SavedStory
 	extends Partial<StoryBackgroundImage>,
@@ -24,6 +24,9 @@ export interface SavedStory
 	readingStory?: ReadingStory;
 	readingPartIndex?: number;
 	storyRecapLesson?: StoryRecapLesson | null;
+	storyRecapResults?: StoryRecapExerciseResult[];
+	storyLearnerQuestions?: string[];
+	storyFeedback?: string | null;
 	storyFeedbackSubmittedAt?: string | null;
 }
 

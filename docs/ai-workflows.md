@@ -51,24 +51,24 @@ handouts through a per-story record, `stories/<id>/finish-evidence.json`, owned 
 It exists so finalization is **idempotent** and late feedback can never leak into
 the next story:
 
-- **Baseline** (`refine-story`) runs once per story, guarded by `baselineRefinedAt`.
-  It refines the profile from the story summary, this story's word lookups, any
-  unscoped global lookups waiting on the global cursor, and the learner's buffered
-  tutor questions; it refines story memory from the summary, then stamps the record.
+- **Finalization** (`finalize-story`) runs when the learner completes the recap and
+  submits feedback, or leaves the finished story without custom feedback. It sends
+  the story summary, recap results, feedback, buffered learner questions, and the
+  story's word evidence together. The server runs the profile and story-memory
+  refinements once and stamps `finalizedAt`; repeating the trigger is a no-op.
 - **Word lookups are story-scoped.** A lookup made while reading is tagged with its
   `storyId` and folded only by that story's baseline — never through the global
   cursor — so a delayed baseline can't consume the next story's lookups. Menu /
   standalone-tutor lookups stay unscoped and keep using the cursor. The record keeps
   story-scoped and unscoped aggregates separate for auditability.
-- **Late feedback** (`refine-story-feedback`) is a feedback-only update tied to the
-  same story. It never reads or advances the global cursor and never re-sends the
-  baseline's lookups. If it arrives before the baseline, it is stashed as pending
-  and applied when the baseline runs (both serialized on one refine queue).
-- **Recap** (`refine-recap`) is deduped by a hash of its results, so resubmitting
-  the same results is a no-op.
+- If evidence arrives after a story was already finalized (for example, a bot
+  question captured just before navigation), the same endpoint applies only that
+  new delta. It never re-sends old lookups or consumes the next story's evidence.
+- Recap results are stored in the save until finalization, so abandoning the story
+  before the recap is complete does not create a partial learner update.
 
-Recovery is not transactional across the three writes; `baselineRefinedAt` is
-written last so a crash re-runs (repeats) rather than half-applies — see
+Recovery is not transactional across the three writes; `finalizedAt` is written
+last so a crash re-runs (repeats) rather than half-applies — see
 [local-data.md](./local-data.md).
 
 All learner-supplied text (profile, preferences, memory, chat transcripts) is

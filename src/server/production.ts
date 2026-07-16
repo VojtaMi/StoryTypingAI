@@ -12,15 +12,13 @@ import {
 	handleBackgroundImageRequest,
 	handleCompleteRequest,
 	handleCompleteStreamRequest,
+	handleFinalizeStoryEvidenceRequest,
 	handleLearnerProfileGetRequest,
-	handleLearnerProfileRecapRefineRequest,
 	handleLearnerProfileRefineRequest,
-	handleLearnerProfileStoryRefineRequest,
 	handleLearnerWordLogRequest,
 	handleOpeningAudioRequest,
 	handleRegenerateWordAudioRequest,
 	handleRegenerateWordRequest,
-	handleStoryFeedbackRefineRequest,
 	handleTranslateWordsRequest,
 	handleWordAudioRequest,
 } from "./aiEndpointHandlers";
@@ -363,36 +361,10 @@ async function handleRequest(
 		}
 
 		if (
-			pathname === "/api/learner-profile/refine-story" &&
+			pathname === "/api/learner-profile/finalize-story" &&
 			req.method === "POST"
 		) {
-			await handleLearnerProfileStoryRefineRequest(
-				req,
-				res,
-				openai,
-				ANTHROPIC_API_KEY,
-			);
-			return;
-		}
-
-		if (
-			pathname === "/api/learner-profile/refine-story-feedback" &&
-			req.method === "POST"
-		) {
-			await handleStoryFeedbackRefineRequest(
-				req,
-				res,
-				openai,
-				ANTHROPIC_API_KEY,
-			);
-			return;
-		}
-
-		if (
-			pathname === "/api/learner-profile/refine-recap" &&
-			req.method === "POST"
-		) {
-			await handleLearnerProfileRecapRefineRequest(
+			await handleFinalizeStoryEvidenceRequest(
 				req,
 				res,
 				openai,
