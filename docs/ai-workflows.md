@@ -35,13 +35,41 @@ everything else to OpenAI. Callers pick an operation, not a provider.
 | **Translation** | [`src/server/aiEndpointHandlers.ts`](../src/server/aiEndpointHandlers.ts) over [`src/server/translationCacheStore.ts`](../src/server/translationCacheStore.ts). | Uses the fast `gpt-5.4-nano` dictionary model. Prepared reading stories warm the cache with all unique story words in one batch, excluding declared character names. The visible-section lookup remains a fallback; only words missing from the cache are sent. Ambiguous words may retain concise slash-separated alternatives. |
 | **Recap generation** | [`src/story_session/`](../src/story_session/), with the spec and parser in [`src/storyRecap.ts`](../src/storyRecap.ts). | Built from the finished prose, the per-part language focuses, the word translations, and the learner profile. |
 | **Lesson generation** | [`src/lessons/lessonGeneration.ts`](../src/lessons/lessonGeneration.ts), invoked through [`src/ai.ts`](../src/ai.ts). | The model authors body bricks only; exercises are derived from the parsed body in code. |
-| **Learner-profile refinement** | [`src/server/learnerProfileService.ts`](../src/server/learnerProfileService.ts) | Three entry points: tutor-chat transcript, finished story (summary + word lookups + feedback), and recap results. Rewrites the whole one-page handout; never appends. |
+| **Learner-profile refinement** | [`src/server/learnerProfileService.ts`](../src/server/learnerProfileService.ts) | Rewrites the whole one-page handout; never appends. Entry points: tutor-chat transcript; the **story-finish baseline** (summary + this story's word lookups + the learner's buffered tutor questions); a **late feedback-only** update tied to the same story; and recap results. The last three are keyed to a story and made idempotent by its `finish-evidence.json` — see [Story-finish finalization](#the-story-finish-evidence-manager). |
 | **Learner-preferences refinement** | [`src/server/learnerProfileService.ts`](../src/server/learnerProfileService.ts) | Refined from the tutor chat, alongside the profile. |
 | **Story-memory refinement** | [`src/server/learnerProfileService.ts`](../src/server/learnerProfileService.ts) | Refined when a reading story finishes. Extracts motifs, objects, and settings, and writes "avoid next" guidance for the following story. |
-| **Esperanto tutor chat** | [`src/ai.ts`](../src/ai.ts) (`askEsperantoTutor`), rendered by [`src/exercise_screen/`](../src/exercise_screen/). | Story context is passed in; the transcript later feeds profile and preference refinement. |
+| **Esperanto tutor chat** | [`src/ai.ts`](../src/ai.ts) (`askEsperantoTutor`), rendered by [`src/exercise_screen/`](../src/exercise_screen/). | Story context is passed in. **Outside a reading story** the transcript refines the profile and preferences immediately when the modal closes. **Inside a reading story** the learner's own questions are instead buffered in the session and folded once into the finish baseline. |
 
 Refinement is fire-and-forget: it must never block or break the learner's flow,
 so failures leave the handout exactly as it was.
+
+### The story-finish evidence manager
+
+When a reading story ends, the evidence it produced is folded into the learner
+handouts through a per-story record, `stories/<id>/finish-evidence.json`, owned by
+[`src/server/storyFinishEvidenceStore.ts`](../src/server/storyFinishEvidenceStore.ts).
+It exists so finalization is **idempotent** and late feedback can never leak into
+the next story:
+
+- **Baseline** (`refine-story`) runs once per story, guarded by `baselineRefinedAt`.
+  It refines the profile from the story summary, this story's word lookups, any
+  unscoped global lookups waiting on the global cursor, and the learner's buffered
+  tutor questions; it refines story memory from the summary, then stamps the record.
+- **Word lookups are story-scoped.** A lookup made while reading is tagged with its
+  `storyId` and folded only by that story's baseline — never through the global
+  cursor — so a delayed baseline can't consume the next story's lookups. Menu /
+  standalone-tutor lookups stay unscoped and keep using the cursor. The record keeps
+  story-scoped and unscoped aggregates separate for auditability.
+- **Late feedback** (`refine-story-feedback`) is a feedback-only update tied to the
+  same story. It never reads or advances the global cursor and never re-sends the
+  baseline's lookups. If it arrives before the baseline, it is stashed as pending
+  and applied when the baseline runs (both serialized on one refine queue).
+- **Recap** (`refine-recap`) is deduped by a hash of its results, so resubmitting
+  the same results is a no-op.
+
+Recovery is not transactional across the three writes; `baselineRefinedAt` is
+written last so a crash re-runs (repeats) rather than half-applies — see
+[local-data.md](./local-data.md).
 
 All learner-supplied text (profile, preferences, memory, chat transcripts) is
 passed to the model as **untrusted data**, with explicit instructions not to

@@ -14,6 +14,7 @@ import {
 	regenerateWordTranslation,
 	type StoryMemory,
 	startStory,
+	submitStoryFeedbackRefine,
 	titleStory,
 	translateWords,
 } from "../ai";
@@ -136,6 +137,10 @@ function completedAiSegment(
 	};
 }
 
+/** Keep buffered tutor questions bounded so the baseline evidence stays small. */
+const MAX_BUFFERED_BOT_QUESTIONS = 20;
+const MAX_BOT_QUESTION_CHARS = 300;
+
 export function useStorySession({
 	model,
 	view,
@@ -187,6 +192,10 @@ export function useStorySession({
 	const narrationVoiceRef = useRef<NarrationVoiceId>(DEFAULT_NARRATION_VOICE);
 	const storyRecapLessonRef = useRef<StoryRecapLesson | null>(null);
 	const storyFeedbackSubmittedAtRef = useRef<string | null>(null);
+	// Interactive continuity: the learner's tutor questions asked while reading are
+	// buffered here (deduped, bounded) and folded once into the baseline at story
+	// end — they stay out of the durable handout until the story finalizes.
+	const botQuestionsRef = useRef<string[]>([]);
 	const preparingOpeningsRef = useRef(false);
 	const prepareOpeningsAgainRef = useRef(false);
 	const preparingReadingOpeningsRef = useRef(false);
@@ -603,6 +612,7 @@ export function useStorySession({
 		async (selected: Genre) => {
 			readingMediaRef.current.reset();
 			storyFeedbackSubmittedAtRef.current = null;
+			botQuestionsRef.current = [];
 			setStoryFeedbackSubmittedAt(null);
 			setGenre(selected);
 			setMessages([]);
@@ -736,6 +746,7 @@ export function useStorySession({
 
 		readingMediaRef.current.reset();
 		storyFeedbackSubmittedAtRef.current = null;
+		botQuestionsRef.current = [];
 		setStoryFeedbackSubmittedAt(null);
 		setGenre(selected);
 		setMessages([]);
@@ -891,6 +902,7 @@ export function useStorySession({
 
 			readingMediaRef.current.reset();
 			storyFeedbackSubmittedAtRef.current = null;
+			botQuestionsRef.current = [];
 			setStoryFeedbackSubmittedAt(null);
 			narrationVoiceRef.current = nextNarrationVoice;
 			activeSaveIdRef.current = saveId;
@@ -1275,10 +1287,13 @@ export function useStorySession({
 					storyRecapLesson: null,
 				}),
 			);
-			void refineLearnerProfileFromStory({
-				storyId: activeSaveId ?? undefined,
-				storySummary: readingStorySummary(readingStory),
-			});
+			if (activeSaveId) {
+				void refineLearnerProfileFromStory({
+					storyId: activeSaveId,
+					storySummary: readingStorySummary(readingStory),
+					learnerQuestions: botQuestionsRef.current,
+				});
+			}
 			void generateAndApplyStoryRecap(nextSegments);
 			return;
 		}
@@ -1433,6 +1448,7 @@ export function useStorySession({
 		});
 
 		storyFeedbackSubmittedAtRef.current = null;
+		botQuestionsRef.current = [];
 		setStoryFeedbackSubmittedAt(null);
 
 		setStoryRecapLesson(null);
@@ -1710,10 +1726,11 @@ export function useStorySession({
 					}),
 				);
 			}
-			void refineLearnerProfileFromStory({
-				storyId: activeSaveId ?? undefined,
-				feedback,
-			});
+			// A late, feedback-only update tied to THIS story — never the baseline,
+			// so it can't consume the next story's word lookups.
+			if (activeSaveId) {
+				void submitStoryFeedbackRefine(activeSaveId, feedback);
+			}
 		},
 		[
 			activeSaveId,
@@ -1733,6 +1750,20 @@ export function useStorySession({
 			segments,
 		],
 	);
+
+	// The tutor chat hands the learner's questions here as it closes, instead of
+	// refining the profile immediately, so they fold once into the baseline at
+	// story end. Deduped and bounded so repeated opens can't bloat the evidence.
+	const captureBotQuestions = useCallback((questions: string[]) => {
+		const seen = new Set(botQuestionsRef.current);
+		for (const raw of questions) {
+			if (botQuestionsRef.current.length >= MAX_BUFFERED_BOT_QUESTIONS) break;
+			const question = raw.trim().slice(0, MAX_BOT_QUESTION_CHARS);
+			if (!question || seen.has(question)) continue;
+			seen.add(question);
+			botQuestionsRef.current.push(question);
+		}
+	}, []);
 
 	const handleRegenerateWord = useCallback(
 		async (word: string): Promise<string | null> => {
@@ -1777,6 +1808,7 @@ export function useStorySession({
 		resumeStory,
 		readingPartIndex,
 		readingTotalParts: readingStory?.parts.length ?? null,
+		captureBotQuestions,
 		restartReadingStory,
 		retryStoryRecap,
 		segments,

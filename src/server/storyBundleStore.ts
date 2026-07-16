@@ -28,6 +28,10 @@ export function bundledSavePath(storyId: string) {
 	return join(storyBundlePath(storyId), "story.json");
 }
 
+export function bundledFinishEvidencePath(storyId: string) {
+	return join(storyBundlePath(storyId), "finish-evidence.json");
+}
+
 export function bundledAudioPath(storyId: string, filename: string) {
 	return join(storyBundlePath(storyId), "audio", filename);
 }

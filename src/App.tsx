@@ -165,6 +165,7 @@ export default function App() {
 		storyRecapLesson,
 		submitContinuation,
 		submitStoryFeedback,
+		captureBotQuestions,
 		wordTranslations,
 	} = useStorySession({
 		model,
@@ -338,6 +339,7 @@ export default function App() {
 					onAutoContinue={autoContinueStory}
 					onBackToMenu={backToMenu}
 					onSubmitStoryFeedback={submitStoryFeedback}
+					onCaptureBotQuestions={captureBotQuestions}
 				/>
 			)}
 		</div>

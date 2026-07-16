@@ -57,6 +57,8 @@ interface ExerciseScreenProps {
 	onAutoContinue: () => void;
 	onBackToMenu: () => void;
 	onSubmitStoryFeedback: (feedback: string) => void;
+	/** Buffers the learner's tutor questions for the reading-story baseline. */
+	onCaptureBotQuestions: (questions: string[]) => void;
 }
 
 export default function ExerciseScreen({
@@ -87,6 +89,7 @@ export default function ExerciseScreen({
 	onAutoContinue,
 	onBackToMenu,
 	onSubmitStoryFeedback,
+	onCaptureBotQuestions,
 }: ExerciseScreenProps) {
 	const [galleryOpen, setGalleryOpen] = useState(false);
 	const [chatOpen, setChatOpen] = useState(false);
@@ -148,7 +151,10 @@ export default function ExerciseScreen({
 		isName: boolean,
 		e: React.MouseEvent<HTMLButtonElement>,
 	) => {
-		void logLearnerWordClick(token);
+		// Word popovers only appear while reading, so every lookup here belongs to
+		// this story — scope it so the story's baseline (not the global cursor)
+		// folds it and no other story can consume it.
+		void logLearnerWordClick(token, storyId ?? undefined);
 		playWordAudio(token);
 
 		const rect = e.currentTarget.getBoundingClientRect();
@@ -316,6 +322,11 @@ export default function ExerciseScreen({
 				currentTarget={currentTarget}
 				backgroundIntro={backgroundIntro}
 				onClose={() => setChatOpen(false)}
+				// Reading stories buffer questions for the finish baseline; typing
+				// stories (no baseline) keep the immediate per-close refine.
+				onCaptureQuestions={
+					readingTotalParts !== null ? onCaptureBotQuestions : undefined
+				}
 			/>
 
 			{galleryOpen && canShowGallery && storyId && currentImageUrl && (

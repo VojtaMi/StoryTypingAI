@@ -20,6 +20,7 @@ import {
 	handleOpeningAudioRequest,
 	handleRegenerateWordAudioRequest,
 	handleRegenerateWordRequest,
+	handleStoryFeedbackRefineRequest,
 	handleTranslateWordsRequest,
 	handleWordAudioRequest,
 } from "./aiEndpointHandlers";
@@ -366,6 +367,19 @@ async function handleRequest(
 			req.method === "POST"
 		) {
 			await handleLearnerProfileStoryRefineRequest(
+				req,
+				res,
+				openai,
+				ANTHROPIC_API_KEY,
+			);
+			return;
+		}
+
+		if (
+			pathname === "/api/learner-profile/refine-story-feedback" &&
+			req.method === "POST"
+		) {
+			await handleStoryFeedbackRefineRequest(
 				req,
 				res,
 				openai,

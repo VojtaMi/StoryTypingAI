@@ -13,18 +13,37 @@ hold things that cannot be regenerated at all.
 
 | Path | Kind | What it holds |
 | --- | --- | --- |
-| `stories/` | Generated | The current home for a saved story: `stories/<id>/story.json`, with `audio/` and `images/` beside it. A reading save contains the whole six-part story, so it can be re-read without any generation. |
+| `stories/` | Generated | The current home for a saved story: `stories/<id>/story.json`, with `audio/` and `images/` beside it, plus `finish-evidence.json` (the story-finish finalization record — see below). A reading save contains the whole six-part story, so it can be re-read without any generation. |
 | `saves/` | Generated | Older flat saves, `saves/<id>.json`. Reads check `stories/` first and fall back here, so both formats keep working; new stories with a bundle id are written to `stories/`. |
 | `story-images/` | Generated | Still used — the background images for stories whose id predates the bundle layout. Newer stories keep their images in `stories/<id>/images/`. |
 | `story-audio/` | Generated | The same, for narration: older stories' section audio. Newer stories use `stories/<id>/audio/`. |
 | `openings/` | Generated (cache) | The prepared **typing** opening queue: one JSON per genre, holding the opening text, title, intro, narration, and background image. Consumed (deleted) when a typing story starts, and refilled in the background. |
 | `reading-openings/` | Generated (cache) | The prepared **reading** queue: one JSON per genre, holding a *complete* six-part story plus part 1's narration and image. Consumed when a reading story starts, and refilled in the background. |
-| `learner/` | **Source data** | What the app knows about the learner: `profile.md` (the language handout), `preferences.md` (taste), `story-memory.md` (anti-repetition motifs), and `word-log.json` / `word-log-cursor.json` (words looked up, and how far they have been folded into the profile). |
+| `learner/` | **Source data** | What the app knows about the learner: `profile.md` (the language handout), `preferences.md` (taste), `story-memory.md` (anti-repetition motifs), and `word-log.json` / `word-log-cursor.json` (words looked up, and how far they have been folded into the profile). A word-log entry looked up while reading carries an optional `storyId`; those story-scoped lookups are folded by that story's finish baseline, never by the global cursor. Menu / standalone-tutor lookups stay unscoped and continue using the cursor. |
 | `word-audio/` | Generated (cache) | One pronunciation file per Esperanto word, shared across every story and lesson. |
 | `lesson-audio/` | Generated (cache) — **tracked in git** | Lesson TTS output, one file per lesson and phrase. Unlike everything else here it is committed to the repository, so lessons have audio without every clone paying for it. |
 | `translation-cache.json` | Generated (cache) | Word → English translation, accumulated across all stories. |
 | `logs/` | Debugging artifact | `ai-calls.ndjson`, the AI trace log. Only written when `AI_CALL_LOG=1`. |
 | `.artifacts/` | Debugging artifact | Scratch output: `verify:page` screenshots, `ai-log:pretty` output. Nothing reads it back. |
+
+## The story-finish finalization record
+
+`stories/<id>/finish-evidence.json` is the control state for folding a finished
+reading story's evidence into the learner handouts. It makes finalization
+idempotent: `baselineRefinedAt` guards the one-time baseline (the profile +
+story-memory refine from the story summary, this story's word lookups, and the
+learner's tutor questions), `feedbackRefinedAt` + `appliedFeedback` guard a late
+feedback-only update tied to this same story, and `recapRefinedAt` +
+`recapResultsHash` guard the recap refine. It also stores the story summary (as
+context for a later feedback update) and separate aggregated story-scoped and
+unscoped word lookups (audit only). It is regenerated bookkeeping — safe to delete, at the cost of possibly
+re-folding a story's evidence if it is refinalized.
+
+**Recovery is not transactional.** The baseline writes the profile, the story
+memory, and this record as three separate files. A crash between them can leave a
+partial state; because `baselineRefinedAt` is written *last*, recovery re-runs
+(repeats) a refinement rather than skipping a half-applied one. A transactional
+structured state is future work; for now a repeat is the accepted failure.
 
 ## What deleting costs
 

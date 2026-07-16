@@ -25,6 +25,12 @@ interface EsperantoChatModalProps {
 	currentTarget: string | null;
 	backgroundIntro?: string;
 	onClose: () => void;
+	/**
+	 * When set (reading stories), the learner's questions are handed here to be
+	 * folded once into the finish baseline instead of refining the profile
+	 * immediately. When absent (typing / menu), the immediate refine is used.
+	 */
+	onCaptureQuestions?: (questions: string[]) => void;
 }
 
 const BOT_IMAGE_URL = "/images/esperanto-bot-retro.png";
@@ -38,6 +44,7 @@ export function EsperantoChatModal({
 	currentTarget,
 	backgroundIntro,
 	onClose,
+	onCaptureQuestions,
 }: EsperantoChatModalProps) {
 	const [messages, setMessages] = useState<ChatEntry[]>([]);
 	const [input, setInput] = useState("");
@@ -51,12 +58,22 @@ export function EsperantoChatModal({
 	const sessionIdRef = useRef(0);
 
 	const closeChat = useCallback(() => {
-		// Fold this session's questions into the learner handout before the
-		// transcript is wiped below. Fire-and-forget so it never blocks closing.
+		// Fold this session's questions before the transcript is wiped below. In a
+		// reading story, hand the learner's own questions to the session buffer so
+		// they fold once into the finish baseline; everywhere else, refine the
+		// handout immediately. Fire-and-forget either way — never block closing.
 		if (messages.length > 0) {
-			void refineLearnerProfileFromChat(
-				messages.map(({ role, content }) => ({ role, content })),
-			);
+			if (onCaptureQuestions) {
+				onCaptureQuestions(
+					messages
+						.filter((message) => message.role === "user")
+						.map((message) => message.content),
+				);
+			} else {
+				void refineLearnerProfileFromChat(
+					messages.map(({ role, content }) => ({ role, content })),
+				);
+			}
 		}
 		sessionIdRef.current += 1;
 		nextMessageIdRef.current = 0;
@@ -65,7 +82,7 @@ export function EsperantoChatModal({
 		setError(null);
 		setIsSending(false);
 		onClose();
-	}, [messages, onClose]);
+	}, [messages, onClose, onCaptureQuestions]);
 
 	function createMessage(
 		role: EsperantoTutorChatMessage["role"],

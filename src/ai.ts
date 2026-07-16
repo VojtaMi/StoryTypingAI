@@ -252,26 +252,38 @@ export async function refineLearnerProfileFromChat(
 	return refineLearnerProfile("refine", { messages });
 }
 
-export interface StoryFinishFeedback {
-	storyId?: string;
+export interface StoryFinishEvidence {
+	storyId: string;
 	storySummary?: string;
-	feedback?: string;
+	learnerQuestions?: string[];
 }
 
 /**
- * Folds evidence from a just-finished reading story (word lookups since the
- * last refine, the story summary/character/setting, and optional learner
- * difficulty feedback) into the learner handout.
+ * Baseline finalization for a just-finished reading story: folds the story
+ * summary/character/setting, this story's word lookups (aggregated server-side),
+ * and the learner's buffered tutor questions into the handout. Idempotent on the
+ * server, so calling it more than once for a story is safe.
  */
 export async function refineLearnerProfileFromStory(
-	evidence: StoryFinishFeedback,
+	evidence: StoryFinishEvidence,
 ): Promise<void> {
-	if (!evidence.storySummary?.trim() && !evidence.feedback?.trim()) return;
 	return refineLearnerProfile("refine-story", {
 		storyId: evidence.storyId,
 		storySummary: evidence.storySummary,
-		feedback: evidence.feedback,
+		learnerQuestions: evidence.learnerQuestions,
 	});
+}
+
+/**
+ * A late custom-feedback update, applied to this story only. Never touches the
+ * global word cursor, so it can't consume the next story's lookups.
+ */
+export async function submitStoryFeedbackRefine(
+	storyId: string,
+	feedback: string,
+): Promise<void> {
+	if (!feedback.trim()) return;
+	return refineLearnerProfile("refine-story-feedback", { storyId, feedback });
 }
 
 /**
@@ -501,12 +513,15 @@ export async function getWordAudioUrl(word: string): Promise<string> {
 	return body.url;
 }
 
-export async function logLearnerWordClick(word: string): Promise<void> {
+export async function logLearnerWordClick(
+	word: string,
+	storyId?: string,
+): Promise<void> {
 	try {
 		await fetch("/api/learner-profile/word-log", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ word }),
+			body: JSON.stringify({ word, ...(storyId ? { storyId } : {}) }),
 		});
 	} catch {
 		// Learning signals should never interrupt reading.
