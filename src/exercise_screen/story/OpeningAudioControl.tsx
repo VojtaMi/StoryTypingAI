@@ -20,9 +20,17 @@ const BUTTON_GLYPH: Record<OpeningAudioStatus, string> = {
 
 interface OpeningAudioControlProps {
 	audioUrl: string | null;
+	isLoading?: boolean;
+	hasError?: boolean;
+	onRetry?: () => void;
 }
 
-export function OpeningAudioControl({ audioUrl }: OpeningAudioControlProps) {
+export function OpeningAudioControl({
+	audioUrl,
+	isLoading = false,
+	hasError = false,
+	onRetry,
+}: OpeningAudioControlProps) {
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const [status, setStatus] = useState<OpeningAudioStatus>("idle");
 	const [currentTime, setCurrentTime] = useState(0);
@@ -136,7 +144,15 @@ export function OpeningAudioControl({ audioUrl }: OpeningAudioControlProps) {
 		[],
 	);
 
-	if (!audioUrl) return null;
+	const displayStatus: OpeningAudioStatus = !audioUrl
+		? isLoading
+			? "loading"
+			: hasError
+				? "error"
+				: "idle"
+		: status;
+
+	if (!audioUrl && displayStatus === "idle") return null;
 
 	const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -145,13 +161,16 @@ export function OpeningAudioControl({ audioUrl }: OpeningAudioControlProps) {
 			<button
 				type="button"
 				className="story__opening-audio"
-				data-status={status}
-				aria-label={BUTTON_LABEL[status]}
-				title={BUTTON_LABEL[status]}
-				disabled={status === "loading"}
-				onClick={() => void toggle()}
+				data-status={displayStatus}
+				aria-label={BUTTON_LABEL[displayStatus]}
+				title={BUTTON_LABEL[displayStatus]}
+				disabled={displayStatus === "loading"}
+				onClick={() => {
+					if (displayStatus === "error") onRetry?.();
+					else void toggle();
+				}}
 			>
-				{BUTTON_GLYPH[status]}
+				{BUTTON_GLYPH[displayStatus]}
 			</button>
 			<input
 				type="range"
@@ -160,7 +179,7 @@ export function OpeningAudioControl({ audioUrl }: OpeningAudioControlProps) {
 				max={duration || 0}
 				step={0.1}
 				value={currentTime}
-				disabled={!duration}
+				disabled={!audioUrl || !duration}
 				aria-label="Seek narration"
 				onChange={previewSeek}
 				onPointerDown={startSeek}

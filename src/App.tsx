@@ -146,6 +146,9 @@ export default function App() {
 		genre,
 		handleTypingComplete,
 		openingAudio,
+		openingAudioLoading,
+		openingAudioError,
+		retryOpeningAudio,
 		phase,
 		nonTranslatableWords,
 		readingPartIndex,
@@ -321,6 +324,9 @@ export default function App() {
 					storyId={activeSaveId}
 					currentImageUrl={backgroundImage?.backgroundImageUrl ?? null}
 					openingAudioUrl={openingAudio?.openingAudioUrl ?? null}
+					openingAudioLoading={openingAudioLoading}
+					openingAudioError={openingAudioError}
+					onRetryOpeningAudio={retryOpeningAudio}
 					readingPartIndex={readingPartIndex}
 					readingTotalParts={readingTotalParts}
 					storyFeedbackSubmittedAt={storyFeedbackSubmittedAt}

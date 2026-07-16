@@ -39,6 +39,9 @@ interface ExerciseScreenProps {
 	storyId: string | null;
 	currentImageUrl: string | null;
 	openingAudioUrl: string | null;
+	openingAudioLoading?: boolean;
+	openingAudioError?: boolean;
+	onRetryOpeningAudio?: () => void;
 	readingPartIndex: number | null;
 	readingTotalParts: number | null;
 	storyFeedbackSubmittedAt: string | null;
@@ -71,6 +74,9 @@ export default function ExerciseScreen({
 	storyId,
 	currentImageUrl,
 	openingAudioUrl,
+	openingAudioLoading,
+	openingAudioError,
+	onRetryOpeningAudio,
 	readingPartIndex,
 	readingTotalParts,
 	storyFeedbackSubmittedAt,
@@ -221,7 +227,12 @@ export default function ExerciseScreen({
 							);
 						})}
 					</p>
-					<OpeningAudioControl audioUrl={openingAudioUrl} />
+					<OpeningAudioControl
+						audioUrl={openingAudioUrl}
+						isLoading={openingAudioLoading}
+						hasError={openingAudioError}
+						onRetry={onRetryOpeningAudio}
+					/>
 					<div className="story__reading-actions">
 						<button
 							type="button"

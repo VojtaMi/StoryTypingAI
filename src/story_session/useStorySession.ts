@@ -164,6 +164,9 @@ export function useStorySession({
 	const [openingAudio, setOpeningAudio] = useState<StoryOpeningAudio | null>(
 		null,
 	);
+	const [openingAudioLoading, setOpeningAudioLoading] = useState(false);
+	const [openingAudioError, setOpeningAudioError] = useState(false);
+	const [openingAudioRetry, setOpeningAudioRetry] = useState(0);
 	const [wordTranslations, setWordTranslations] = useState<Record<
 		string,
 		string
@@ -326,16 +329,23 @@ export function useStorySession({
 	// a section whose audio failed earlier. The media owner hands back the
 	// request already running for this section rather than starting another.
 	useEffect(() => {
+		void openingAudioRetry;
 		if (
 			phase !== "reading" ||
 			!genre ||
 			!activeSaveId ||
 			!currentTarget ||
 			!readingStory ||
-			readingPartIndex === null ||
-			(openingAudio?.openingAudioText === currentTarget &&
-				openingAudio.openingAudioVoice === narrationVoice)
+			readingPartIndex === null
 		) {
+			return;
+		}
+		if (
+			openingAudio?.openingAudioText === currentTarget &&
+			openingAudio.openingAudioVoice === narrationVoice
+		) {
+			setOpeningAudioLoading(false);
+			setOpeningAudioError(false);
 			return;
 		}
 
@@ -349,16 +359,22 @@ export function useStorySession({
 		if (!section || section.text !== currentTarget) return;
 
 		let cancelled = false;
+		setOpeningAudioLoading(true);
+		setOpeningAudioError(false);
 		void readingMediaRef.current
 			.requestAudio(section)
 			.then((nextOpeningAudio) => {
 				if (
 					cancelled ||
-					!nextOpeningAudio ||
 					activeSaveIdRef.current !== activeSaveId ||
 					currentTargetRef.current !== currentTarget ||
 					readingPartIndexRef.current !== readingPartIndex
 				) {
+					return;
+				}
+				setOpeningAudioLoading(false);
+				if (!nextOpeningAudio) {
+					setOpeningAudioError(true);
 					return;
 				}
 
@@ -398,6 +414,7 @@ export function useStorySession({
 		phase,
 		readingPartIndex,
 		readingStory,
+		openingAudioRetry,
 	]);
 
 	const generateAndApplyStoryBackground = useCallback(
@@ -1235,7 +1252,7 @@ export function useStorySession({
 			narrationVoice,
 		)
 			? openingAudioRef.current
-			: await readingMediaRef.current.requestAudio(currentSection);
+			: null;
 
 		if (
 			activeSaveIdRef.current !== activeSaveId ||
@@ -1244,14 +1261,6 @@ export function useStorySession({
 		) {
 			return;
 		}
-		if (!currentOpeningAudio) {
-			setError("Narration is still preparing. Try again in a moment.");
-			return;
-		}
-		if (openingAudioRef.current !== currentOpeningAudio) {
-			setOpeningAudio(currentOpeningAudio);
-		}
-
 		const nextSegments: StorySegment[] = [
 			...segments,
 			completedAiSegment(segments.length, currentTarget, currentOpeningAudio),
@@ -1314,16 +1323,15 @@ export function useStorySession({
 			readingStory,
 			nextPartIndex,
 		);
-		const nextOpeningAudio =
-			await readingMediaRef.current.requestAudio(nextSection);
-
 		if (activeSaveIdRef.current !== activeSaveId) return;
 
 		setSegments(nextSegments);
 		setMessages(updatedMessages);
 		setCurrentTarget(text);
 		setStreamingTarget("");
-		setOpeningAudio(nextOpeningAudio);
+		setOpeningAudio(null);
+		setOpeningAudioLoading(true);
+		setOpeningAudioError(false);
 		setReadingPartIndex(nextPartIndex);
 		setPhase("reading");
 		void persistStory(
@@ -1338,7 +1346,7 @@ export function useStorySession({
 				phase: "reading",
 				backgroundIntro: backgroundIntro ?? undefined,
 				backgroundImage,
-				openingAudio: nextOpeningAudio,
+				openingAudio: null,
 				readingStory,
 				readingPartIndex: nextPartIndex,
 				narrationVoice,
@@ -1367,6 +1375,12 @@ export function useStorySession({
 		generateAndApplyStoryRecap,
 		segments,
 	]);
+
+	const retryOpeningAudio = useCallback(() => {
+		setOpeningAudioError(false);
+		setOpeningAudioLoading(true);
+		setOpeningAudioRetry((value) => value + 1);
+	}, []);
 
 	const completeStoryRecap = useCallback(
 		(results: StoryRecapExerciseResult[] = []) => {
@@ -1802,6 +1816,9 @@ export function useStorySession({
 			isStoryOpeningAudioForText(openingAudio, currentTarget, narrationVoice)
 				? openingAudio
 				: null,
+		openingAudioLoading,
+		openingAudioError,
+		retryOpeningAudio,
 		narrationVoice,
 		nonTranslatableWords: readingStory?.characterNames ?? [],
 		regenerateWordTranslation: handleRegenerateWord,
