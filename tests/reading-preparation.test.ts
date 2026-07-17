@@ -36,7 +36,7 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 	}
 }
 
-{
+async function checkFinalizationOrdering() {
 	// The ordering itself: preparation must not start while finalization is
 	// still in flight, however long finalization takes.
 	const { statuses, setStatus } = recorder();
@@ -63,8 +63,9 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 	assert.deepEqual(statuses, ["finalizing", "preparing", "ready"]);
 	console.log("checked reading preparation: finalization precedes generation");
 }
+await checkFinalizationOrdering();
 
-{
+async function checkSettledStatus() {
 	// The settled status is what tells the caller whether the persisted evidence
 	// can be dropped. Reporting "ready" for a lifecycle that failed would discard
 	// the evidence a resume needs, stranding the next story for good.
@@ -87,6 +88,7 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 		"checked reading preparation: settled status reports the outcome",
 	);
 }
+await checkSettledStatus();
 
 {
 	// A failed finalization must not fall through to generation: the next story
@@ -147,7 +149,7 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 	console.log("checked reading preparation: an empty queue is not ready");
 }
 
-{
+async function checkReloadDecisions() {
 	// Reload while the next story is being made. The lifecycle lives in the page,
 	// so nothing survives to finish it: the load must pick it back up.
 	assert.equal(
@@ -213,8 +215,9 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 	);
 	console.log("checked reading preparation: a reload resumes a dead lifecycle");
 }
+await checkReloadDecisions();
 
-{
+function checkUnfinishedSaveDecision() {
 	// An unfinished reading story means the state isn't blank: resuming it is
 	// the only next step, however full the queue or pending evidence looks.
 	// Preparing a fresh one here — even the very first story — would silently
@@ -245,8 +248,9 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 		"checked reading preparation: an unfinished save blocks preparation",
 	);
 }
+checkUnfinishedSaveDecision();
 
-{
+function checkPendingEvidenceDecision() {
 	// Regression: finishing a story and immediately leaving to the menu writes
 	// its "finished" phase in a separate, unawaited persist from the one that
 	// records pending finalization evidence. A reload landing between the two
@@ -276,6 +280,7 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 		"checked reading preparation: pending evidence for the blocking story survives a reload",
 	);
 }
+checkPendingEvidenceDecision();
 
 {
 	// The very first reading story has no previous story to finalize, so the
