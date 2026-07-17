@@ -242,6 +242,48 @@ export async function handleLearnerProfileGetRequest(
 	sendJson(res, 200, context);
 }
 
+export async function handleLearnerPreferencesUpdateRequest(
+	req: IncomingMessage,
+	res: ServerResponse,
+) {
+	const body = JSON.parse(await readBody(req));
+	const fields = ["prefer", "avoid"] as const;
+	if (
+		!body ||
+		typeof body !== "object" ||
+		fields.some(
+			(field) =>
+				body[field] !== undefined &&
+				(!Array.isArray(body[field]) ||
+					body[field].some((item: unknown) => typeof item !== "string")),
+		)
+	) {
+		sendJson(res, 400, { error: "Preferences must contain string arrays." });
+		return;
+	}
+
+	try {
+		const updated = await enqueueLearnerProfileMutation(async () => {
+			const current = await readLearnerContext();
+			const preferences = {
+				...current.preferences,
+				...Object.fromEntries(
+					fields
+						.filter((field) => body[field] !== undefined)
+						.map((field) => [field, body[field]]),
+				),
+				updated: new Date().toISOString().slice(0, 10),
+			};
+			await writeLearnerContext({ ...current, preferences });
+			return preferences;
+		});
+		sendJson(res, 200, updated);
+	} catch (err) {
+		console.warn("Could not update learner preferences.", err);
+		sendJson(res, 400, { error: "Could not save valid learner preferences." });
+	}
+}
+
 export async function handleLearnerProfileRefineRequest(
 	req: IncomingMessage,
 	res: ServerResponse,

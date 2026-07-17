@@ -1,5 +1,6 @@
 import type { Genre, GenreId } from "./genres";
 import type { LearnerContext } from "./learnerContext";
+import type { LearnerPreferences } from "./learnerState";
 import { DEFAULT_LEARNER_CONTEXT, parseLearnerContext } from "./learnerState";
 import {
 	buildLessonPrompt,
@@ -223,6 +224,23 @@ async function fetchLearnerContext(): Promise<LearnerContext> {
 		learnerContextPromise = null;
 		return structuredClone(DEFAULT_LEARNER_CONTEXT);
 	}
+}
+
+export async function fetchLearnerPreferences(): Promise<LearnerPreferences> {
+	return (await fetchLearnerContext()).preferences;
+}
+
+export async function updateLearnerPreferences(
+	preferences: Pick<LearnerPreferences, "prefer" | "avoid">,
+): Promise<LearnerPreferences> {
+	const response = await fetch("/api/learner-profile/preferences", {
+		method: "PUT",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(preferences),
+	});
+	if (!response.ok) throw new Error(await response.text());
+	invalidateLearnerProfile();
+	return (await response.json()) as LearnerPreferences;
 }
 
 /**

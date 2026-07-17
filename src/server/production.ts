@@ -13,6 +13,7 @@ import {
 	handleCompleteRequest,
 	handleCompleteStreamRequest,
 	handleFinalizeStoryEvidenceRequest,
+	handleLearnerPreferencesUpdateRequest,
 	handleLearnerProfileGetRequest,
 	handleLearnerProfileRefineRequest,
 	handleLearnerWordLogRequest,
@@ -343,6 +344,14 @@ async function handleRequest(
 
 		if (pathname === "/api/learner-profile" && req.method === "GET") {
 			await handleLearnerProfileGetRequest(req, res);
+			return;
+		}
+
+		if (
+			pathname === "/api/learner-profile/preferences" &&
+			req.method === "PUT"
+		) {
+			await handleLearnerPreferencesUpdateRequest(req, res);
 			return;
 		}
 

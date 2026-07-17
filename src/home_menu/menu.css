@@ -143,6 +143,146 @@
 	cursor: pointer;
 }
 
+.menu__settings-button {
+	position: absolute;
+	top: 1.25rem;
+	right: 1.5rem;
+	border: 1px solid color-mix(in srgb, var(--muted) 65%, transparent);
+	border-radius: 999px;
+	padding: 0.45rem 0.75rem;
+	background: rgba(24, 28, 39, 0.72);
+	color: var(--text);
+	font: inherit;
+	cursor: pointer;
+}
+
+.menu__settings-button:hover {
+	background: rgba(145, 230, 175, 0.16);
+	border-color: #91e6af;
+}
+
+.settings-panel {
+	position: fixed;
+	inset: 0;
+	z-index: 10;
+	display: grid;
+	place-items: center;
+	padding: 1rem;
+	background: rgba(7, 9, 15, 0.78);
+	backdrop-filter: blur(8px);
+}
+
+.settings-panel__card {
+	width: min(100%, 680px);
+	max-height: min(90vh, 800px);
+	overflow: auto;
+	padding: 1.5rem;
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	background: var(--surface);
+	box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.settings-panel__header,
+.settings-panel__footer,
+.settings-panel__models {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.settings-panel__models {
+	align-items: stretch;
+	margin: 1.25rem 0;
+}
+
+.settings-panel__models label,
+.settings-panel__card > label {
+	display: grid;
+	gap: 0.4rem;
+	flex: 1;
+	color: var(--text);
+	font-weight: 600;
+}
+
+.settings-panel__card select,
+.settings-panel__card textarea {
+	box-sizing: border-box;
+	width: 100%;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	background: rgba(7, 9, 15, 0.5);
+	color: var(--text);
+	font: inherit;
+	transition:
+		border-color 0.15s ease,
+		box-shadow 0.15s ease;
+}
+
+.settings-panel__card select:focus-visible,
+.settings-panel__card textarea:focus-visible {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.settings-panel__card select {
+	padding: 0.55rem;
+}
+
+.settings-panel__card textarea {
+	min-height: 5rem;
+	margin-bottom: 1rem;
+	padding: 0.65rem;
+	line-height: 1.45;
+	resize: vertical;
+	scrollbar-width: thin;
+	scrollbar-color: var(--muted) transparent;
+}
+
+.settings-panel__card textarea.settings-panel__textarea--list {
+	min-height: 9rem;
+}
+
+.settings-panel__close {
+	border: 1px solid color-mix(in srgb, var(--muted) 65%, transparent);
+	border-radius: 999px;
+	padding: 0.35rem 0.85rem;
+	background: transparent;
+	color: var(--muted);
+	font: inherit;
+	font-size: 0.85rem;
+	cursor: pointer;
+	transition:
+		background 0.15s ease,
+		border-color 0.15s ease,
+		color 0.15s ease;
+}
+
+.settings-panel__close:hover {
+	background: rgba(145, 230, 175, 0.16);
+	border-color: #91e6af;
+	color: var(--text);
+}
+
+.settings-panel__hint {
+	margin-top: -0.5rem;
+	color: var(--muted);
+	font-size: 0.9rem;
+}
+
+.settings-panel__footer {
+	margin-top: 0.5rem;
+	justify-content: flex-end;
+}
+
+@media (max-width: 560px) {
+	.settings-panel__models {
+		flex-direction: column;
+	}
+}
+
 .menu__prompt {
 	text-align: center;
 	color: var(--muted);

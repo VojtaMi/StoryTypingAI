@@ -1,6 +1,6 @@
+import { useState } from "react";
 import type { Genre } from "../genres";
 import { genres } from "../genres";
-import { ModelSelector } from "../modelSelection/ModelSelector";
 import type { TextModelId } from "../models";
 import type { SavedStorySummary } from "../saves";
 import {
@@ -8,6 +8,7 @@ import {
 	type ReadingPreparationStatus,
 } from "../story_session/useReadingPreparation";
 import "./menu.css";
+import { SettingsPanel } from "./SettingsPanel";
 import { SavedStories } from "./savedStories/SavedStories";
 
 interface MainMenuProps {
@@ -41,6 +42,7 @@ export default function MainMenu({
 	onResume,
 	onDelete,
 }: MainMenuProps) {
+	const [settingsOpen, setSettingsOpen] = useState(false);
 	const lessonGenre =
 		genres.find((genre) => genre.id === "esperanto") ?? genres[0];
 	const lessonSaves = savedStories.filter(
@@ -51,6 +53,14 @@ export default function MainMenu({
 
 	return (
 		<div className="menu">
+			<button
+				type="button"
+				className="menu__settings-button"
+				onClick={() => setSettingsOpen(true)}
+				aria-label="Open settings"
+			>
+				⚙ Settings
+			</button>
 			<section className="lesson-hero" aria-labelledby="lesson-hero-title">
 				<div className="lesson-hero__content">
 					<h1 id="lesson-hero-title">Esperanto through tiny stories</h1>
@@ -91,7 +101,13 @@ export default function MainMenu({
 					</div>
 				</div>
 			</section>
-			<ModelSelector model={model} onModelChange={onModelChange} />
+			{settingsOpen && (
+				<SettingsPanel
+					model={model}
+					onModelChange={onModelChange}
+					onClose={() => setSettingsOpen(false)}
+				/>
+			)}
 			<SavedStories
 				savedStories={lessonSaves}
 				savesError={savesError}

@@ -23,7 +23,6 @@ export interface LearnerLanguageProfile {
 export interface LearnerPreferences {
 	version: typeof LEARNER_STATE_VERSION;
 	updated: string;
-	desiredFeel: string[];
 	prefer: string[];
 	avoid: string[];
 	clarityGuidance: string[];
@@ -59,9 +58,6 @@ export const DEFAULT_LEARNER_PROFILE: LearnerLanguageProfile = {
 export const DEFAULT_LEARNER_PREFERENCES: LearnerPreferences = {
 	version: LEARNER_STATE_VERSION,
 	updated: "never",
-	desiredFeel: [
-		"Beginner Esperanto in adult-respectful, age-appropriate stories.",
-	],
 	prefer: [],
 	avoid: [],
 	clarityGuidance: [],
@@ -94,7 +90,6 @@ const PROFILE_KEYS = [
 const PREFERENCES_KEYS = [
 	"version",
 	"updated",
-	"desiredFeel",
 	"prefer",
 	"avoid",
 	"clarityGuidance",
@@ -114,7 +109,6 @@ const LIMITS = {
 	shaky: 8,
 	recentlyPracticed: 6,
 	notes: 4,
-	desiredFeel: 4,
 	prefer: 8,
 	avoid: 8,
 	clarityGuidance: 4,
@@ -163,18 +157,16 @@ export function parseLearnerPreferences(
 ): LearnerPreferences | null {
 	const object = exactObject(value, PREFERENCES_KEYS);
 	if (!object || !validBase(object)) return null;
-	const desiredFeel = boundedStrings(object.desiredFeel, LIMITS.desiredFeel);
 	const prefer = boundedStrings(object.prefer, LIMITS.prefer);
 	const avoid = boundedStrings(object.avoid, LIMITS.avoid);
 	const clarityGuidance = boundedStrings(
 		object.clarityGuidance,
 		LIMITS.clarityGuidance,
 	);
-	if (!desiredFeel || !prefer || !avoid || !clarityGuidance) return null;
+	if (!prefer || !avoid || !clarityGuidance) return null;
 	return {
 		version: LEARNER_STATE_VERSION,
 		updated: object.updated as string,
-		desiredFeel,
 		prefer,
 		avoid,
 		clarityGuidance,

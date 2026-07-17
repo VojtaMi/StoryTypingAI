@@ -31,6 +31,16 @@ files are no longer read. There is intentionally no runtime compatibility layer;
 preserve them only as a manual reference until their useful content has been
 represented in `state.json`.
 
+## Learner-state ownership
+
+`learner/state.json` is one shared learner state, not separate instruction files.
+The Settings panel edits the learner's durable story preferences — `prefer`
+and `avoid` — in that same object. Story finalization may rewrite the
+complete state after a story finishes, so those edits remain part of the same
+profile used for future generation. The app manages language-learning evidence
+and story-memory fields; `clarityGuidance` is also AI-managed from story feedback.
+All learner-state mutations are serialized through the shared mutation queue.
+
 ## The story-finish finalization record
 
 `stories/<id>/finish-evidence.json` is the control state for folding a finished
