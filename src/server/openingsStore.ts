@@ -70,6 +70,12 @@ interface PreparedReadingOpening
 	readingPartIndex: number;
 	narrationVoice: NarrationVoiceId;
 	createdAt: string;
+	/**
+	 * The finished story this was prepared after finalizing, or `null` for the
+	 * very first story. Compared against the id the caller is preparing for so a
+	 * queued entry generated before the latest finalization is never handed out.
+	 */
+	basedOnStoryId: string | null;
 }
 
 export async function listPreparedOpenings() {
@@ -173,13 +179,19 @@ export async function prepareMissingReadingOpenings(
 	openai: OpenAI,
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
+	basedOnStoryId: string | null = null,
 ) {
 	await mkdir(readingOpeningsDir, { recursive: true });
 
 	for (const genre of genres) {
 		try {
 			const existing = await readPreparedReadingOpening(genre.id);
-			if (existing) {
+			if (existing && existing.basedOnStoryId !== basedOnStoryId) {
+				// Stale relative to the finalization this call follows: it was
+				// generated against learner state finalization has since replaced.
+				// The queue is a cache, not history — discard it and generate fresh.
+				await rm(readingOpeningPath(genre.id), { force: true });
+			} else if (existing) {
 				let changed = false;
 				const next: PreparedReadingOpening = { ...existing };
 				const narrationVoice = isNarrationVoiceId(existing.narrationVoice)
@@ -230,6 +242,7 @@ export async function prepareMissingReadingOpenings(
 				genre,
 				model,
 				anthropicKey,
+				basedOnStoryId,
 			);
 			await writePreparedReadingOpening(opening);
 		} catch (err) {
@@ -356,6 +369,7 @@ async function createPreparedReadingOpening(
 	genre: Genre,
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
+	basedOnStoryId: string | null = null,
 ): Promise<PreparedReadingOpening> {
 	const learnerContext = await readLearnerContext();
 	const readingStory = await generateReadingStory(
@@ -388,6 +402,7 @@ async function createPreparedReadingOpening(
 		...backgroundImage,
 		...(openingAudio ?? {}),
 		createdAt: new Date().toISOString(),
+		basedOnStoryId,
 	};
 }
 

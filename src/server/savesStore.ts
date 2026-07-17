@@ -47,6 +47,8 @@ export async function listSaves() {
 				title: save.title,
 				updatedAt: save.updatedAt,
 				preview: latestText.slice(0, 180),
+				phase: save.phase,
+				isReadingStory: Boolean(save.readingStory),
 			};
 		})
 		.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

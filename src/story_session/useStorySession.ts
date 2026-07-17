@@ -72,6 +72,8 @@ type View = "menu" | "story" | "lesson";
 interface UseStorySessionOptions {
 	model: TextModelId;
 	view: View;
+	/** The unfinished reading-story save, if any — see `findUnfinishedReadingSave`. */
+	unfinishedReadingSaveId: string | null;
 	onViewChange: (view: View) => void;
 	onSavedStoriesChanged: () => Promise<void>;
 	onSavesError: (error: string | null) => void;
@@ -140,6 +142,7 @@ const MAX_BOT_QUESTION_CHARS = 300;
 export function useStorySession({
 	model,
 	view,
+	unfinishedReadingSaveId,
 	onViewChange,
 	onSavedStoriesChanged,
 	onSavesError,
@@ -199,10 +202,19 @@ export function useStorySession({
 	const botQuestionsRef = useRef<string[]>([]);
 	const preparingOpeningsRef = useRef(false);
 	const prepareOpeningsAgainRef = useRef(false);
+	// Distinguishes a story that reached "finished" just now, in this session,
+	// from one loaded already finished (rereading an old save). Only the former
+	// should ever finalize: rereading must not re-finalize or re-trigger
+	// preparation against stale, superseded evidence.
+	const justFinishedReadingRef = useRef(false);
 
 	// Owns finalize-then-prepare for the next reading story, and the menu's
 	// readiness for it.
-	const readingPreparation = useReadingPreparation(model);
+	const readingPreparation = useReadingPreparation(
+		model,
+		unfinishedReadingSaveId,
+		view === "menu",
+	);
 	const {
 		makeNextStory: makeNextReadingStory,
 		retry: retryReadingPreparationLifecycle,
@@ -615,6 +627,7 @@ export function useStorySession({
 	const selectGenre = useCallback(
 		async (selected: Genre) => {
 			readingMediaRef.current.reset();
+			justFinishedReadingRef.current = false;
 			storyFeedbackSubmittedAtRef.current = null;
 			botQuestionsRef.current = [];
 			storyFeedbackRef.current = null;
@@ -772,6 +785,7 @@ export function useStorySession({
 		markReadingStoryConsumed();
 
 		readingMediaRef.current.reset();
+		justFinishedReadingRef.current = false;
 		storyFeedbackSubmittedAtRef.current = null;
 		botQuestionsRef.current = [];
 		storyFeedbackRef.current = null;
@@ -909,6 +923,7 @@ export function useStorySession({
 			const nextBackgroundImage = fallbackBackgroundImage(selected);
 
 			readingMediaRef.current.reset();
+			justFinishedReadingRef.current = false;
 			storyFeedbackSubmittedAtRef.current = null;
 			botQuestionsRef.current = [];
 			storyFeedbackRef.current = null;
@@ -1372,6 +1387,7 @@ export function useStorySession({
 		(results: StoryRecapExerciseResult[] = []) => {
 			if (!genre || !activeSaveId) return;
 			storyRecapResultsRef.current = results;
+			justFinishedReadingRef.current = true;
 			setPhase("finished");
 			setStoryRecapError(null);
 			void persistStory(
@@ -1420,88 +1436,6 @@ export function useStorySession({
 	}, [completeStoryRecap]);
 
 	/**
-	 * Reads the same story again from part 1. The prose is already in hand, and
-	 * so is the media: the narration hangs off the segments just read, and the
-	 * images are in the story's gallery. Seeding both into the media owner is
-	 * what keeps a restart from paying for a single provider call.
-	 */
-	const restartReadingStory = useCallback(async () => {
-		if (!genre || !activeSaveId || !readingStory) return;
-		const firstPart = readingStory.parts[0];
-		if (!firstPart) return;
-
-		let imageMap: Record<number, StoryBackgroundImage> = {};
-		try {
-			const urls = await listStoryImages(activeSaveId);
-			imageMap = buildSectionImageMap(urls);
-		} catch (err) {
-			console.warn("Could not load story image gallery for restart.", err);
-		}
-
-		seedReadingMediaFromHistory({
-			selected: genre,
-			saveId: activeSaveId,
-			story: readingStory,
-			voice: narrationVoice,
-			segments,
-			imageMap,
-		});
-
-		storyFeedbackSubmittedAtRef.current = null;
-		botQuestionsRef.current = [];
-		storyFeedbackRef.current = null;
-		storyRecapResultsRef.current = [];
-		setStoryFeedbackSubmittedAt(null);
-
-		setStoryRecapLesson(null);
-		storyRecapLessonRef.current = null;
-		setStoryRecapError(null);
-		const restartMessages = readingStoryMessages(genre, readingStory, 1);
-		const firstAudio = segments[0]?.narrationAudio ?? null;
-		setMessages(restartMessages);
-		setSegments([]);
-		setCurrentTarget(firstPart.text);
-		setStreamingTarget("");
-		setOpeningAudio(firstAudio);
-		if (imageMap[1]) setBackgroundImage(imageMap[1]);
-		setReadingPartIndex(1);
-		setPhase("reading");
-		void persistStory(
-			makeStorySaveSnapshot.current({
-				id: activeSaveId,
-				genre,
-				title: activeTitle ?? fallbackTitle(genre),
-				messages: restartMessages,
-				memory,
-				segments: [],
-				currentTarget: firstPart.text,
-				phase: "reading",
-				backgroundIntro: backgroundIntro ?? undefined,
-				backgroundImage: imageMap[1] ?? backgroundImage,
-				openingAudio: firstAudio,
-				readingStory,
-				readingPartIndex: 1,
-				narrationVoice,
-				storyRecapLesson: null,
-			}),
-		);
-		prepareNextReadingSection(genre, activeSaveId, readingStory, 1);
-	}, [
-		activeSaveId,
-		activeTitle,
-		backgroundImage,
-		backgroundIntro,
-		genre,
-		memory,
-		narrationVoice,
-		persistStory,
-		prepareNextReadingSection,
-		readingStory,
-		seedReadingMediaFromHistory,
-		segments,
-	]);
-
-	/**
 	 * Hands the finished reading story to the preparation lifecycle: its evidence
 	 * is finalized, and only then is the next story prepared. The evidence is
 	 * captured here rather than read when finalization runs, because the caller
@@ -1511,7 +1445,20 @@ export function useStorySession({
 		(feedback?: string) => {
 			const story = readingStoryRef.current;
 			const saveId = activeSaveIdRef.current;
-			if (!story || !saveId || phaseRef.current !== "finished") return;
+			// `justFinishedReadingRef` is what makes this safe to call from both
+			// `backToMenu` and `submitStoryFeedback` without double-finalizing —
+			// and, more importantly, what stops rereading an already-finished save
+			// from finalizing it again against evidence a later story has since
+			// superseded.
+			if (
+				!story ||
+				!saveId ||
+				phaseRef.current !== "finished" ||
+				!justFinishedReadingRef.current
+			) {
+				return;
+			}
+			justFinishedReadingRef.current = false;
 			makeNextReadingStory({
 				storyId: saveId,
 				storySummary: readingStorySummary(story),
@@ -1549,6 +1496,7 @@ export function useStorySession({
 			);
 		}
 		readingMediaRef.current.reset();
+		justFinishedReadingRef.current = false;
 		onViewChange("menu");
 		setGenre(null);
 		setMessages([]);
@@ -1601,6 +1549,10 @@ export function useStorySession({
 					(candidate) => candidate.id === save.genreId,
 				);
 				if (!selected) throw new Error(`Unknown genre: ${save.genreId}`);
+				// A resumed save is never "just finished" in this session, even one
+				// that was already finished when saved — rereading it must not
+				// re-finalize it.
+				justFinishedReadingRef.current = false;
 				activeSaveIdRef.current = save.id;
 				const readingTotalParts = save.readingStory?.parts.length;
 				const restoredPhase: StoryPhase =
@@ -1888,7 +1840,6 @@ export function useStorySession({
 		retryReadingPreparation: readingPreparation.retry,
 		readingTotalParts: readingStory?.parts.length ?? null,
 		captureBotQuestions,
-		restartReadingStory,
 		retryStoryRecap,
 		segments,
 		selectGenre,

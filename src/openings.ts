@@ -35,6 +35,13 @@ export interface PreparedReadingOpening
 	readingPartIndex: number;
 	narrationVoice: NarrationVoiceId;
 	createdAt: string;
+	/**
+	 * The finished story this was prepared after finalizing, or `null` for the
+	 * very first story. A queued entry whose value doesn't match the
+	 * finalization that just ran is stale and must be discarded rather than
+	 * accepted, since it was generated against state that finalization replaced.
+	 */
+	basedOnStoryId: string | null;
 }
 
 export interface PreparedReadingOpeningSummary {
@@ -79,11 +86,12 @@ export async function listPreparedReadingOpenings(): Promise<
 
 export async function prepareMissingReadingOpenings(
 	model: TextModelId = DEFAULT_TEXT_MODEL,
+	basedOnStoryId: string | null = null,
 ): Promise<PreparedReadingOpeningSummary[]> {
 	const response = await fetch("/api/reading-openings/prepare", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ model }),
+		body: JSON.stringify({ model, basedOnStoryId }),
 	});
 	return parseResponse<PreparedReadingOpeningSummary[]>(response);
 }

@@ -161,6 +161,7 @@ async function handleRequest(
 				openai,
 				body.model,
 				ANTHROPIC_API_KEY,
+				body.basedOnStoryId ?? null,
 			).finally(() => {
 				prepareReadingPromise = null;
 			});

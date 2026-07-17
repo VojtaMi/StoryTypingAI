@@ -36,11 +36,29 @@ export interface SavedStorySummary {
 	title: string;
 	updatedAt: string;
 	preview: string;
+	phase: StoryPhase;
+	/** Whether this save is a reading story (has a whole story to cursor into). */
+	isReadingStory: boolean;
 }
 
 export async function listSavedStories(): Promise<SavedStorySummary[]> {
 	const response = await fetch("/api/saves");
 	return parseResponse<SavedStorySummary[]>(response);
+}
+
+/**
+ * The one reading-story save, if any, that hasn't reached "finished" yet. At
+ * most one can exist at a time: a reading story is only ever started by
+ * consuming the prepared queue, and the queue only refills once the previous
+ * story is finished and finalized.
+ */
+export function findUnfinishedReadingSave(
+	saves: SavedStorySummary[],
+): SavedStorySummary | null {
+	return (
+		saves.find((save) => save.isReadingStory && save.phase !== "finished") ??
+		null
+	);
 }
 
 export async function loadSavedStory(id: string): Promise<SavedStory> {

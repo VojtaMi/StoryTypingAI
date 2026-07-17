@@ -16,6 +16,7 @@ interface MainMenuProps {
 	model: TextModelId;
 	hasLessonProgress: boolean;
 	readingStoryStatus: ReadingPreparationStatus;
+	hasUnfinishedReadingStory: boolean;
 	onModelChange: (id: TextModelId) => void;
 	onSelect: (genre: Genre) => void;
 	onStartLesson: () => void;
@@ -31,6 +32,7 @@ export default function MainMenu({
 	model,
 	hasLessonProgress,
 	readingStoryStatus,
+	hasUnfinishedReadingStory,
 	onModelChange,
 	onSelect,
 	onStartLesson,
@@ -82,7 +84,9 @@ export default function MainMenu({
 								? "Making story…"
 								: readingStoryFailed
 									? "Retry story"
-									: "Reading Story"}
+									: hasUnfinishedReadingStory
+										? "Continue Story"
+										: "Reading Story"}
 						</button>
 					</div>
 				</div>

@@ -25,6 +25,7 @@ import {
 import type { TextModelId } from "./models";
 import {
 	deleteSavedStory,
+	findUnfinishedReadingSave,
 	listSavedStories,
 	type SavedStorySummary,
 } from "./saves";
@@ -133,6 +134,8 @@ export default function App() {
 			? "menu"
 			: "lesson";
 
+	const unfinishedReadingSave = findUnfinishedReadingSave(savedStories);
+
 	const {
 		activeSaveId,
 		autoContinueStory,
@@ -156,7 +159,6 @@ export default function App() {
 		retryReadingPreparation,
 		readingTotalParts,
 		storyFeedbackSubmittedAt,
-		restartReadingStory,
 		retryStoryRecap,
 		resumeStory,
 		segments,
@@ -175,6 +177,7 @@ export default function App() {
 	} = useStorySession({
 		model,
 		view: sessionView,
+		unfinishedReadingSaveId: unfinishedReadingSave?.id ?? null,
 		onViewChange: (nextView) => {
 			if (nextView === "story") enterStory();
 			else if (nextView === "menu") goto(MAIN_MENU_PATH);
@@ -290,7 +293,12 @@ export default function App() {
 					onModelChange={handleModelChange}
 					onSelect={selectGenre}
 					onStartLesson={openLessonsMenu}
-					onStartReadingStory={startReadingStory}
+					onStartReadingStory={
+						unfinishedReadingSave
+							? () => resumeStory(unfinishedReadingSave.id)
+							: startReadingStory
+					}
+					hasUnfinishedReadingStory={Boolean(unfinishedReadingSave)}
 					readingStoryStatus={readingPreparationStatus}
 					onRetryReadingStory={retryReadingPreparation}
 					onResume={resumeStory}
@@ -343,7 +351,6 @@ export default function App() {
 					onCompleteStoryRecap={completeStoryRecap}
 					onRetryStoryRecap={retryStoryRecap}
 					onSkipStoryRecap={skipStoryRecap}
-					onRestartStory={restartReadingStory}
 					onTypingComplete={handleTypingComplete}
 					onSubmitContinuation={submitContinuation}
 					onAutoContinue={autoContinueStory}

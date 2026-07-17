@@ -107,16 +107,23 @@ export async function runInitialReadingPreparation({
 }
 
 /**
- * What a fresh page load should do about the next reading story, given the
- * durable queue and any evidence a previous page left behind.
+ * What a fresh page load (or a fresh menu visit) should do about the next
+ * reading story, given whether one is already unfinished, the durable queue,
+ * and any evidence a previous page left behind.
  *
- * `resume` is the load-bearing case. The lifecycle runs in the page and only
- * starts preparation once finalization resolves, so a reload in between leaves
- * evidence with nobody acting on it. Answering `idle` there would enable the
- * button over an empty queue, and starting a story would generate one outside
- * the lifecycle, racing the finalization it is meant to follow. Answering
- * `preparing` without acting would disable the button forever, since nothing
- * else will ever fill the queue.
+ * `blocked` takes priority over everything else. An unfinished reading story
+ * means the state isn't blank: resuming it is the only next step, and
+ * preparing — even the very first story — must wait until it is finished. This
+ * is what stops an abandoned, never-finished story from silently getting a
+ * fresh replacement prepared behind it.
+ *
+ * `resume` is the next load-bearing case. The lifecycle runs in the page and
+ * only starts preparation once finalization resolves, so a reload in between
+ * leaves evidence with nobody acting on it. Answering `idle` there would
+ * enable the button over an empty queue, and starting a story would generate
+ * one outside the lifecycle, racing the finalization it is meant to follow.
+ * Answering `preparing` without acting would disable the button forever, since
+ * nothing else will ever fill the queue.
  *
  * `initial` is the same "nothing to act on yet" shape, but with no previous
  * story at all — a fresh install, or every reading story and the queue having
@@ -125,16 +132,37 @@ export async function runInitialReadingPreparation({
  * must start an initial (finalize-skipping) preparation instead.
  */
 export function decideReadingPreparationOnLoad({
+	hasUnfinishedSave,
 	preparedCount,
 	hasPendingEvidence,
 }: {
+	hasUnfinishedSave: boolean;
 	preparedCount: number;
 	hasPendingEvidence: boolean;
-}): "ready" | "resume" | "initial" {
+}): "blocked" | "ready" | "resume" | "initial" {
+	if (hasUnfinishedSave) return "blocked";
 	// A queued story means the lifecycle got there, whoever finished it.
 	if (preparedCount > 0) return "ready";
 	if (hasPendingEvidence) return "resume";
 	return "initial";
+}
+
+/**
+ * Whether pending finalization evidence should be discarded while blocked on
+ * an unfinished reading story.
+ *
+ * Evidence for exactly that story is still legitimate, not stale: the phase
+ * that marks a save "finished" is persisted separately from — and after —
+ * `savePendingReadingEvidence`, so a reload between the two (finalize already
+ * under way, the "finished" write never landing before the page closed) sees
+ * the story as unfinished while its own evidence is still good. Only evidence
+ * naming some other, already-superseded story is safe to discard.
+ */
+export function isPendingEvidenceStaleWhileBlocked(
+	pendingStoryId: string | null,
+	unfinishedSaveId: string | null,
+): boolean {
+	return pendingStoryId !== null && pendingStoryId !== unfinishedSaveId;
 }
 
 /** No reading story can start while the next one is being made. */
@@ -165,10 +193,23 @@ export interface ReadingPreparation {
 
 /**
  * Owns the make-the-next-reading-story lifecycle for the menu boundary. Nothing
- * here runs on menu entry: a reading story is prepared only as the consequence
- * of finishing one, so the queue holds at most the story the learner earned.
+ * here runs on menu entry just because the menu is up: a reading story is
+ * prepared only as the consequence of finishing one (or, for the very first
+ * story, of the state being genuinely blank), so the queue holds at most the
+ * story the learner earned.
+ *
+ * `unfinishedReadingSaveId` is the id of a reading-story save that hasn't
+ * reached "finished" yet, if one exists — the caller derives it from the
+ * saved-story list. Its presence means the state isn't blank: resuming that
+ * story is the only next step, and preparing must wait until it is finished.
+ * `isMenuVisible` re-runs the decision every time the learner lands back on the
+ * menu, since that is the only place a fresh reading story is ever started.
  */
-export function useReadingPreparation(model: TextModelId): ReadingPreparation {
+export function useReadingPreparation(
+	model: TextModelId,
+	unfinishedReadingSaveId: string | null,
+	isMenuVisible: boolean,
+): ReadingPreparation {
 	const [status, setStatus] = useState<ReadingPreparationStatus>("idle");
 	const runningRef = useRef(false);
 	const runRef = useRef<StoryFinishEvidence | null>(null);
@@ -185,7 +226,8 @@ export function useReadingPreparation(model: TextModelId): ReadingPreparation {
 		try {
 			const settled = await runReadingPreparation({
 				finalize: () => finalizeReadingStoryEvidence(evidence),
-				prepare: () => prepareMissingReadingOpenings(modelRef.current),
+				prepare: () =>
+					prepareMissingReadingOpenings(modelRef.current, evidence.storyId),
 				setStatus,
 			});
 			// Keep the evidence on `error` — retry, here or after a reload, needs it.
@@ -201,7 +243,7 @@ export function useReadingPreparation(model: TextModelId): ReadingPreparation {
 		runRef.current = null;
 		try {
 			await runInitialReadingPreparation({
-				prepare: () => prepareMissingReadingOpenings(modelRef.current),
+				prepare: () => prepareMissingReadingOpenings(modelRef.current, null),
 				setStatus,
 			});
 		} finally {
@@ -209,8 +251,11 @@ export function useReadingPreparation(model: TextModelId): ReadingPreparation {
 		}
 	}, []);
 
-	// Readiness comes from the durable queue, not from having watched it fill.
+	// Readiness comes from the durable queue, not from having watched it fill,
+	// and is only ever (re)decided while the learner is on the menu.
 	useEffect(() => {
+		if (!isMenuVisible || runRef.current) return;
+
 		let cancelled = false;
 		void (async () => {
 			const pending = readPendingReadingEvidence();
@@ -220,9 +265,22 @@ export function useReadingPreparation(model: TextModelId): ReadingPreparation {
 				// fetched before it started, overwrite its status.
 				if (cancelled || runRef.current) return;
 				const decision = decideReadingPreparationOnLoad({
+					hasUnfinishedSave: unfinishedReadingSaveId !== null,
 					preparedCount: prepared.length,
 					hasPendingEvidence: pending !== null,
 				});
+				if (decision === "blocked") {
+					if (
+						isPendingEvidenceStaleWhileBlocked(
+							pending?.storyId ?? null,
+							unfinishedReadingSaveId,
+						)
+					) {
+						clearPendingReadingEvidence();
+					}
+					setStatus("idle");
+					return;
+				}
 				if (decision === "resume" && pending) {
 					void run(pending);
 					return;
@@ -242,7 +300,7 @@ export function useReadingPreparation(model: TextModelId): ReadingPreparation {
 		return () => {
 			cancelled = true;
 		};
-	}, [run, runInitial]);
+	}, [isMenuVisible, unfinishedReadingSaveId, run, runInitial]);
 
 	const makeNextStory = useCallback(
 		(evidence: StoryFinishEvidence) => {

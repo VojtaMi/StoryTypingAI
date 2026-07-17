@@ -9,7 +9,6 @@ interface StoryCompletionViewProps {
 	canShowGallery: boolean;
 	onOpenGallery: () => void;
 	onSubmitStoryFeedback: (feedback: string) => void;
-	onRestartStory: () => void;
 }
 
 export function StoryCompletionView({
@@ -20,7 +19,6 @@ export function StoryCompletionView({
 	canShowGallery,
 	onOpenGallery,
 	onSubmitStoryFeedback,
-	onRestartStory,
 }: StoryCompletionViewProps) {
 	return (
 		<div className="story-completion">
@@ -33,13 +31,6 @@ export function StoryCompletionView({
 			</p>
 
 			<div className="story-completion__actions">
-				<button
-					type="button"
-					className="lesson-doc__begin"
-					onClick={onRestartStory}
-				>
-					Restart story
-				</button>
 				{canShowGallery && (
 					<button
 						type="button"

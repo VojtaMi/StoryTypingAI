@@ -15,6 +15,7 @@ const {
 	runInitialReadingPreparation,
 	decideReadingPreparationOnLoad,
 	isReadingPreparationBusy,
+	isPendingEvidenceStaleWhileBlocked,
 } = await import("../src/story_session/useReadingPreparation.ts");
 
 type Status = string;
@@ -151,6 +152,7 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 	// so nothing survives to finish it: the load must pick it back up.
 	assert.equal(
 		decideReadingPreparationOnLoad({
+			hasUnfinishedSave: false,
 			preparedCount: 0,
 			hasPendingEvidence: true,
 		}),
@@ -162,6 +164,7 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 	// outside the lifecycle, racing the finalization it is meant to follow.
 	assert.notEqual(
 		decideReadingPreparationOnLoad({
+			hasUnfinishedSave: false,
 			preparedCount: 0,
 			hasPendingEvidence: true,
 		}),
@@ -172,6 +175,7 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 	// stale and must not re-run anything.
 	assert.equal(
 		decideReadingPreparationOnLoad({
+			hasUnfinishedSave: false,
 			preparedCount: 1,
 			hasPendingEvidence: true,
 		}),
@@ -183,6 +187,7 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 	// preparation, not sit idle with an enabled button and no story behind it.
 	assert.equal(
 		decideReadingPreparationOnLoad({
+			hasUnfinishedSave: false,
 			preparedCount: 0,
 			hasPendingEvidence: false,
 		}),
@@ -190,6 +195,7 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 	);
 	assert.notEqual(
 		decideReadingPreparationOnLoad({
+			hasUnfinishedSave: false,
 			preparedCount: 0,
 			hasPendingEvidence: false,
 		}),
@@ -199,12 +205,76 @@ async function withoutWarnings<T>(run: () => Promise<T>): Promise<T> {
 
 	assert.equal(
 		decideReadingPreparationOnLoad({
+			hasUnfinishedSave: false,
 			preparedCount: 1,
 			hasPendingEvidence: false,
 		}),
 		"ready",
 	);
 	console.log("checked reading preparation: a reload resumes a dead lifecycle");
+}
+
+{
+	// An unfinished reading story means the state isn't blank: resuming it is
+	// the only next step, however full the queue or pending evidence looks.
+	// Preparing a fresh one here — even the very first story — would silently
+	// abandon a story the learner never finished.
+	assert.equal(
+		decideReadingPreparationOnLoad({
+			hasUnfinishedSave: true,
+			preparedCount: 0,
+			hasPendingEvidence: false,
+		}),
+		"blocked",
+	);
+	assert.equal(
+		decideReadingPreparationOnLoad({
+			hasUnfinishedSave: true,
+			preparedCount: 1,
+			hasPendingEvidence: true,
+		}),
+		"blocked",
+		"an unfinished save must take priority over a queued or pending story",
+	);
+	assert.equal(
+		isReadingPreparationBusy("idle"),
+		false,
+		"the 'idle' status a blocked decision leads to would not itself disable the button — the caller resumes instead of starting fresh",
+	);
+	console.log(
+		"checked reading preparation: an unfinished save blocks preparation",
+	);
+}
+
+{
+	// Regression: finishing a story and immediately leaving to the menu writes
+	// its "finished" phase in a separate, unawaited persist from the one that
+	// records pending finalization evidence. A reload landing between the two
+	// sees the just-finished story as "unfinished" (the phase write lost the
+	// race) while its own evidence — written synchronously, before either
+	// network call — is still sitting there. That evidence is not stale: it is
+	// this exact lifecycle, not a superseded one, and discarding it would force
+	// the learner to redo a recap they already completed.
+	assert.equal(
+		isPendingEvidenceStaleWhileBlocked("story-a", "story-a"),
+		false,
+		"evidence for the very story reported unfinished must survive a blocked decision",
+	);
+
+	// Evidence left over from a different, already-superseded lifecycle is
+	// exactly the case this exists to catch — that one is safe to discard.
+	assert.equal(
+		isPendingEvidenceStaleWhileBlocked("story-a", "story-b"),
+		true,
+		"evidence naming a different story than the one blocking must be discarded",
+	);
+
+	// No pending evidence at all is not stale evidence — nothing to discard.
+	assert.equal(isPendingEvidenceStaleWhileBlocked(null, "story-b"), false);
+
+	console.log(
+		"checked reading preparation: pending evidence for the blocking story survives a reload",
+	);
 }
 
 {
