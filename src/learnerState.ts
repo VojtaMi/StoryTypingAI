@@ -31,9 +31,14 @@ export interface LearnerPreferences {
 export interface StoryMemory {
 	version: typeof LEARNER_STATE_VERSION;
 	updated: string;
-	recentMotifs: string[];
-	recentElements: string[];
-	avoidNext: string[];
+	recentStories: RecentStoryMemory[];
+}
+
+export interface RecentStoryMemory {
+	motif: string;
+	protagonist: string;
+	setting: string;
+	elements: string[];
 }
 
 export interface LearnerContext {
@@ -66,9 +71,7 @@ export const DEFAULT_LEARNER_PREFERENCES: LearnerPreferences = {
 export const DEFAULT_STORY_MEMORY: StoryMemory = {
 	version: LEARNER_STATE_VERSION,
 	updated: "never",
-	recentMotifs: [],
-	recentElements: [],
-	avoidNext: [],
+	recentStories: [],
 };
 
 export const DEFAULT_LEARNER_CONTEXT: LearnerContext = {
@@ -94,13 +97,7 @@ const PREFERENCES_KEYS = [
 	"avoid",
 	"clarityGuidance",
 ] as const;
-const MEMORY_KEYS = [
-	"version",
-	"updated",
-	"recentMotifs",
-	"recentElements",
-	"avoidNext",
-] as const;
+const MEMORY_KEYS = ["version", "updated", "recentStories"] as const;
 const CONTEXT_KEYS = ["languageProfile", "preferences", "storyMemory"] as const;
 
 const LIMITS = {
@@ -112,9 +109,8 @@ const LIMITS = {
 	prefer: 8,
 	avoid: 8,
 	clarityGuidance: 4,
-	recentMotifs: 8,
-	recentElements: 8,
-	avoidNext: 6,
+	recentStories: 5,
+	storyElements: 6,
 } as const;
 const MAX_ITEM_LENGTH = 180;
 
@@ -176,19 +172,32 @@ export function parseLearnerPreferences(
 export function parseStoryMemory(value: unknown): StoryMemory | null {
 	const object = exactObject(value, MEMORY_KEYS);
 	if (!object || !validBase(object)) return null;
-	const recentMotifs = boundedStrings(object.recentMotifs, LIMITS.recentMotifs);
-	const recentElements = boundedStrings(
-		object.recentElements,
-		LIMITS.recentElements,
-	);
-	const avoidNext = boundedStrings(object.avoidNext, LIMITS.avoidNext);
-	if (!recentMotifs || !recentElements || !avoidNext) return null;
+	if (
+		!Array.isArray(object.recentStories) ||
+		object.recentStories.length > LIMITS.recentStories
+	) {
+		return null;
+	}
+	const recentStories: RecentStoryMemory[] = [];
+	for (const value of object.recentStories) {
+		const story = exactObject(value, [
+			"motif",
+			"protagonist",
+			"setting",
+			"elements",
+		]);
+		if (!story) return null;
+		const motif = boundedString(story.motif);
+		const protagonist = boundedString(story.protagonist);
+		const setting = boundedString(story.setting);
+		const elements = boundedStrings(story.elements, LIMITS.storyElements);
+		if (!motif || !protagonist || !setting || !elements) return null;
+		recentStories.push({ motif, protagonist, setting, elements });
+	}
 	return {
 		version: LEARNER_STATE_VERSION,
 		updated: object.updated as string,
-		recentMotifs,
-		recentElements,
-		avoidNext,
+		recentStories,
 	};
 }
 
@@ -205,6 +214,32 @@ export function parseLearnerContext(value: unknown): LearnerContext | null {
 export function parseJsonResponse(text: string): unknown {
 	const fenced = text.trim().match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1];
 	return JSON.parse(fenced ?? text);
+}
+
+export function mergeStoryMemory(
+	current: StoryMemory,
+	newStory: RecentStoryMemory,
+	today: string,
+): StoryMemory {
+	const recentStories = [newStory, ...current.recentStories]
+		.filter((story, index, stories) => {
+			const key = storyKey(story);
+			return (
+				stories.findIndex((candidate) => storyKey(candidate) === key) === index
+			);
+		})
+		.slice(0, LIMITS.recentStories);
+	return {
+		version: LEARNER_STATE_VERSION,
+		updated: today,
+		recentStories,
+	};
+}
+
+function storyKey(story: RecentStoryMemory): string {
+	return [story.motif, story.protagonist, story.setting]
+		.join("|")
+		.toLocaleLowerCase();
 }
 
 function validBase(object: Record<string, unknown>): boolean {
@@ -242,4 +277,12 @@ function boundedStrings(value: unknown, maxItems: number): string[] | null {
 		if (!strings.includes(trimmed)) strings.push(trimmed);
 	}
 	return strings;
+}
+
+function boundedString(value: unknown): string | null {
+	return typeof value === "string" &&
+		value.trim() &&
+		value.trim().length <= MAX_ITEM_LENGTH
+		? value.trim()
+		: null;
 }

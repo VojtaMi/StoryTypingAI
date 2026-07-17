@@ -34,6 +34,7 @@ const { readLearnerContext, writeLearnerContext } = await import(
 const {
 	parseLearnerLanguageProfile,
 	parseLearnerContext,
+	mergeStoryMemory,
 	DEFAULT_LEARNER_PREFERENCES,
 } = await import("../src/learnerState.ts");
 const { finalizeStoryEvidence } = await import(
@@ -60,9 +61,14 @@ const profile = {
 const storyMemory = {
 	version: 1 as const,
 	updated: "2026-07-16",
-	recentMotifs: ["existing motif"],
-	recentElements: ["existing element"],
-	avoidNext: ["existing exclusion"],
+	recentStories: [
+		{
+			motif: "existing motif",
+			protagonist: "existing protagonist",
+			setting: "existing setting",
+			elements: ["existing element"],
+		},
+	],
 };
 
 try {
@@ -197,6 +203,36 @@ try {
 	);
 	console.log("checked learner state: schemas are strict and bounded");
 
+	const fifoMemory = {
+		...storyMemory,
+		recentStories: Array.from({ length: 5 }, (_, index) => ({
+			motif: `motif ${index}`,
+			protagonist: `protagonist ${index}`,
+			setting: `setting ${index}`,
+			elements: [`element ${index}`],
+		})),
+	};
+	const mergedMemory = mergeStoryMemory(
+		fifoMemory,
+		{
+			motif: "new motif",
+			protagonist: "new protagonist",
+			setting: "new setting",
+			elements: ["new element"],
+		},
+		"2026-07-17",
+	);
+	assert.deepEqual(
+		mergedMemory.recentStories.map((story) => story.motif),
+		["new motif", "motif 0", "motif 1", "motif 2", "motif 3"],
+	);
+	assert.ok(
+		!mergedMemory.recentStories.some((story) => story.motif === "motif 4"),
+	);
+	console.log(
+		"checked story memory: newest-first FIFO eviction is deterministic",
+	);
+
 	// --- Service-level finalization -----------------------------------------
 	process.env.OPENAI_API_KEY = "test-key";
 	await writeLearnerContext({
@@ -219,12 +255,16 @@ try {
 						? {
 								languageProfile: profile,
 								preferences: DEFAULT_LEARNER_PREFERENCES,
-								storyMemory,
+								storyMemory: {
+									recentStory: storyMemory.recentStories[0],
+								},
 							}
 						: {
 								languageProfile: profile,
 								preferences: DEFAULT_LEARNER_PREFERENCES,
-								storyMemory,
+								storyMemory: {
+									recentStory: storyMemory.recentStories[0],
+								},
 							};
 					return {
 						choices: [
