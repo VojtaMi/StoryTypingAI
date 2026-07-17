@@ -21,6 +21,7 @@ import type {
 } from "../exercise_screen/types";
 import { listStoryImages } from "../gallery/galleryApi";
 import { type Genre, genres } from "../genres";
+import { readSelectedNarrationModel } from "../modelSelection/modelSelectionStore";
 import type { TextModelId } from "../models";
 import {
 	DEFAULT_NARRATION_VOICE,
@@ -231,7 +232,10 @@ export function useStorySession({
 					section.text,
 					section.storyId,
 					section.narrationVoice,
-					{ sectionIndex: section.partIndex },
+					{
+						sectionIndex: section.partIndex,
+						ttsModel: readSelectedNarrationModel(),
+					},
 				),
 			generateBackground: async (section) => {
 				const image = await generateStoryBackgroundImage(
@@ -713,6 +717,7 @@ export function useStorySession({
 							}
 						: await generateOpeningAudio(text, saveId, nextNarrationVoice, {
 								sectionIndex: 1,
+								ttsModel: readSelectedNarrationModel(),
 							}).catch((err) => {
 								console.warn("Could not generate opening audio.", err);
 								return null;

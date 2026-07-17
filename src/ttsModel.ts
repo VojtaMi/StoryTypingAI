@@ -1,0 +1,59 @@
+import type { GeminiTtsModel } from "./server/tts/constants";
+
+export const TTS_MODELS = [
+	{ id: "openai", label: "OpenAI (gpt-4o-mini-tts)" },
+	{ id: "gemini-2.5-flash-preview-tts", label: "Gemini 2.5 Flash (preview)" },
+	{ id: "gemini-3.1-flash-tts-preview", label: "Gemini 3.1 Flash (preview)" },
+] as const;
+
+export type TtsModelId = (typeof TTS_MODELS)[number]["id"];
+export const DEFAULT_TTS_MODEL: TtsModelId = "openai";
+
+export function isTtsModelId(value: unknown): value is TtsModelId {
+	return (
+		typeof value === "string" && TTS_MODELS.some((item) => item.id === value)
+	);
+}
+
+interface TtsModelInfo {
+	provider: "openai" | "gemini";
+	extension: "mp3" | "wav";
+	mimeType: "audio/mpeg" | "audio/wav";
+	model: string;
+}
+
+const TTS_MODEL_INFO: Record<TtsModelId, TtsModelInfo> = {
+	openai: {
+		provider: "openai",
+		extension: "mp3",
+		mimeType: "audio/mpeg",
+		model: "gpt-4o-mini-tts",
+	},
+	"gemini-2.5-flash-preview-tts": {
+		provider: "gemini",
+		extension: "wav",
+		mimeType: "audio/wav",
+		model: "gemini-2.5-flash-preview-tts",
+	},
+	"gemini-3.1-flash-tts-preview": {
+		provider: "gemini",
+		extension: "wav",
+		mimeType: "audio/wav",
+		model: "gemini-3.1-flash-tts-preview",
+	},
+};
+
+export function ttsModelInfo(id: TtsModelId): TtsModelInfo {
+	return TTS_MODEL_INFO[id];
+}
+
+/** Options to merge into a `tts()` call to force the chosen provider/model. */
+export function ttsModelSpeechOptions(id: TtsModelId): {
+	provider: "openai" | "gemini";
+	geminiModel?: GeminiTtsModel;
+} {
+	const info = ttsModelInfo(id);
+	return info.provider === "gemini"
+		? { provider: "gemini", geminiModel: info.model as GeminiTtsModel }
+		: { provider: "openai" };
+}

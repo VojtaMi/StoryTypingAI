@@ -3,9 +3,12 @@ import { fetchLearnerPreferences, updateLearnerPreferences } from "../ai";
 import type { LearnerPreferences } from "../learnerState";
 import {
 	readSelectedChatModel,
+	readSelectedNarrationModel,
 	saveSelectedChatModel,
+	saveSelectedNarrationModel,
 } from "../modelSelection/modelSelectionStore";
 import { TEXT_MODELS, type TextModelId } from "../models";
+import { TTS_MODELS, type TtsModelId } from "../ttsModel";
 
 interface SettingsPanelProps {
 	model: TextModelId;
@@ -35,6 +38,9 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
 	const [chatModel, setChatModel] = useState<TextModelId>(
 		readSelectedChatModel,
+	);
+	const [narrationModel, setNarrationModel] = useState<TtsModelId>(
+		readSelectedNarrationModel,
 	);
 	const [draft, setDraft] = useState<PreferencesDraft | null>(null);
 	const [saving, setSaving] = useState(false);
@@ -75,6 +81,7 @@ export function SettingsPanel({
 			};
 			await updateLearnerPreferences(preferences);
 			saveSelectedChatModel(chatModel);
+			saveSelectedNarrationModel(narrationModel);
 			setMessage("Settings saved.");
 		} catch (error) {
 			setMessage(error instanceof Error ? error.message : String(error));
@@ -126,6 +133,21 @@ export function SettingsPanel({
 							}
 						>
 							{TEXT_MODELS.map((item) => (
+								<option key={item.id} value={item.id}>
+									{item.label}
+								</option>
+							))}
+						</select>
+					</label>
+					<label>
+						Narration model
+						<select
+							value={narrationModel}
+							onChange={(event) =>
+								setNarrationModel(event.target.value as TtsModelId)
+							}
+						>
+							{TTS_MODELS.map((item) => (
 								<option key={item.id} value={item.id}>
 									{item.label}
 								</option>

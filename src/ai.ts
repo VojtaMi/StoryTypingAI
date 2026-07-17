@@ -37,6 +37,7 @@ import {
 } from "./storyRecap";
 import { normalizeStoryText } from "./storyText";
 import { slugify } from "./structuredGeneration";
+import type { TtsModelId } from "./ttsModel";
 
 export type { ChatMessage, ReadingStory, ReadingStoryPart, StoryMemory };
 
@@ -458,7 +459,7 @@ export async function generateOpeningAudio(
 	text: string,
 	storyId: string,
 	narrationVoice: NarrationVoiceId,
-	options: { sectionIndex?: number } = {},
+	options: { sectionIndex?: number; ttsModel?: TtsModelId } = {},
 ): Promise<StoryOpeningAudio> {
 	return postJson<StoryOpeningAudio>(
 		"/api/ai/opening-audio",

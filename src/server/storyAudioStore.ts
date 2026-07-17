@@ -8,12 +8,17 @@ import {
 } from "../narrationVoice";
 import type { StoryOpeningAudio } from "../storyAudio";
 import {
+	DEFAULT_TTS_MODEL,
+	type TtsModelId,
+	ttsModelInfo,
+	ttsModelSpeechOptions,
+} from "../ttsModel";
+import {
 	bundledAudioPath,
 	bundleIdPattern,
 	pathExists,
 } from "./storyBundleStore";
-import { DEFAULT_GEMINI_TTS_MODEL, OPENAI_TTS_MODEL, tts } from "./tts";
-import type { TtsProvider } from "./tts/types";
+import { tts } from "./tts";
 
 const storyAudioDir = join(process.cwd(), "story-audio");
 
@@ -24,13 +29,15 @@ export async function createOpeningAudio(
 	text: string,
 	storyId: string,
 	narrationVoice: NarrationVoiceId,
-	options: { sectionIndex?: number } = {},
+	options: { sectionIndex?: number; ttsModel?: TtsModelId } = {},
 ): Promise<StoryOpeningAudio | null> {
+	const ttsModel = options.ttsModel ?? DEFAULT_TTS_MODEL;
 	try {
 		const existingAudio = await findExistingSectionAudio(
 			text,
 			storyId,
 			narrationVoice,
+			ttsModel,
 			options.sectionIndex,
 		);
 		if (existingAudio) return existingAudio;
@@ -39,11 +46,12 @@ export async function createOpeningAudio(
 			openai,
 			text,
 			...narrationVoiceOptions(narrationVoice),
+			...ttsModelSpeechOptions(ttsModel),
 		});
 		const filename = audioFilename(
 			text,
 			narrationVoice,
-			speech.provider,
+			speech.model,
 			speech.extension,
 			options.sectionIndex,
 		);
@@ -70,15 +78,16 @@ async function findExistingSectionAudio(
 	text: string,
 	storyId: string,
 	narrationVoice: NarrationVoiceId,
+	ttsModel: TtsModelId,
 	sectionIndex?: number,
 ): Promise<StoryOpeningAudio | null> {
 	if (sectionIndex === undefined) return null;
 
-	const provider = activeExistingProvider();
+	const provider = ttsModelInfo(ttsModel);
 	const filename = audioFilename(
 		text,
 		narrationVoice,
-		provider.provider,
+		provider.model,
 		provider.extension,
 		sectionIndex,
 	);
@@ -96,27 +105,6 @@ async function findExistingSectionAudio(
 	};
 }
 
-function activeExistingProvider(): {
-	provider: TtsProvider;
-	extension: "mp3" | "wav";
-	mimeType: "audio/mpeg" | "audio/wav";
-	model: string;
-} {
-	const openai = {
-		provider: "openai" as const,
-		extension: "mp3" as const,
-		mimeType: "audio/mpeg" as const,
-		model: OPENAI_TTS_MODEL,
-	};
-	const gemini = {
-		provider: "gemini" as const,
-		extension: "wav" as const,
-		mimeType: "audio/wav" as const,
-		model: DEFAULT_GEMINI_TTS_MODEL,
-	};
-	return process.env.GEMINI_API_KEY ? gemini : openai;
-}
-
 export async function readStoryAudio(relativePath: string) {
 	const [storyId, filename] = relativePath.split("/");
 	if (storyId && filename) {
@@ -129,12 +117,13 @@ export async function readStoryAudio(relativePath: string) {
 function audioFilename(
 	text: string,
 	voice: NarrationVoiceId,
-	provider: string,
+	model: string,
 	extension: "mp3" | "wav",
 	sectionIndex?: number,
 ) {
 	if (sectionIndex !== undefined) {
-		return `section_${sectionIndex}_${voice}_${provider}_${audioTextHash(text)}.${extension}`;
+		const modelToken = model.replace(/[^a-zA-Z0-9_-]/g, "");
+		return `section_${sectionIndex}_${voice}_${modelToken}_${audioTextHash(text)}.${extension}`;
 	}
 	return `opening-${audioTextHash(text)}-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 }

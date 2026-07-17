@@ -3,6 +3,7 @@ import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
 import { DEFAULT_TEXT_MODEL, STORY_SEGMENT_MAX_TOKENS } from "../models";
 import { isNarrationVoiceId } from "../narrationVoice";
+import { DEFAULT_TTS_MODEL, isTtsModelId } from "../ttsModel";
 import {
 	completeAi,
 	completeStructuredAi,
@@ -102,7 +103,7 @@ export async function handleOpeningAudioRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { text, storyId, narrationVoice, sectionIndex } = JSON.parse(
+	const { text, storyId, narrationVoice, sectionIndex, ttsModel } = JSON.parse(
 		await readBody(req),
 	);
 	if (!text || typeof text !== "string") {
@@ -122,6 +123,7 @@ export async function handleOpeningAudioRequest(
 		() =>
 			createOpeningAudio(openai, text, storyId, narrationVoice, {
 				sectionIndex: validSectionIndex(sectionIndex),
+				ttsModel: isTtsModelId(ttsModel) ? ttsModel : DEFAULT_TTS_MODEL,
 			}),
 	);
 	if (!audio) {
