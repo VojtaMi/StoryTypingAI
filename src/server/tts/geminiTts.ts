@@ -23,6 +23,10 @@ type GeminiGenerateContentResponse = {
 	usageMetadata?: unknown;
 };
 
+const GEMINI_TTS_MAX_ATTEMPTS = 3;
+
+class RetryableGeminiTtsError extends Error {}
+
 export async function synthesizeGeminiSpeech({
 	geminiModel,
 	input,
@@ -55,54 +59,70 @@ export async function synthesizeGeminiSpeech({
 			},
 		},
 	};
-	const inlineData = await traceAiCall(
-		{
-			kind: "audio.speech",
-			provider: "gemini",
-			model: selectedModel,
-			input: body,
-			metadata: { voice: selectedVoice },
-		},
-		async () => {
-			const response = await fetch(
-				`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent`,
+	let inlineData: { data: string; mimeType?: string } | undefined;
+	for (let attempt = 1; attempt <= GEMINI_TTS_MAX_ATTEMPTS; attempt += 1) {
+		try {
+			inlineData = await traceAiCall(
 				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						"x-goog-api-key": apiKey,
-					},
-					body: JSON.stringify(body),
+					kind: "audio.speech",
+					provider: "gemini",
+					model: selectedModel,
+					input: body,
+					metadata: { voice: selectedVoice, attempt },
 				},
+				async () => {
+					const response = await fetch(
+						`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent`,
+						{
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+								"x-goog-api-key": apiKey,
+							},
+							body: JSON.stringify(body),
+						},
+					);
+
+					if (!response.ok) {
+						const message = `Gemini TTS request failed: ${response.status} ${response.statusText}`;
+						if (response.status === 429 || response.status >= 500) {
+							throw new RetryableGeminiTtsError(message);
+						}
+						throw new Error(message);
+					}
+
+					const json = (await response.json()) as GeminiGenerateContentResponse;
+					const audio = json.candidates
+						?.flatMap((candidate) => candidate.content?.parts ?? [])
+						.find((part) => part.inlineData?.data)?.inlineData;
+					if (!audio?.data) {
+						throw new AiTraceError(
+							"Gemini TTS response did not include audio data.",
+							summarizeGeminiResponse(json),
+						);
+					}
+
+					return { data: audio.data, mimeType: audio.mimeType };
+				},
+				(value) => ({
+					audioChars: value.data?.length ?? 0,
+					mimeType: value.mimeType,
+				}),
 			);
+			break;
+		} catch (error) {
+			const retryable =
+				error instanceof AiTraceError ||
+				error instanceof RetryableGeminiTtsError ||
+				error instanceof TypeError;
+			if (!retryable || attempt === GEMINI_TTS_MAX_ATTEMPTS) throw error;
+			await waitBeforeGeminiTtsRetry(attempt);
+		}
+	}
 
-			if (!response.ok) {
-				throw new Error(
-					`Gemini TTS request failed: ${response.status} ${response.statusText}`,
-				);
-			}
-
-			const json = (await response.json()) as GeminiGenerateContentResponse;
-			const inlineData = json.candidates?.[0]?.content?.parts?.find(
-				(part) => part.inlineData,
-			)?.inlineData;
-			if (!inlineData?.data) {
-				throw new AiTraceError(
-					"Gemini TTS response did not include audio data.",
-					summarizeGeminiResponse(json),
-				);
-			}
-
-			return {
-				data: inlineData.data,
-				mimeType: inlineData.mimeType,
-			};
-		},
-		(value) => ({
-			audioChars: value.data?.length ?? 0,
-			mimeType: value.mimeType,
-		}),
-	);
+	if (!inlineData) {
+		throw new Error("Gemini TTS did not produce audio.");
+	}
 
 	return {
 		audio: pcmToWav(Buffer.from(inlineData.data, "base64")),
@@ -112,4 +132,10 @@ export async function synthesizeGeminiSpeech({
 		provider: "gemini",
 		voice: selectedVoice,
 	};
+}
+
+async function waitBeforeGeminiTtsRetry(attempt: number) {
+	const baseDelayMs = 250 * 2 ** (attempt - 1);
+	const jitterMs = Math.floor(Math.random() * 150);
+	await new Promise((resolve) => setTimeout(resolve, baseDelayMs + jitterMs));
 }
