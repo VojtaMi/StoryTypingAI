@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Genre } from "../genres";
 import { genres } from "../genres";
-import type { TextModelId } from "../models";
+import type { StoryGenerationPresetId } from "../models";
 import type { SavedStorySummary } from "../saves";
 import {
 	isReadingPreparationBusy,
@@ -14,11 +14,11 @@ import { SavedStories } from "./savedStories/SavedStories";
 interface MainMenuProps {
 	savedStories: SavedStorySummary[];
 	savesError: string | null;
-	model: TextModelId;
+	storyGenerationPreset: StoryGenerationPresetId;
 	hasLessonProgress: boolean;
 	readingStoryStatus: ReadingPreparationStatus;
 	hasUnfinishedReadingStory: boolean;
-	onModelChange: (id: TextModelId) => void;
+	onStoryGenerationPresetChange: (id: StoryGenerationPresetId) => void;
 	onSelect: (genre: Genre) => void;
 	onStartLesson: () => void;
 	onStartReadingStory: () => void;
@@ -30,11 +30,11 @@ interface MainMenuProps {
 export default function MainMenu({
 	savedStories,
 	savesError,
-	model,
+	storyGenerationPreset,
 	hasLessonProgress,
 	readingStoryStatus,
 	hasUnfinishedReadingStory,
-	onModelChange,
+	onStoryGenerationPresetChange,
 	onSelect,
 	onStartLesson,
 	onStartReadingStory,
@@ -103,8 +103,8 @@ export default function MainMenu({
 			</section>
 			{settingsOpen && (
 				<SettingsPanel
-					model={model}
-					onModelChange={onModelChange}
+					storyGenerationPreset={storyGenerationPreset}
+					onStoryGenerationPresetChange={onStoryGenerationPresetChange}
 					onClose={() => setSettingsOpen(false)}
 				/>
 			)}

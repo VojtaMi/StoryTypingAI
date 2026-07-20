@@ -1,24 +1,35 @@
 import {
 	DEFAULT_CHAT_MODEL,
-	DEFAULT_TEXT_MODEL,
+	DEFAULT_STORY_GENERATION_PRESET_ID,
+	findStoryGenerationPreset,
+	type StoryGenerationPresetId,
 	TEXT_MODELS,
 	type TextModelId,
 } from "../models";
 import { DEFAULT_TTS_MODEL, isTtsModelId, type TtsModelId } from "../ttsModel";
 
-const MODEL_STORAGE_KEY = "ai-model";
+const STORY_GENERATION_PRESET_STORAGE_KEY = "story-generation-preset";
+const LEGACY_STORY_MODEL_STORAGE_KEY = "ai-model";
 const CHAT_MODEL_STORAGE_KEY = "chat-model";
 const NARRATION_MODEL_STORAGE_KEY = "narration-model";
 
-export function readSelectedTextModel(): TextModelId {
-	const stored = localStorage.getItem(MODEL_STORAGE_KEY);
-	return (
-		TEXT_MODELS.find((model) => model.id === stored)?.id ?? DEFAULT_TEXT_MODEL
+export function readSelectedStoryGenerationPreset(): StoryGenerationPresetId {
+	const stored = findStoryGenerationPreset(
+		localStorage.getItem(STORY_GENERATION_PRESET_STORAGE_KEY),
 	);
+	if (stored) return stored.id;
+
+	// Preserve the intent of the old model-only setting once. Reading stories
+	// previously always used low reasoning, so Luna and Terra map to their low
+	// presets; older or untested story models move to the recommended preset.
+	const legacyModel = localStorage.getItem(LEGACY_STORY_MODEL_STORAGE_KEY);
+	if (legacyModel === "gpt-5.6-luna") return "luna-low";
+	if (legacyModel === "gpt-5.6-terra") return "terra-low";
+	return DEFAULT_STORY_GENERATION_PRESET_ID;
 }
 
-export function saveSelectedTextModel(id: TextModelId) {
-	localStorage.setItem(MODEL_STORAGE_KEY, id);
+export function saveSelectedStoryGenerationPreset(id: StoryGenerationPresetId) {
+	localStorage.setItem(STORY_GENERATION_PRESET_STORAGE_KEY, id);
 }
 
 export function readSelectedChatModel(): TextModelId {

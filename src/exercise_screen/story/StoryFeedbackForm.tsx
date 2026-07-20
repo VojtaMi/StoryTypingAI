@@ -11,7 +11,12 @@ const DIFFICULTY_LABEL: Record<Difficulty, string> = {
 };
 
 interface StoryFeedbackFormProps {
-	onSubmit: (feedback: string) => void;
+	/**
+	 * `feedback` composes difficulty and taste into the profile-refinement
+	 * evidence; `nextStoryTheme` is the learner's one-shot request for the next
+	 * story's subject, kept separate so it never enters durable preferences.
+	 */
+	onSubmit: (feedback: string, nextStoryTheme: string) => void;
 	submitted: boolean;
 }
 
@@ -20,7 +25,8 @@ export function StoryFeedbackForm({
 	submitted,
 }: StoryFeedbackFormProps) {
 	const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
-	const [note, setNote] = useState("");
+	const [taste, setTaste] = useState("");
+	const [nextTheme, setNextTheme] = useState("");
 
 	if (submitted) {
 		return (
@@ -30,11 +36,12 @@ export function StoryFeedbackForm({
 
 	function handleSubmit() {
 		if (!difficulty) return;
-		const trimmedNote = note.trim();
+		const trimmedTaste = taste.trim();
 		onSubmit(
-			trimmedNote
-				? `${DIFFICULTY_LABEL[difficulty]}. ${trimmedNote}`
+			trimmedTaste
+				? `${DIFFICULTY_LABEL[difficulty]}. ${trimmedTaste}`
 				: DIFFICULTY_LABEL[difficulty],
+			nextTheme.trim(),
 		);
 	}
 
@@ -58,13 +65,27 @@ export function StoryFeedbackForm({
 					</button>
 				))}
 			</div>
+
+			<p className="lesson-doc__subheading">
+				What would you like more or less of?
+			</p>
 			<textarea
 				className="story-completion__note"
-				value={note}
-				onChange={(event) => setNote(event.target.value)}
-				placeholder="Anything else? (optional)"
+				value={taste}
+				onChange={(event) => setTaste(event.target.value)}
+				placeholder="e.g. more fantasy, I like horses, more diverse characters (optional)"
 				rows={2}
 			/>
+
+			<p className="lesson-doc__subheading">Theme for your next story</p>
+			<textarea
+				className="story-completion__note"
+				value={nextTheme}
+				onChange={(event) => setNextTheme(event.target.value)}
+				placeholder="e.g. a shipwreck on a deserted island (optional)"
+				rows={2}
+			/>
+
 			<button
 				type="button"
 				className="lesson-doc__begin"

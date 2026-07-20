@@ -8,6 +8,7 @@ import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import OpenAI from "openai";
 import type { GenreId } from "../genres";
+import { TEXT_REASONING_EFFORTS, type TextReasoningEffort } from "../models";
 import {
 	handleBackgroundImageRequest,
 	handleCompleteRequest,
@@ -158,11 +159,22 @@ async function handleRequest(
 			const body = req.headers["content-length"]
 				? JSON.parse(await readBody(req))
 				: {};
+			if (
+				body.reasoningEffort !== undefined &&
+				!TEXT_REASONING_EFFORTS.includes(
+					body.reasoningEffort as TextReasoningEffort,
+				)
+			) {
+				sendJson(res, 400, { error: "reasoningEffort is invalid." });
+				return;
+			}
 			prepareReadingPromise ??= prepareMissingReadingOpenings(
 				openai,
 				body.model,
 				ANTHROPIC_API_KEY,
 				body.basedOnStoryId ?? null,
+				typeof body.nextTheme === "string" ? body.nextTheme : undefined,
+				body.reasoningEffort as TextReasoningEffort | undefined,
 			).finally(() => {
 				prepareReadingPromise = null;
 			});

@@ -295,6 +295,23 @@ assert.equal(
 );
 console.log("checked reading story: generation requests low reasoning");
 
+await generateReadingStory(
+	async (_messages, _maxTokens, options) => {
+		storyReasoningEffort = options?.reasoningEffort;
+		return storyJson();
+	},
+	genre,
+	undefined,
+	undefined,
+	{ reasoningEffort: "medium" },
+);
+assert.equal(
+	storyReasoningEffort,
+	"medium",
+	"A selected story preset should override the initial generation effort.",
+);
+console.log("checked reading story: selected reasoning is forwarded");
+
 // A truncated story must fail even after the repair pass fails to fix it, and
 // the caller must see the failure rather than a partial story.
 await assert.rejects(

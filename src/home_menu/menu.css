@@ -173,7 +173,7 @@
 }
 
 .settings-panel__card {
-	width: min(100%, 680px);
+	width: min(100%, 900px);
 	max-height: min(90vh, 800px);
 	overflow: auto;
 	padding: 1.5rem;
@@ -193,6 +193,8 @@
 }
 
 .settings-panel__models {
+	display: grid;
+	grid-template-columns: minmax(0, 1.65fr) repeat(2, minmax(0, 1fr));
 	align-items: stretch;
 	margin: 1.25rem 0;
 }
@@ -277,9 +279,9 @@
 	justify-content: flex-end;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 760px) {
 	.settings-panel__models {
-		flex-direction: column;
+		grid-template-columns: 1fr;
 	}
 }
 

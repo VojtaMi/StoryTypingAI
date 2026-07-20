@@ -1,6 +1,7 @@
 import type { StoryFinishEvidence } from "../ai";
 
 const PENDING_KEY = "reading-preparation-pending";
+const PENDING_THEME_KEY = "reading-preparation-theme";
 
 /**
  * The evidence of a finished story whose lifecycle has not yet produced a
@@ -27,6 +28,23 @@ export function savePendingReadingEvidence(evidence: StoryFinishEvidence) {
 	localStorage.setItem(PENDING_KEY, JSON.stringify(evidence));
 }
 
+/**
+ * The learner's one-shot theme request for the next story, persisted next to the
+ * pending evidence so a reload mid-lifecycle can resume with it. It rides
+ * alongside — not inside — the evidence, so finalization never sees it and it
+ * can never leak into the durable learner profile.
+ */
+export function readPendingReadingTheme(): string | null {
+	return localStorage.getItem(PENDING_THEME_KEY) || null;
+}
+
+export function savePendingReadingTheme(theme: string) {
+	localStorage.setItem(PENDING_THEME_KEY, theme);
+}
+
 export function clearPendingReadingEvidence() {
 	localStorage.removeItem(PENDING_KEY);
+	// The theme belongs to the same lifecycle: whenever the evidence is cleared
+	// (settled, consumed, or discarded as stale) the one-shot theme is spent too.
+	localStorage.removeItem(PENDING_THEME_KEY);
 }

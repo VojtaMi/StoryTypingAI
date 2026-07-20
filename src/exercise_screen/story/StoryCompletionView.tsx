@@ -8,7 +8,7 @@ interface StoryCompletionViewProps {
 	storyFeedbackSubmittedAt: string | null;
 	canShowGallery: boolean;
 	onOpenGallery: () => void;
-	onSubmitStoryFeedback: (feedback: string) => void;
+	onSubmitStoryFeedback: (feedback: string, nextStoryTheme: string) => void;
 }
 
 export function StoryCompletionView({

@@ -1,6 +1,12 @@
 import type { ChatMessage, ReadingStory } from "./ai";
 import type { GenreId } from "./genres";
-import { DEFAULT_TEXT_MODEL, type TextModelId } from "./models";
+import {
+	DEFAULT_STORY_GENERATION_PRESET_ID,
+	DEFAULT_TEXT_MODEL,
+	getStoryGenerationPreset,
+	type StoryGenerationPreset,
+	type TextModelId,
+} from "./models";
 import type { NarrationVoiceId } from "./narrationVoice";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
@@ -85,13 +91,21 @@ export async function listPreparedReadingOpenings(): Promise<
 }
 
 export async function prepareMissingReadingOpenings(
-	model: TextModelId = DEFAULT_TEXT_MODEL,
+	storyGeneration: StoryGenerationPreset = getStoryGenerationPreset(
+		DEFAULT_STORY_GENERATION_PRESET_ID,
+	),
 	basedOnStoryId: string | null = null,
+	nextTheme?: string,
 ): Promise<PreparedReadingOpeningSummary[]> {
 	const response = await fetch("/api/reading-openings/prepare", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ model, basedOnStoryId }),
+		body: JSON.stringify({
+			model: storyGeneration.model,
+			reasoningEffort: storyGeneration.reasoningEffort,
+			basedOnStoryId,
+			nextTheme,
+		}),
 	});
 	return parseResponse<PreparedReadingOpeningSummary[]>(response);
 }

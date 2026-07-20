@@ -22,7 +22,7 @@ import type {
 import { listStoryImages } from "../gallery/galleryApi";
 import { type Genre, genres } from "../genres";
 import { readSelectedNarrationModel } from "../modelSelection/modelSelectionStore";
-import type { TextModelId } from "../models";
+import type { StoryGenerationPreset } from "../models";
 import {
 	DEFAULT_NARRATION_VOICE,
 	isNarrationVoiceId,
@@ -71,7 +71,7 @@ import { useReadingPreparation } from "./useReadingPreparation";
 type View = "menu" | "story" | "lesson";
 
 interface UseStorySessionOptions {
-	model: TextModelId;
+	storyGeneration: StoryGenerationPreset;
 	view: View;
 	/** The unfinished reading-story save, if any — see `findUnfinishedReadingSave`. */
 	unfinishedReadingSaveId: string | null;
@@ -141,13 +141,14 @@ const MAX_BUFFERED_BOT_QUESTIONS = 20;
 const MAX_BOT_QUESTION_CHARS = 300;
 
 export function useStorySession({
-	model,
+	storyGeneration,
 	view,
 	unfinishedReadingSaveId,
 	onViewChange,
 	onSavedStoriesChanged,
 	onSavesError,
 }: UseStorySessionOptions) {
+	const model = storyGeneration.model;
 	const [genre, setGenre] = useState<Genre | null>(null);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [memory, setMemory] = useState<StoryMemory | undefined>();
@@ -197,6 +198,10 @@ export function useStorySession({
 	const storyRecapResultsRef = useRef<StoryRecapExerciseResult[]>([]);
 	const storyFeedbackRef = useRef<string | null>(null);
 	const storyFeedbackSubmittedAtRef = useRef<string | null>(null);
+	// The learner's one-shot theme request for the *next* story. Transient: it is
+	// handed to the preparation lifecycle at finalize, never persisted in this
+	// story's save and never folded into the durable learner profile.
+	const storyNextThemeRef = useRef<string | null>(null);
 	// Interactive continuity: the learner's tutor questions asked while reading are
 	// buffered here (deduped, bounded) and folded once into the baseline at story
 	// end — they stay out of the durable handout until the story finalizes.
@@ -212,7 +217,7 @@ export function useStorySession({
 	// Owns finalize-then-prepare for the next reading story, and the menu's
 	// readiness for it.
 	const readingPreparation = useReadingPreparation(
-		model,
+		storyGeneration,
 		unfinishedReadingSaveId,
 		view === "menu",
 	);
@@ -635,6 +640,7 @@ export function useStorySession({
 			storyFeedbackSubmittedAtRef.current = null;
 			botQuestionsRef.current = [];
 			storyFeedbackRef.current = null;
+			storyNextThemeRef.current = null;
 			storyRecapResultsRef.current = [];
 			setStoryFeedbackSubmittedAt(null);
 			setGenre(selected);
@@ -794,6 +800,7 @@ export function useStorySession({
 		storyFeedbackSubmittedAtRef.current = null;
 		botQuestionsRef.current = [];
 		storyFeedbackRef.current = null;
+		storyNextThemeRef.current = null;
 		storyRecapResultsRef.current = [];
 		setStoryFeedbackSubmittedAt(null);
 		setGenre(selected);
@@ -932,6 +939,7 @@ export function useStorySession({
 			storyFeedbackSubmittedAtRef.current = null;
 			botQuestionsRef.current = [];
 			storyFeedbackRef.current = null;
+			storyNextThemeRef.current = null;
 			storyRecapResultsRef.current = [];
 			setStoryFeedbackSubmittedAt(null);
 			narrationVoiceRef.current = nextNarrationVoice;
@@ -1445,7 +1453,7 @@ export function useStorySession({
 	 * clears the session as it navigates away.
 	 */
 	const finalizeReadingEvidence = useCallback(
-		(feedback?: string) => {
+		(feedback?: string, nextTheme?: string) => {
 			const story = readingStoryRef.current;
 			const saveId = activeSaveIdRef.current;
 			// `justFinishedReadingRef` is what makes this safe to call from both
@@ -1462,20 +1470,26 @@ export function useStorySession({
 				return;
 			}
 			justFinishedReadingRef.current = false;
-			makeNextReadingStory({
-				storyId: saveId,
-				storySummary: readingStorySummary(story),
-				learnerQuestions: botQuestionsRef.current,
-				recapResults: storyRecapResultsRef.current,
-				...(feedback?.trim() ? { feedback: feedback.trim() } : {}),
-			});
+			makeNextReadingStory(
+				{
+					storyId: saveId,
+					storySummary: readingStorySummary(story),
+					learnerQuestions: botQuestionsRef.current,
+					recapResults: storyRecapResultsRef.current,
+					...(feedback?.trim() ? { feedback: feedback.trim() } : {}),
+				},
+				nextTheme?.trim() || undefined,
+			);
 		},
 		[makeNextReadingStory],
 	);
 
 	const backToMenu = useCallback(() => {
 		if (readingStory && activeSaveId && phase === "finished") {
-			finalizeReadingEvidence(storyFeedbackRef.current ?? undefined);
+			finalizeReadingEvidence(
+				storyFeedbackRef.current ?? undefined,
+				storyNextThemeRef.current ?? undefined,
+			);
 		}
 		if (genre && activeSaveId) {
 			void persistStory(
@@ -1687,10 +1701,12 @@ export function useStorySession({
 	);
 
 	const submitStoryFeedback = useCallback(
-		(feedback: string) => {
+		(feedback: string, nextStoryTheme = "") => {
 			const submittedAt = new Date().toISOString();
 			const cleanFeedback = feedback.trim();
+			const cleanTheme = nextStoryTheme.trim();
 			storyFeedbackRef.current = cleanFeedback;
+			storyNextThemeRef.current = cleanTheme || null;
 			storyFeedbackSubmittedAtRef.current = submittedAt;
 			setStoryFeedbackSubmittedAt(submittedAt);
 			if (genre && activeSaveId) {
@@ -1715,7 +1731,7 @@ export function useStorySession({
 				);
 			}
 			if (readingStory && phase === "finished") {
-				finalizeReadingEvidence(cleanFeedback);
+				finalizeReadingEvidence(cleanFeedback, cleanTheme);
 			}
 		},
 		[

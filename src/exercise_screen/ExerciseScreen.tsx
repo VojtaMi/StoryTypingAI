@@ -58,7 +58,7 @@ interface ExerciseScreenProps {
 	onSubmitContinuation: (text: string) => void;
 	onAutoContinue: () => void;
 	onBackToMenu: () => void;
-	onSubmitStoryFeedback: (feedback: string) => void;
+	onSubmitStoryFeedback: (feedback: string, nextStoryTheme: string) => void;
 	/** Buffers the learner's tutor questions for the reading-story baseline. */
 	onCaptureBotQuestions: (questions: string[]) => void;
 }

@@ -3,7 +3,7 @@ import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type OpenAI from "openai";
 import { type Genre, type GenreId, genres } from "../genres";
-import { DEFAULT_TEXT_MODEL } from "../models";
+import { DEFAULT_TEXT_MODEL, type TextReasoningEffort } from "../models";
 import {
 	isNarrationVoiceId,
 	type NarrationVoiceId,
@@ -180,6 +180,8 @@ export async function prepareMissingReadingOpenings(
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 	basedOnStoryId: string | null = null,
+	nextTheme?: string,
+	reasoningEffort: TextReasoningEffort = "low",
 ) {
 	await mkdir(readingOpeningsDir, { recursive: true });
 
@@ -243,6 +245,8 @@ export async function prepareMissingReadingOpenings(
 				model,
 				anthropicKey,
 				basedOnStoryId,
+				nextTheme,
+				reasoningEffort,
 			);
 			await writePreparedReadingOpening(opening);
 		} catch (err) {
@@ -370,6 +374,8 @@ async function createPreparedReadingOpening(
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 	basedOnStoryId: string | null = null,
+	nextTheme?: string,
+	reasoningEffort: TextReasoningEffort = "low",
 ): Promise<PreparedReadingOpening> {
 	const learnerContext = await readLearnerContext();
 	const readingStory = await generateReadingStory(
@@ -384,6 +390,8 @@ async function createPreparedReadingOpening(
 			),
 		genre,
 		learnerContext,
+		nextTheme,
+		{ reasoningEffort },
 	);
 	const text = readingStory.parts[0].text;
 	const title = readingStory.title;

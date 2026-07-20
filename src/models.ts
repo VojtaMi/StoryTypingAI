@@ -1,4 +1,6 @@
 export const TEXT_MODELS = [
+	{ id: "gpt-5.6-sol", label: "GPT 5.6 Sol" },
+	{ id: "gpt-5.6-terra", label: "GPT 5.6 Terra" },
 	{ id: "gpt-5.6-luna", label: "GPT 5.6 Luna" },
 	{ id: "gpt-5.4-mini", label: "GPT 5.4 mini" },
 	{ id: "gpt-5.4", label: "GPT 5.4" },
@@ -22,6 +24,55 @@ export const TEXT_REASONING_EFFORTS = [
 	"xhigh",
 ] as const;
 export type TextReasoningEffort = (typeof TEXT_REASONING_EFFORTS)[number];
+
+/**
+ * Curated story-generation choices. The tutor and CLI still use TEXT_MODELS;
+ * this shorter list only exposes combinations we have evaluated for complete
+ * reading stories. Typing stories use the preset's model but do not use its
+ * reasoning effort because their continuation endpoint streams plain text.
+ */
+export const STORY_GENERATION_PRESETS = [
+	{
+		id: "terra-medium",
+		label: "GPT 5.6 Terra · Medium — Recommended",
+		model: "gpt-5.6-terra",
+		reasoningEffort: "medium",
+	},
+	{
+		id: "terra-low",
+		label: "GPT 5.6 Terra · Low — Faster",
+		model: "gpt-5.6-terra",
+		reasoningEffort: "low",
+	},
+	{
+		id: "luna-low",
+		label: "GPT 5.6 Luna · Low — Lowest cost",
+		model: "gpt-5.6-luna",
+		reasoningEffort: "low",
+	},
+] as const satisfies readonly {
+	id: string;
+	label: string;
+	model: TextModelId;
+	reasoningEffort: TextReasoningEffort;
+}[];
+
+export type StoryGenerationPreset = (typeof STORY_GENERATION_PRESETS)[number];
+export type StoryGenerationPresetId = StoryGenerationPreset["id"];
+export const DEFAULT_STORY_GENERATION_PRESET_ID: StoryGenerationPresetId =
+	"terra-medium";
+
+export function findStoryGenerationPreset(
+	id: string | null | undefined,
+): StoryGenerationPreset | undefined {
+	return STORY_GENERATION_PRESETS.find((preset) => preset.id === id);
+}
+
+export function getStoryGenerationPreset(
+	id: StoryGenerationPresetId,
+): StoryGenerationPreset {
+	return findStoryGenerationPreset(id) ?? STORY_GENERATION_PRESETS[0];
+}
 
 /**
  * Default model for the Esperanto Bot chat. The bot answers short, interactive

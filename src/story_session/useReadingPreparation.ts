@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { finalizeReadingStoryEvidence, type StoryFinishEvidence } from "../ai";
-import type { TextModelId } from "../models";
+import type { StoryGenerationPreset } from "../models";
 import {
 	listPreparedReadingOpenings,
 	prepareMissingReadingOpenings,
@@ -8,7 +8,9 @@ import {
 import {
 	clearPendingReadingEvidence,
 	readPendingReadingEvidence,
+	readPendingReadingTheme,
 	savePendingReadingEvidence,
+	savePendingReadingTheme,
 } from "./readingPreparationStore";
 
 /**
@@ -180,7 +182,7 @@ export interface ReadingPreparation {
 	 * Finalize the just-finished story, then prepare exactly one next story.
 	 * Calls naming a story that already owns the lifecycle are ignored.
 	 */
-	makeNextStory: (evidence: StoryFinishEvidence) => void;
+	makeNextStory: (evidence: StoryFinishEvidence, nextTheme?: string) => void;
 	/**
 	 * Re-run a lifecycle that failed. Finalization is idempotent server-side.
 	 * With no evidence to finalize — nothing pending, no story ever finished —
@@ -206,36 +208,45 @@ export interface ReadingPreparation {
  * menu, since that is the only place a fresh reading story is ever started.
  */
 export function useReadingPreparation(
-	model: TextModelId,
+	storyGeneration: StoryGenerationPreset,
 	unfinishedReadingSaveId: string | null,
 	isMenuVisible: boolean,
 ): ReadingPreparation {
 	const [status, setStatus] = useState<ReadingPreparationStatus>("idle");
 	const runningRef = useRef(false);
 	const runRef = useRef<StoryFinishEvidence | null>(null);
-	const modelRef = useRef(model);
-	modelRef.current = model;
+	const storyGenerationRef = useRef(storyGeneration);
+	storyGenerationRef.current = storyGeneration;
 
-	const run = useCallback(async (evidence: StoryFinishEvidence) => {
-		if (runningRef.current) return;
-		runningRef.current = true;
-		runRef.current = evidence;
-		// Written before the work starts, so a reload at any point from here on
-		// can pick the lifecycle back up.
-		savePendingReadingEvidence(evidence);
-		try {
-			const settled = await runReadingPreparation({
-				finalize: () => finalizeReadingStoryEvidence(evidence),
-				prepare: () =>
-					prepareMissingReadingOpenings(modelRef.current, evidence.storyId),
-				setStatus,
-			});
-			// Keep the evidence on `error` — retry, here or after a reload, needs it.
-			if (settled === "ready") clearPendingReadingEvidence();
-		} finally {
-			runningRef.current = false;
-		}
-	}, []);
+	const run = useCallback(
+		async (evidence: StoryFinishEvidence, nextTheme?: string) => {
+			if (runningRef.current) return;
+			runningRef.current = true;
+			runRef.current = evidence;
+			// Written before the work starts, so a reload at any point from here on
+			// can pick the lifecycle back up. The theme rides alongside the evidence,
+			// never inside it, so finalization never sees it.
+			savePendingReadingEvidence(evidence);
+			if (nextTheme) savePendingReadingTheme(nextTheme);
+			try {
+				const settled = await runReadingPreparation({
+					finalize: () => finalizeReadingStoryEvidence(evidence),
+					prepare: () =>
+						prepareMissingReadingOpenings(
+							storyGenerationRef.current,
+							evidence.storyId,
+							nextTheme,
+						),
+					setStatus,
+				});
+				// Keep the evidence on `error` — retry, here or after a reload, needs it.
+				if (settled === "ready") clearPendingReadingEvidence();
+			} finally {
+				runningRef.current = false;
+			}
+		},
+		[],
+	);
 
 	const runInitial = useCallback(async () => {
 		if (runningRef.current) return;
@@ -243,7 +254,8 @@ export function useReadingPreparation(
 		runRef.current = null;
 		try {
 			await runInitialReadingPreparation({
-				prepare: () => prepareMissingReadingOpenings(modelRef.current, null),
+				prepare: () =>
+					prepareMissingReadingOpenings(storyGenerationRef.current, null),
 				setStatus,
 			});
 		} finally {
@@ -282,7 +294,7 @@ export function useReadingPreparation(
 					return;
 				}
 				if (decision === "resume" && pending) {
-					void run(pending);
+					void run(pending, readPendingReadingTheme() ?? undefined);
 					return;
 				}
 				if (decision === "ready") {
@@ -303,12 +315,12 @@ export function useReadingPreparation(
 	}, [isMenuVisible, unfinishedReadingSaveId, run, runInitial]);
 
 	const makeNextStory = useCallback(
-		(evidence: StoryFinishEvidence) => {
+		(evidence: StoryFinishEvidence, nextTheme?: string) => {
 			// Leaving the story and submitting feedback both finish the same story
 			// and both land here; the first caller owns the lifecycle so the pair
 			// cannot double-generate.
 			if (runRef.current?.storyId === evidence.storyId) return;
-			void run(evidence);
+			void run(evidence, nextTheme);
 		},
 		[run],
 	);
@@ -316,7 +328,7 @@ export function useReadingPreparation(
 	const retry = useCallback(() => {
 		const pending = runRef.current ?? readPendingReadingEvidence();
 		if (pending) {
-			void run(pending);
+			void run(pending, readPendingReadingTheme() ?? undefined);
 			return;
 		}
 		void runInitial();

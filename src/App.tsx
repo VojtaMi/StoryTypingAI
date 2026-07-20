@@ -19,10 +19,13 @@ import {
 	miEstasHomoLesson,
 } from "./lessons/predefined/lessons";
 import {
-	readSelectedTextModel,
-	saveSelectedTextModel,
+	readSelectedStoryGenerationPreset,
+	saveSelectedStoryGenerationPreset,
 } from "./modelSelection/modelSelectionStore";
-import type { TextModelId } from "./models";
+import {
+	getStoryGenerationPreset,
+	type StoryGenerationPresetId,
+} from "./models";
 import {
 	deleteSavedStory,
 	findUnfinishedReadingSave,
@@ -90,7 +93,9 @@ export default function App() {
 	const [inStory, setInStory] = useState(false);
 	const [savedStories, setSavedStories] = useState<SavedStorySummary[]>([]);
 	const [savesError, setSavesError] = useState<string | null>(null);
-	const [model, setModel] = useState<TextModelId>(readSelectedTextModel);
+	const [storyGenerationPresetId, setStoryGenerationPresetId] =
+		useState<StoryGenerationPresetId>(readSelectedStoryGenerationPreset);
+	const storyGeneration = getStoryGenerationPreset(storyGenerationPresetId);
 
 	const lessonProgress = readLessonProgress();
 	const hasLessonProgress =
@@ -175,7 +180,7 @@ export default function App() {
 		captureBotQuestions,
 		wordTranslations,
 	} = useStorySession({
-		model,
+		storyGeneration,
 		view: sessionView,
 		unfinishedReadingSaveId: unfinishedReadingSave?.id ?? null,
 		onViewChange: (nextView) => {
@@ -214,9 +219,9 @@ export default function App() {
 
 	const currentStep = CURRICULUM.find((step) => step.path === location);
 
-	function handleModelChange(id: TextModelId) {
-		saveSelectedTextModel(id);
-		setModel(id);
+	function handleStoryGenerationPresetChange(id: StoryGenerationPresetId) {
+		saveSelectedStoryGenerationPreset(id);
+		setStoryGenerationPresetId(id);
 	}
 
 	const openLessonsMenu = useCallback(() => goto(LESSONS_MENU_PATH), [goto]);
@@ -288,9 +293,9 @@ export default function App() {
 				<MainMenu
 					savedStories={savedStories}
 					savesError={savesError}
-					model={model}
+					storyGenerationPreset={storyGenerationPresetId}
 					hasLessonProgress={hasLessonProgress}
-					onModelChange={handleModelChange}
+					onStoryGenerationPresetChange={handleStoryGenerationPresetChange}
 					onSelect={selectGenre}
 					onStartLesson={openLessonsMenu}
 					onStartReadingStory={

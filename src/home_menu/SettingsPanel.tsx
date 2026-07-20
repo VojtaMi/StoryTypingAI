@@ -7,12 +7,17 @@ import {
 	saveSelectedChatModel,
 	saveSelectedNarrationModel,
 } from "../modelSelection/modelSelectionStore";
-import { TEXT_MODELS, type TextModelId } from "../models";
+import {
+	STORY_GENERATION_PRESETS,
+	type StoryGenerationPresetId,
+	TEXT_MODELS,
+	type TextModelId,
+} from "../models";
 import { TTS_MODELS, type TtsModelId } from "../ttsModel";
 
 interface SettingsPanelProps {
-	model: TextModelId;
-	onModelChange: (model: TextModelId) => void;
+	storyGenerationPreset: StoryGenerationPresetId;
+	onStoryGenerationPresetChange: (preset: StoryGenerationPresetId) => void;
 	onClose: () => void;
 }
 
@@ -32,8 +37,8 @@ function list(value: string): string[] {
 }
 
 export function SettingsPanel({
-	model,
-	onModelChange,
+	storyGenerationPreset,
+	onStoryGenerationPresetChange,
 	onClose,
 }: SettingsPanelProps) {
 	const [chatModel, setChatModel] = useState<TextModelId>(
@@ -110,14 +115,16 @@ export function SettingsPanel({
 				</div>
 				<div className="settings-panel__models">
 					<label>
-						Story model
+						Story generation
 						<select
-							value={model}
+							value={storyGenerationPreset}
 							onChange={(event) =>
-								onModelChange(event.target.value as TextModelId)
+								onStoryGenerationPresetChange(
+									event.target.value as StoryGenerationPresetId,
+								)
 							}
 						>
-							{TEXT_MODELS.map((item) => (
+							{STORY_GENERATION_PRESETS.map((item) => (
 								<option key={item.id} value={item.id}>
 									{item.label}
 								</option>
@@ -155,6 +162,11 @@ export function SettingsPanel({
 						</select>
 					</label>
 				</div>
+				<p className="settings-panel__hint">
+					Reasoning applies to prepared reading stories. Typing stories use the
+					selected model in streaming mode. Changes apply to the next generated
+					reading story.
+				</p>
 				<h3>Story preferences</h3>
 				<p className="settings-panel__hint">
 					One preference per line. These edit the same preferences the app
