@@ -116,8 +116,8 @@ the list and the current default.
 | `npm run verify:page -- <url> [--expect-text "..."]` | Drives a real browser; fails on console errors, page errors, failed requests, or missing text. |
 | `npm run bricks:test`, `npm run lessons:test`, `npm run reading:test` | Deterministic regression checks under `tests/`. |
 | `npm run lesson:generation:test` | Exercises the AI lesson-generation pipeline. |
-| `npm run test:opening` | Generates one story opening against the real API. |
-| `npm run model:compare` | Runs the fixed, per-section reading benchmark. It intentionally does not exercise the app's current full-story production prompt. |
+| `npm run story:generate -- [--model ID] [--learner-state PATH \| --default-learner] [--reasoning EFFORT]` | Generates one complete reading story through the production prompt and prints JSON. Uses `learner/state.json` by default. |
+| `npm run story:typing-opening -- [--model ID] [--seed TEXT] [genre] [count]` | Generates typing-story openings against the real API. |
 | `npm run gemini:images`, `npm run gemini:tts`, `npm run gemini:tts:compare` | Provider comparison scripts. |
 
 Scripts that call a provider cost money, and are deliberately not part of
