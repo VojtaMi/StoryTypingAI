@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import OpenAI from "openai";
 import type { GenreId } from "../genres";
 import { TEXT_REASONING_EFFORTS, type TextReasoningEffort } from "../models";
+import { DEFAULT_TTS_MODEL, isTtsModelId } from "../ttsModel";
 import {
 	handleBackgroundImageRequest,
 	handleCompleteRequest,
@@ -175,6 +176,7 @@ async function handleRequest(
 				body.basedOnStoryId ?? null,
 				typeof body.nextTheme === "string" ? body.nextTheme : undefined,
 				body.reasoningEffort as TextReasoningEffort | undefined,
+				isTtsModelId(body.ttsModel) ? body.ttsModel : DEFAULT_TTS_MODEL,
 			).finally(() => {
 				prepareReadingPromise = null;
 			});

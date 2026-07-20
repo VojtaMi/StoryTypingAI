@@ -10,6 +10,7 @@ import {
 import type { NarrationVoiceId } from "./narrationVoice";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
+import { DEFAULT_TTS_MODEL, type TtsModelId } from "./ttsModel";
 
 export interface PreparedOpening
 	extends Partial<StoryBackgroundImage>,
@@ -96,6 +97,7 @@ export async function prepareMissingReadingOpenings(
 	),
 	basedOnStoryId: string | null = null,
 	nextTheme?: string,
+	ttsModel: TtsModelId = DEFAULT_TTS_MODEL,
 ): Promise<PreparedReadingOpeningSummary[]> {
 	const response = await fetch("/api/reading-openings/prepare", {
 		method: "POST",
@@ -105,6 +107,7 @@ export async function prepareMissingReadingOpenings(
 			reasoningEffort: storyGeneration.reasoningEffort,
 			basedOnStoryId,
 			nextTheme,
+			ttsModel,
 		}),
 	});
 	return parseResponse<PreparedReadingOpeningSummary[]>(response);

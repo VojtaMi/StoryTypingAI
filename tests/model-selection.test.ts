@@ -60,6 +60,7 @@ try {
 		getStoryGenerationPreset("terra-medium"),
 		"previous-story",
 		"a floating city",
+		"gemini-3.1-flash-tts-preview",
 	);
 } finally {
 	globalThis.fetch = originalFetch;
@@ -69,6 +70,7 @@ assert.deepEqual(requestBody, {
 	reasoningEffort: "medium",
 	basedOnStoryId: "previous-story",
 	nextTheme: "a floating city",
+	ttsModel: "gemini-3.1-flash-tts-preview",
 });
 console.log("checked model selection: reading request forwards the preset");
 

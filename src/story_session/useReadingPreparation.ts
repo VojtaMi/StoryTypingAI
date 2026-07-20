@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { finalizeReadingStoryEvidence, type StoryFinishEvidence } from "../ai";
+import { readSelectedNarrationModel } from "../modelSelection/modelSelectionStore";
 import type { StoryGenerationPreset } from "../models";
 import {
 	listPreparedReadingOpenings,
@@ -236,6 +237,7 @@ export function useReadingPreparation(
 							storyGenerationRef.current,
 							evidence.storyId,
 							nextTheme,
+							readSelectedNarrationModel(),
 						),
 					setStatus,
 				});
@@ -255,7 +257,12 @@ export function useReadingPreparation(
 		try {
 			await runInitialReadingPreparation({
 				prepare: () =>
-					prepareMissingReadingOpenings(storyGenerationRef.current, null),
+					prepareMissingReadingOpenings(
+						storyGenerationRef.current,
+						null,
+						undefined,
+						readSelectedNarrationModel(),
+					),
 				setStatus,
 			});
 		} finally {

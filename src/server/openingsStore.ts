@@ -23,6 +23,7 @@ import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
 import { normalizeStoryText } from "../storyText";
 import { storyWords } from "../storyVocabulary";
+import { DEFAULT_TTS_MODEL, type TtsModelId } from "../ttsModel";
 import { completeAi, completeStructuredAi, translateWords } from "./aiService";
 import { buildStoryBackgroundPrompt, generateStoryImage } from "./images";
 import { readLearnerContext } from "./learnerProfileStore";
@@ -183,6 +184,7 @@ export async function prepareMissingReadingOpenings(
 	basedOnStoryId: string | null = null,
 	nextTheme?: string,
 	reasoningEffort: TextReasoningEffort = "low",
+	ttsModel: TtsModelId = DEFAULT_TTS_MODEL,
 ) {
 	await mkdir(readingOpeningsDir, { recursive: true });
 
@@ -215,7 +217,7 @@ export async function prepareMissingReadingOpenings(
 							existing.text,
 							existing.id,
 							narrationVoice,
-							{ sectionIndex: 1 },
+							{ sectionIndex: 1, ttsModel },
 						)) ?? {},
 					);
 					changed = true;
@@ -248,6 +250,7 @@ export async function prepareMissingReadingOpenings(
 				basedOnStoryId,
 				nextTheme,
 				reasoningEffort,
+				ttsModel,
 			);
 			await writePreparedReadingOpening(opening);
 		} catch (err) {
@@ -377,6 +380,7 @@ async function createPreparedReadingOpening(
 	basedOnStoryId: string | null = null,
 	nextTheme?: string,
 	reasoningEffort: TextReasoningEffort = "low",
+	ttsModel: TtsModelId = DEFAULT_TTS_MODEL,
 ): Promise<PreparedReadingOpening> {
 	const learnerContext = await readLearnerContext();
 	const readingStory = await generateReadingStory(
@@ -409,7 +413,10 @@ async function createPreparedReadingOpening(
 				visualContext: readingVisualContext(readingStory),
 			},
 		),
-		createOpeningAudio(openai, text, id, narrationVoice, { sectionIndex: 1 }),
+		createOpeningAudio(openai, text, id, narrationVoice, {
+			sectionIndex: 1,
+			ttsModel,
+		}),
 		prewarmReadingTranslations(openai, readingStory),
 	]);
 	return {
