@@ -7,8 +7,10 @@ import {
 	type ChatMessage,
 	generateReadingStory,
 	parseReadingStory,
+	READING_STORY_IMAGE_COUNT,
 	READING_STORY_TOTAL_PARTS,
 	type ReadingStory,
+	readingImagePrompt,
 	readingStoryMessages,
 	readingStoryPromptMessages,
 } from "../src/story.ts";
@@ -54,6 +56,11 @@ function storyJson(overrides: Record<string, unknown> = {}) {
 			"Man in his forties, short grey hair, brown coat, canvas bag",
 		setting: "A tram stop in light rain",
 		characterNames: ["Rikardo"],
+		imagePrompts: [
+			"Rikardo reads the changed timetable at the tram stop.",
+			"Rikardo boards a crowded tram in the rain.",
+			"Rikardo steps onto an unfamiliar platform.",
+		],
 		parts: Array.from({ length: READING_STORY_TOTAL_PARTS }, (_, i) =>
 			part(i + 1),
 		),
@@ -115,6 +122,8 @@ assert.match(
 	/return that target as the single story-level languageFocus/i,
 );
 assert.match(promptMessages[0].content, /exactly 6 moments/i);
+assert.match(promptMessages[0].content, /exactly 3 imagePrompts/i);
+assert.match(promptMessages[0].content, /single dominant action/i);
 assert.match(promptMessages[0].content, /apply the removal test/i);
 assert.match(promptMessages[0].content, /part N expands only moment N/i);
 const promptContext = JSON.parse(
@@ -151,6 +160,13 @@ assert.equal(parsed.moments.length, READING_STORY_TOTAL_PARTS);
 assert.equal(parsed.title, "Kvieta Mateno");
 assert.equal(parsed.parts[5].text, part(6).text);
 console.log("checked reading story: six complete parts accepted");
+
+assert.equal(parsed.imagePrompts.length, READING_STORY_IMAGE_COUNT);
+assert.equal(readingImagePrompt(parsed, 1), parsed.imagePrompts[0]);
+assert.equal(readingImagePrompt(parsed, 2), parsed.imagePrompts[0]);
+assert.equal(readingImagePrompt(parsed, 3), parsed.imagePrompts[1]);
+assert.equal(readingImagePrompt(parsed, 5), parsed.imagePrompts[2]);
+console.log("checked reading story: each part pair maps to one image prompt");
 
 assert.deepEqual(
 	storyWords(
@@ -211,6 +227,11 @@ const rejected: Array<[string, string]> = [
 			],
 		}),
 	],
+	[
+		"too few image prompts",
+		storyJson({ imagePrompts: ["only one", "only two"] }),
+	],
+	["an empty image prompt", storyJson({ imagePrompts: ["one", "two", "   "] })],
 	["no languageFocus", storyJson({ languageFocus: "" })],
 	["no title", storyJson({ title: "" })],
 	["no storySummary", storyJson({ storySummary: "" })],
@@ -367,6 +388,7 @@ function section(partIndex: number): ReadingMediaSection {
 		partIndex,
 		narrationVoice: voice,
 		text: story.parts[partIndex - 1].text,
+		imagePrompt: readingImagePrompt(story, partIndex),
 		genre,
 		visualContext: "Main character: Rikardo.",
 	};

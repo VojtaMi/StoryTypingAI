@@ -36,6 +36,7 @@ import {
 } from "../openings";
 import { loadSavedStory } from "../saves";
 import {
+	readingImagePrompt,
 	readingStoryMessages,
 	readingStorySummary,
 	readingVisualContext,
@@ -92,14 +93,14 @@ function describeError(err: unknown): string {
 	return `Something went wrong reaching the AI: ${message}`;
 }
 
-/** The image prompt for a reading section is that section's prose, nothing else. */
+/** Carries the section's dominant-action image prompt to the background-image endpoint. */
 function readingBackgroundMessages(
 	selected: Genre,
-	partText: string,
+	imagePrompt: string,
 ): ChatMessage[] {
 	return [
 		{ role: "system", content: selected.systemPrompt },
-		{ role: "assistant", content: partText },
+		{ role: "assistant", content: imagePrompt },
 	];
 }
 
@@ -118,6 +119,7 @@ function readingMediaSection(
 		partIndex,
 		narrationVoice,
 		text: part.text,
+		imagePrompt: readingImagePrompt(story, partIndex),
 		genre: selected,
 		visualContext: readingVisualContext(story),
 	};
@@ -245,7 +247,7 @@ export function useStorySession({
 			generateBackground: async (section) => {
 				const image = await generateStoryBackgroundImage(
 					section.genre.id,
-					readingBackgroundMessages(section.genre, section.text),
+					readingBackgroundMessages(section.genre, section.imagePrompt),
 					section.storyId,
 					{
 						sectionIndex: section.partIndex,

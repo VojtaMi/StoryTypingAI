@@ -15,6 +15,7 @@ import {
 	generateTitle,
 	READING_STORY_TOTAL_PARTS,
 	type ReadingStory,
+	readingImagePrompt,
 	readingStoryMessages,
 	readingVisualContext,
 } from "../story";
@@ -225,7 +226,7 @@ export async function prepareMissingReadingOpenings(
 						await createBackgroundImage(
 							openai,
 							genre,
-							existing.text,
+							readingImagePrompt(existing.readingStory, 1),
 							existing.id,
 							{
 								sectionIndex: 1,
@@ -398,10 +399,16 @@ async function createPreparedReadingOpening(
 	const id = createBundleId(title, randomUUID());
 	const narrationVoice = pickRandomNarrationVoice();
 	const [backgroundImage, openingAudio] = await Promise.all([
-		createBackgroundImage(openai, genre, text, id, {
-			sectionIndex: 1,
-			visualContext: readingVisualContext(readingStory),
-		}),
+		createBackgroundImage(
+			openai,
+			genre,
+			readingImagePrompt(readingStory, 1),
+			id,
+			{
+				sectionIndex: 1,
+				visualContext: readingVisualContext(readingStory),
+			},
+		),
 		createOpeningAudio(openai, text, id, narrationVoice, { sectionIndex: 1 }),
 		prewarmReadingTranslations(openai, readingStory),
 	]);

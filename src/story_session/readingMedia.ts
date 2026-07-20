@@ -9,6 +9,8 @@ export interface ReadingMediaSection {
 	partIndex: number;
 	narrationVoice: NarrationVoiceId;
 	text: string;
+	/** The dominant-action description the background image depicts; narration still uses `text`. */
+	imagePrompt: string;
 	genre: Genre;
 	visualContext: string;
 }

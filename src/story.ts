@@ -31,6 +31,8 @@ export interface ReadingStory {
 	mainCharacterVisual: string;
 	setting: string;
 	characterNames: string[];
+	/** One dominant-action image prompt per pair of parts, in narrative order. */
+	imagePrompts: string[];
 	parts: ReadingStoryPart[];
 }
 
@@ -58,6 +60,9 @@ const INTRO_MAX_TOKENS = 180;
 
 export const READING_STORY_TOTAL_PARTS = 6;
 
+/** One background image is shown per pair of parts, so the story carries half as many image prompts as parts. */
+export const READING_STORY_IMAGE_COUNT = READING_STORY_TOTAL_PARTS / 2;
+
 const READING_STORY_JSON_SHAPE = JSON.stringify({
 	title: "short title, 2-6 words",
 	storySummary: "short English summary of the story",
@@ -70,6 +75,10 @@ const READING_STORY_JSON_SHAPE = JSON.stringify({
 	mainCharacterVisual: "concrete English visual-continuity description",
 	setting: "short English setting",
 	characterNames: ["exact character name"],
+	imagePrompts: Array.from(
+		{ length: READING_STORY_IMAGE_COUNT },
+		(_, index) => `English image prompt ${index + 1}`,
+	),
 	parts: [
 		{
 			text: "Esperanto prose for this part",
@@ -97,6 +106,11 @@ Story:
 - Use 3-5 short sentences and about 35-55 Esperanto words per part. Keep character movements and locations explicit and consistent.
 - Keep visual metadata consistent with the prose. Include stable age, gender, hair, and clothing, but no accessory or recurring object without a story role.
 - Avoid recent protagonists, settings, motifs, and key objects; weight the newest story most.
+
+Images:
+- Provide exactly ${READING_STORY_IMAGE_COUNT} imagePrompts in narrative order. Each covers a pair of parts: prompt 1 covers parts 1-2, prompt 2 covers parts 3-4, prompt 3 covers parts 5-6.
+- Each prompt is a short English description of the single dominant action or moment of its pair: one clear action, one location, and the people and objects actually present in it. Never depict several sequential actions, and never show the same character more than once.
+- Do not restate the character's fixed appearance; it is supplied separately. Name recurring people and objects consistently across the prompts so the images read as one story.
 
 Output only valid JSON matching exactly: ${READING_STORY_JSON_SHAPE}
 The parts array must contain exactly ${READING_STORY_TOTAL_PARTS} sections in narrative order. Metadata and languageFocus are English; every part text is Esperanto. List every named character exactly as written in the prose. No markdown, comments, extra prose, or trailing commas.`;
@@ -253,6 +267,19 @@ export function readingVisualContext(story: ReadingStory): string {
 		.join(" ");
 }
 
+/**
+ * The image prompt for the section at `partIndex` (1-based). One image covers a
+ * pair of parts, so parts 1-2 share prompt 0, 3-4 prompt 1, 5-6 prompt 2. This
+ * is the dominant action the image should depict; the stable character identity
+ * is supplied separately by {@link readingVisualContext}.
+ */
+export function readingImagePrompt(
+	story: ReadingStory,
+	partIndex: number,
+): string {
+	return story.imagePrompts[Math.floor((partIndex - 1) / 2)];
+}
+
 /** What the finished story was about, folded into the learner profile and story memory. */
 export function readingStorySummary(story: ReadingStory): string {
 	return `${story.storySummary} Main character: ${story.mainCharacter}. Setting: ${story.setting}.`;
@@ -340,6 +367,12 @@ export function parseReadingStory(raw: string): ReadingStory {
 		parsed.characterNames,
 		"characterNames",
 	);
+	const imagePrompts = requiredStringArray(parsed.imagePrompts, "imagePrompts");
+	if (imagePrompts.length !== READING_STORY_IMAGE_COUNT) {
+		throw new Error(
+			`The AI returned ${imagePrompts.length} reading story image prompts instead of ${READING_STORY_IMAGE_COUNT}.`,
+		);
+	}
 
 	const parts = parsed.parts.map((part, index) => {
 		const label = `part ${index + 1}`;
@@ -365,6 +398,7 @@ export function parseReadingStory(raw: string): ReadingStory {
 		}),
 		setting,
 		characterNames,
+		imagePrompts,
 		parts,
 	};
 }
