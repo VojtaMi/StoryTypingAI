@@ -373,8 +373,15 @@ async function createPreparedReadingOpening(
 ): Promise<PreparedReadingOpening> {
 	const learnerContext = await readLearnerContext();
 	const readingStory = await generateReadingStory(
-		(messages, maxTokens) =>
-			completeStructuredAi(openai, messages, maxTokens, model, anthropicKey),
+		(messages, maxTokens, options) =>
+			completeStructuredAi(
+				openai,
+				messages,
+				maxTokens,
+				model,
+				anthropicKey,
+				options,
+			),
 		genre,
 		learnerContext,
 	);
@@ -567,7 +574,13 @@ async function readPreparedReadingOpening(
 function isCompleteReadingStory(story: unknown): story is ReadingStory {
 	if (!story || typeof story !== "object") return false;
 	const parts = (story as ReadingStory).parts;
+	const moments = (story as ReadingStory).moments;
 	return (
+		typeof (story as ReadingStory).languageFocus === "string" &&
+		Boolean((story as ReadingStory).languageFocus.trim()) &&
+		Array.isArray(moments) &&
+		moments.length === READING_STORY_TOTAL_PARTS &&
+		moments.every((moment) => Boolean(moment?.trim())) &&
 		Array.isArray(parts) &&
 		parts.length === READING_STORY_TOTAL_PARTS &&
 		parts.every((part) => Boolean(part?.text?.trim()))

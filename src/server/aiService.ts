@@ -4,6 +4,7 @@ import type { ChatMessage } from "../ai";
 import {
 	DEFAULT_TEXT_MODEL,
 	STORY_SEGMENT_MAX_TOKENS,
+	type TextReasoningEffort,
 	TRANSLATION_MODEL,
 } from "../models";
 import { normalizeStoryText } from "../storyText";
@@ -32,6 +33,7 @@ type GeminiGenerateContentResponse = {
 };
 
 type CompletionOutput = "text" | "structured";
+type CompletionOptions = { reasoningEffort?: TextReasoningEffort };
 
 export async function completeAi(
 	openai: OpenAI,
@@ -39,6 +41,7 @@ export async function completeAi(
 	maxTokens = STORY_SEGMENT_MAX_TOKENS,
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
+	options: CompletionOptions = {},
 ): Promise<string> {
 	return completeAiOutput(
 		openai,
@@ -47,6 +50,7 @@ export async function completeAi(
 		model,
 		anthropicKey,
 		"text",
+		options,
 	);
 }
 
@@ -57,6 +61,7 @@ export async function completeStructuredAi(
 	maxTokens = STORY_SEGMENT_MAX_TOKENS,
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
+	options: CompletionOptions = {},
 ): Promise<string> {
 	return completeAiOutput(
 		openai,
@@ -65,6 +70,7 @@ export async function completeStructuredAi(
 		model,
 		anthropicKey,
 		"structured",
+		options,
 	);
 }
 
@@ -75,6 +81,7 @@ async function completeAiOutput(
 	model: string,
 	anthropicKey: string,
 	output: CompletionOutput,
+	options: CompletionOptions,
 ): Promise<string> {
 	if (model.startsWith("claude-")) {
 		return completeAnthropic(messages, maxTokens, model, anthropicKey, output);
@@ -82,7 +89,7 @@ async function completeAiOutput(
 	if (model.startsWith("gemini-")) {
 		return completeGemini(messages, maxTokens, model, output);
 	}
-	return completeOpenAi(openai, messages, maxTokens, model, output);
+	return completeOpenAi(openai, messages, maxTokens, model, output, options);
 }
 
 export async function streamAi(
@@ -149,24 +156,28 @@ async function completeOpenAi(
 	maxTokens: number,
 	model: string,
 	output: CompletionOutput,
+	options: CompletionOptions,
 ): Promise<string> {
 	if (!process.env.OPENAI_API_KEY) {
 		throw new Error("OpenAI API key is not configured.");
 	}
+	const reasoningEffort =
+		options.reasoningEffort ??
+		(model.startsWith("gpt-5.6") ? "none" : undefined);
 	const response = await traceAiCall(
 		{
 			kind: "text.complete",
 			provider: "openai",
 			model,
 			input: messages,
-			metadata: { maxTokens },
+			metadata: { maxTokens, reasoningEffort },
 		},
 		() =>
 			openai.chat.completions.create({
 				model,
 				max_completion_tokens: maxTokens,
 				messages,
-				reasoning_effort: model.startsWith("gpt-5.6") ? "none" : undefined,
+				reasoning_effort: reasoningEffort,
 			}),
 		(value) => value.choices[0]?.message?.content ?? "",
 	);

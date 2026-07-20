@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import type { Genre } from "../src/genres.ts";
+import type { LearnerContext } from "../src/learnerState.ts";
 import type { NarrationVoiceId } from "../src/narrationVoice.ts";
 import { completeAi, completeStructuredAi } from "../src/server/aiService.ts";
 import {
@@ -9,6 +10,7 @@ import {
 	READING_STORY_TOTAL_PARTS,
 	type ReadingStory,
 	readingStoryMessages,
+	readingStoryPromptMessages,
 } from "../src/story.ts";
 import {
 	createReadingMedia,
@@ -34,7 +36,6 @@ const genre: Genre = {
 
 function part(index: number) {
 	return {
-		languageFocus: `focus ${index}`,
 		text: `Esperanta teksto de parto ${index}. Ĝi estas kompleta.`,
 	};
 }
@@ -43,6 +44,11 @@ function storyJson(overrides: Record<string, unknown> = {}) {
 	return JSON.stringify({
 		title: "Kvieta Mateno",
 		storySummary: "A commuter notices a changed timetable.",
+		moments: Array.from(
+			{ length: READING_STORY_TOTAL_PARTS },
+			(_, index) => `Story moment ${index + 1}.`,
+		),
+		languageFocus: "Plural direct-object noun phrases",
 		mainCharacter: "Rikardo, an adult commuter",
 		mainCharacterVisual:
 			"Man in his forties, short grey hair, brown coat, canvas bag",
@@ -55,10 +61,93 @@ function storyJson(overrides: Record<string, unknown> = {}) {
 	});
 }
 
+// --- Prompt composition ------------------------------------------------------
+
+const learnerContext: LearnerContext = {
+	languageProfile: {
+		version: 1,
+		updated: "2026-07-20",
+		level: "beginner",
+		confident: ["Simple present-tense sentences."],
+		learning: ["Plural direct-object noun phrases."],
+		shaky: ["Accusative endings need reinforcement."],
+		recentlyPracticed: ["Concrete location phrases."],
+		notes: ["The previous story felt difficult."],
+	},
+	preferences: {
+		version: 1,
+		updated: "2026-07-20",
+		prefer: ["Adult-respectful practical stories."],
+		avoid: ["Ambiguous character locations."],
+		clarityGuidance: ["Make clue relationships explicit."],
+	},
+	storyMemory: {
+		version: 1,
+		updated: "2026-07-20",
+		recentStories: [
+			{
+				motif: "finding a lost parcel",
+				protagonist: "a station clerk",
+				setting: "a railway station",
+				elements: ["parcel", "platform"],
+			},
+		],
+	},
+};
+
+const promptMessages = readingStoryPromptMessages(genre, learnerContext);
+assert.equal(
+	promptMessages.length,
+	3,
+	"Story generation should use one authoring prompt, one context envelope, and one request.",
+);
+assert.match(promptMessages[0].content, /exactly one primary language target/);
+assert.match(
+	promptMessages[0].content,
+	/languageProfile\.level as the overall difficulty baseline/,
+);
+assert.match(
+	promptMessages[0].content,
+	/not an exhaustive list of known words/,
+);
+assert.match(
+	promptMessages[0].content,
+	/return that target as the single story-level languageFocus/i,
+);
+assert.match(promptMessages[0].content, /exactly 6 moments/i);
+assert.match(promptMessages[0].content, /apply the removal test/i);
+assert.match(promptMessages[0].content, /part N expands only moment N/i);
+const promptContext = JSON.parse(
+	promptMessages[1].content.split("\n\n").at(-1) ?? "",
+);
+assert.deepEqual(promptContext.languageProfile.learning, [
+	"Plural direct-object noun phrases.",
+]);
+assert.deepEqual(promptContext.preferences.prefer, [
+	"Adult-respectful practical stories.",
+]);
+assert.deepEqual(promptContext.storyMemory.recentStories, [
+	learnerContext.storyMemory.recentStories[0],
+]);
+assert.equal(
+	promptMessages[1].content.includes('"updated"'),
+	false,
+	"Persistence metadata should not consume generation context.",
+);
+assert.equal(
+	promptMessages
+		.map((message) => message.content)
+		.join("\n")
+		.match(/Untrusted learner data/g)?.length,
+	1,
+);
+console.log("checked reading story: compact prompt has one context boundary");
+
 // --- Parsing and validation ---------------------------------------------------
 
 const parsed = parseReadingStory(storyJson());
 assert.equal(parsed.parts.length, READING_STORY_TOTAL_PARTS);
+assert.equal(parsed.moments.length, READING_STORY_TOTAL_PARTS);
 assert.equal(parsed.title, "Kvieta Mateno");
 assert.equal(parsed.parts[5].text, part(6).text);
 console.log("checked reading story: six complete parts accepted");
@@ -93,6 +182,27 @@ const rejected: Array<[string, string]> = [
 		}),
 	],
 	[
+		"five moments",
+		storyJson({
+			moments: Array.from(
+				{ length: 5 },
+				(_, index) => `Story moment ${index + 1}.`,
+			),
+		}),
+	],
+	[
+		"an empty moment",
+		storyJson({
+			moments: [
+				...Array.from(
+					{ length: 5 },
+					(_, index) => `Story moment ${index + 1}.`,
+				),
+				"   ",
+			],
+		}),
+	],
+	[
 		"a part with empty text",
 		storyJson({
 			parts: [
@@ -101,15 +211,7 @@ const rejected: Array<[string, string]> = [
 			],
 		}),
 	],
-	[
-		"a part with no languageFocus",
-		storyJson({
-			parts: [
-				...Array.from({ length: 5 }, (_, i) => part(i + 1)),
-				{ role: "ending", text: part(6).text },
-			],
-		}),
-	],
+	["no languageFocus", storyJson({ languageFocus: "" })],
 	["no title", storyJson({ title: "" })],
 	["no storySummary", storyJson({ storySummary: "" })],
 	["no mainCharacterVisual", storyJson({ mainCharacterVisual: "" })],
@@ -135,21 +237,26 @@ const storyWithCurlyDialogue = storyJson({
 	],
 });
 process.env.OPENAI_API_KEY = "test-key";
+let requestedReasoningEffort: string | undefined;
 const fakeStructuredOpenAi = {
 	chat: {
 		completions: {
-			create: async () => ({
-				choices: [
-					{
-						finish_reason: "stop",
-						message: { content: storyWithCurlyDialogue },
-					},
-				],
-			}),
+			create: async (request: { reasoning_effort?: string }) => {
+				requestedReasoningEffort = request.reasoning_effort;
+				return {
+					choices: [
+						{
+							finish_reason: "stop",
+							message: { content: storyWithCurlyDialogue },
+						},
+					],
+				};
+			},
 		},
 	},
 } as never;
 const rawStructuredStory = await completeStructuredAi(fakeStructuredOpenAi, []);
+assert.equal(requestedReasoningEffort, "none");
 assert.doesNotThrow(
 	() => parseReadingStory(rawStructuredStory),
 	"Structured completion must preserve valid JSON containing curly dialogue quotes.",
@@ -164,9 +271,29 @@ assert.equal(
 	rawStructuredStory,
 	"Generic text completion must not apply typing-specific normalization.",
 );
+await completeStructuredAi(fakeStructuredOpenAi, [], 400, "gpt-5.6-luna", "", {
+	reasoningEffort: "low",
+});
+assert.equal(
+	requestedReasoningEffort,
+	"low",
+	"A completion-specific reasoning effort must override the latency default.",
+);
 console.log(
 	"checked reading story: structured JSON bypasses prose normalization",
 );
+
+let storyReasoningEffort: string | undefined;
+await generateReadingStory(async (_messages, _maxTokens, options) => {
+	storyReasoningEffort = options?.reasoningEffort;
+	return storyJson();
+}, genre);
+assert.equal(
+	storyReasoningEffort,
+	"low",
+	"Whole-story planning and execution should use low reasoning.",
+);
+console.log("checked reading story: generation requests low reasoning");
 
 // A truncated story must fail even after the repair pass fails to fix it, and
 // the caller must see the failure rather than a partial story.

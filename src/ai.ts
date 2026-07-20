@@ -14,6 +14,7 @@ import {
 	DEFAULT_TEXT_MODEL,
 	STORY_SEGMENT_MAX_TOKENS,
 	type TextModelId,
+	type TextReasoningEffort,
 } from "./models";
 import type { NarrationVoiceId } from "./narrationVoice";
 import {
@@ -111,10 +112,11 @@ async function complete(
 	model: TextModelId,
 	maxTokens = STORY_SEGMENT_MAX_TOKENS,
 	responseFormat: "text" | "json" = "text",
+	reasoningEffort?: TextReasoningEffort,
 ): Promise<string> {
 	const { text } = await postJson<{ text?: string }>(
 		"/api/ai/complete",
-		{ messages, maxTokens, model, responseFormat },
+		{ messages, maxTokens, model, responseFormat, reasoningEffort },
 		"AI request",
 	);
 	if (!text) throw new Error("The AI returned an empty response.");
@@ -177,7 +179,8 @@ function httpCompleter(model: TextModelId): Complete {
 
 /** Structured output must reach its parser without prose normalization. */
 function structuredHttpCompleter(model: TextModelId): Complete {
-	return (messages, maxTokens) => complete(messages, model, maxTokens, "json");
+	return (messages, maxTokens, options) =>
+		complete(messages, model, maxTokens, "json", options?.reasoningEffort);
 }
 
 /** Begins a new story for the given genre. Returns the opening and the seeded history. */

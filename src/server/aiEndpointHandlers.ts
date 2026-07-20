@@ -1,7 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
-import { DEFAULT_TEXT_MODEL, STORY_SEGMENT_MAX_TOKENS } from "../models";
+import {
+	DEFAULT_TEXT_MODEL,
+	STORY_SEGMENT_MAX_TOKENS,
+	TEXT_REASONING_EFFORTS,
+	type TextReasoningEffort,
+} from "../models";
 import { isNarrationVoiceId } from "../narrationVoice";
 import { DEFAULT_TTS_MODEL, isTtsModelId } from "../ttsModel";
 import {
@@ -224,15 +229,25 @@ export async function handleCompleteRequest(
 		maxTokens = STORY_SEGMENT_MAX_TOKENS,
 		model = DEFAULT_TEXT_MODEL,
 		responseFormat = "text",
+		reasoningEffort,
 	} = JSON.parse(await readBody(req));
 	if (responseFormat !== "text" && responseFormat !== "json") {
 		sendJson(res, 400, { error: "responseFormat must be text or json." });
 		return;
 	}
+	if (
+		reasoningEffort !== undefined &&
+		!TEXT_REASONING_EFFORTS.includes(reasoningEffort as TextReasoningEffort)
+	) {
+		sendJson(res, 400, { error: "reasoningEffort is invalid." });
+		return;
+	}
 	const complete =
 		responseFormat === "json" ? completeStructuredAi : completeAi;
 	sendJson(res, 200, {
-		text: await complete(openai, messages, maxTokens, model, anthropicKey),
+		text: await complete(openai, messages, maxTokens, model, anthropicKey, {
+			reasoningEffort,
+		}),
 	});
 }
 

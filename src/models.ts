@@ -14,6 +14,15 @@ export const TEXT_MODELS = [
 export type TextModelId = (typeof TEXT_MODELS)[number]["id"];
 export const DEFAULT_TEXT_MODEL: TextModelId = "gpt-5.6-luna";
 
+export const TEXT_REASONING_EFFORTS = [
+	"none",
+	"low",
+	"medium",
+	"high",
+	"xhigh",
+] as const;
+export type TextReasoningEffort = (typeof TEXT_REASONING_EFFORTS)[number];
+
 /**
  * Default model for the Esperanto Bot chat. The bot answers short, interactive
  * follow-up questions where latency is felt directly, so it defaults

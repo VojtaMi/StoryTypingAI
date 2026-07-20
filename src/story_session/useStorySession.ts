@@ -1162,9 +1162,7 @@ export function useStorySession({
 				const lesson = await generateStoryRecapLesson(
 					{
 						storyParts,
-						languageFocuses: readingStory.parts.map(
-							(part, index) => `Part ${index + 1}: ${part.languageFocus}`,
-						),
+						languageFocuses: [readingStory.languageFocus],
 						wordTranslations: translations,
 					},
 					model,
