@@ -57,6 +57,8 @@ A change with a UI surface is not done until the page has been rendered. `npm ru
 
 Before running `npm run dev`, check whether it's already running (`ss -ltnp | grep -E ':(3001|5173)'`). This repo's dev server is often left running across sessions; starting a second instance fails on `EADDRINUSE` for the API port (3001) while silently spawning a duplicate Vite instance on the next port up.
 
+Clean up what you start, don't disturb what you found: if a server was already running, use it and leave it; if you start one yourself, stop it when the task is done rather than leaving it for the user to discover. Kill the specific process group you started (`kill -- -<pgid>` — Vite and the API share one) or kill by port (`kill $(ss -ltnp 'sport = :5173 or sport = :3001' | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u)`), never a broad `pkill`.
+
 ## Delegating Implementation to Codex
 
 Use the `delegate-to-codex` skill, and run it via `scripts/delegate-to-codex.sh`. Codex's sandbox flags are load-bearing: without them it cannot render the page it just changed, and will report the work as done anyway.
