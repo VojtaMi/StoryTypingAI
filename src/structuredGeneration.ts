@@ -9,24 +9,44 @@ export interface GenerationSpec<T> {
  * Carves `word` out of `sentence`, returning the text around it and the surface
  * form actually matched (`Mi` for the term `mi`). Callers that render the word
  * back into the sentence need `match`, not a re-derivation from the offsets.
+ *
+ * `word` may be a single word or a multi-word phrase (`pensas pri`): it is
+ * matched as a run of consecutive whole tokens, so `pri` never matches inside
+ * `prizorgi` and the gap covers the phrase exactly as it appears in the
+ * sentence. Callers that need a length limit enforce it themselves.
  */
 export function splitOnWord(
 	sentence: string,
 	word: string,
 	errorMessage = "Generated sentence does not contain the answer word.",
 ): { before: string; match: string; after: string } {
-	const target = word.toLowerCase();
 	const tokenRegex = /\p{L}+/gu;
-	for (const match of sentence.matchAll(tokenRegex)) {
-		if (match[0].toLowerCase() === target) {
-			return {
-				before: sentence.slice(0, match.index),
-				match: match[0],
-				after: sentence.slice(match.index + match[0].length),
-			};
-		}
+	const targetTokens = [...word.toLowerCase().matchAll(tokenRegex)].map(
+		(token) => token[0],
+	);
+	if (targetTokens.length === 0) throw new Error(errorMessage);
+	const sentenceTokens = [...sentence.matchAll(tokenRegex)];
+	for (let i = 0; i + targetTokens.length <= sentenceTokens.length; i++) {
+		const run = targetTokens.every(
+			(token, j) => sentenceTokens[i + j][0].toLowerCase() === token,
+		);
+		if (!run) continue;
+		const first = sentenceTokens[i];
+		const last = sentenceTokens[i + targetTokens.length - 1];
+		const start = first.index;
+		const end = last.index + last[0].length;
+		return {
+			before: sentence.slice(0, start),
+			match: sentence.slice(start, end),
+			after: sentence.slice(end),
+		};
 	}
 	throw new Error(errorMessage);
+}
+
+/** Counts whole-word tokens, used to bound how much of a sentence a gap may cover. */
+export function countWords(text: string): number {
+	return [...text.matchAll(/\p{L}+/gu)].length;
 }
 
 export function parseChoices(

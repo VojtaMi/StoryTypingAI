@@ -1169,14 +1169,14 @@ export function useStorySession({
 				const translations = await translateWords(
 					storyWords(storyParts, readingStory.characterNames),
 				);
-				const lesson = await generateStoryRecapLesson(
-					{
-						storyParts,
-						languageFocuses: [readingStory.languageFocus],
-						wordTranslations: translations,
-					},
-					model,
-				);
+				// The recap is a small structured exercise, not prose, so it does not
+				// follow the story-generation preset (a prose-tier model + reasoning
+				// effort chosen for the story itself). It uses EXERCISE_MODEL.
+				const lesson = await generateStoryRecapLesson({
+					storyParts,
+					languageFocuses: [readingStory.languageFocus],
+					wordTranslations: translations,
+				});
 
 				storyRecapLessonRef.current = lesson;
 				setStoryRecapLesson(lesson);
@@ -1234,7 +1234,6 @@ export function useStorySession({
 			genre,
 			memory,
 			messages,
-			model,
 			narrationVoice,
 			persistStory,
 			readingStory,

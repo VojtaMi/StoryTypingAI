@@ -12,6 +12,7 @@ import {
 import type { Lesson, LessonLevel } from "./lessons/types";
 import {
 	DEFAULT_TEXT_MODEL,
+	EXERCISE_MODEL,
 	STORY_SEGMENT_MAX_TOKENS,
 	type TextModelId,
 	type TextReasoningEffort,
@@ -326,7 +327,7 @@ export interface GenerateLessonInput {
 
 export async function generateStoryRecapLesson(
 	input: GenerateStoryRecapLessonInput,
-	model: TextModelId = DEFAULT_TEXT_MODEL,
+	model: TextModelId = EXERCISE_MODEL,
 ): Promise<StoryRecapLesson> {
 	const learnerProfile = await fetchLearnerProfile();
 	const text = await complete(

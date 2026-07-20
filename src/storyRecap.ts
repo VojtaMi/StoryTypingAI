@@ -1,4 +1,5 @@
 import {
+	countWords,
 	type GenerationSpec,
 	isObject,
 	parseChoices,
@@ -108,10 +109,14 @@ const fillMissingWordSpec: RecapExerciseSpec<StoryRecapFillMissingWordExercise> 
 		},
 		instructions:
 			"Use exactly three fill choices, using only words and facts from the story. " +
-			"The fill sentence must be one complete, natural Esperanto sentence containing the answer word written exactly as in `answer` — the app carves the blank out of it itself, so write a normal sentence and do not pre-split it or omit the word.",
+			"The `answer` is a single word or at most a short two-word phrase (e.g. `pensas pri`). " +
+			"The fill sentence must be one complete, natural Esperanto sentence containing the answer written exactly as in `answer` — the app carves the blank out of it itself, so write a normal sentence and do not pre-split it or omit the answer.",
 		parse(value) {
 			if (!isObject(value)) throw new Error("Recap fill exercise is invalid.");
 			const answer = requiredString(value.answer, "fill answer", "Recap JSON");
+			if (countWords(answer) > 2) {
+				throw new Error("Recap fill answer must be at most two words.");
+			}
 			const sentence = requiredString(
 				value.sentence,
 				"fill sentence",

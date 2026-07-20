@@ -100,6 +100,15 @@ export const STORY_SEGMENT_MAX_TOKENS = 400;
  */
 export const READING_STORY_MAX_TOKENS = 4000;
 
+/**
+ * Model for generated end-of-story exercises (the recap lesson) — not
+ * user-selectable. Exercises are small structured tasks, not prose, so they are
+ * deliberately decoupled from the user-selected story-generation preset: a
+ * beginner recap needs neither the prose-tier model nor the reasoning effort a
+ * full six-part story does. Tune this independently of the story preset.
+ */
+export const EXERCISE_MODEL: TextModelId = "gpt-5.6-luna";
+
 /** Default model used for batch word translations — not user-selectable. */
 export const TRANSLATION_MODEL = "gpt-5.4-nano";
 

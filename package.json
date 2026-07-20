@@ -11,7 +11,7 @@
 		"bricks:test": "node --import ./scripts/register-css-loader.mjs --import tsx tests/bricks.test.ts",
 		"build": "tsc -b && vite build && npm run build:server",
 		"build:server": "vite build --config vite.server.config.ts",
-		"check": "npm run build && npm run lint && npm run bricks:test && npm run lessons:test && npm run reading:test && npm run story-cli:test && npm run model-selection:test && npm run reading:preparation:test && npm run finish-evidence:test",
+		"check": "npm run build && npm run lint && npm run bricks:test && npm run lessons:test && npm run reading:test && npm run story-cli:test && npm run model-selection:test && npm run reading:preparation:test && npm run finish-evidence:test && npm run story-recap:test",
 		"dev": "concurrently \"npm:dev:api\" \"npm:dev:vite\"",
 		"dev:api": "PORT=3001 tsx watch --env-file-if-exists=.env.local src/server/production.ts",
 		"dev:vite": "vite",
@@ -32,6 +32,7 @@
 		"reading:preparation:test": "node --import ./scripts/register-css-loader.mjs --import tsx tests/reading-preparation.test.ts",
 		"finish-evidence:test": "tsx tests/story-finish-evidence.test.ts",
 		"story-cli:test": "tsx tests/story-cli.test.ts",
+		"story-recap:test": "tsx tests/story-recap.test.ts",
 		"story:generate": "tsx --env-file-if-exists=.env.local scripts/generate-reading-story.ts",
 		"story:typing-opening": "tsx --env-file-if-exists=.env.local scripts/generate-typing-opening.ts",
 		"verify:page": "node scripts/verify-page.mjs"
