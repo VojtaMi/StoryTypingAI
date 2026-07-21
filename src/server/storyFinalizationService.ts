@@ -25,6 +25,7 @@ export interface StoryFinalizationInput {
 	learnerQuestions: string[];
 	recapResults: StoryRecapEvidenceItem[];
 	feedback?: string;
+	practiceRequest?: string;
 }
 
 async function finalizeOnce(
@@ -58,6 +59,7 @@ async function finalizeOnce(
 			learnerQuestions: evidence.learnerQuestions,
 			recapResults: evidence.recapResults,
 			feedback,
+			practiceRequest: evidence.practiceRequest?.trim() || undefined,
 		},
 		anthropicKey,
 		today,

@@ -250,8 +250,8 @@ function readingChainMessages(chainHint?: ReadingChainHint): ChatMessage[] {
 	if (!focus) return [];
 	const focusRule =
 		chainHint.nextFocus.mode === "reinforce"
-			? "The learner just practiced this exact concept, so reinforce it with a different construction, sentence pattern, or context than a typical first pass — do not repeat the earlier phrasing."
-			: "This is the learner's next step beyond the concept they just mastered.";
+			? "The learner is still working on this concept, so reinforce it with a different construction, sentence pattern, or context than a typical first pass — do not repeat the earlier phrasing."
+			: "This is the learner's next step beyond the concept they just handled cleanly.";
 	const paceRule =
 		chainHint.nextPace === "simpler"
 			? " Pitch this story a step simpler than the learner's current baseline: shorter sentences, more familiar vocabulary, and less grammatical load."

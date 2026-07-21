@@ -23,14 +23,24 @@ interface StoryFeedbackFormProps {
 	/**
 	 * `feedback` composes difficulty and taste into the profile-refinement
 	 * evidence; `nextStoryTheme` is the learner's one-shot request for the next
-	 * story's subject, kept separate so it never enters durable preferences.
+	 * story's subject, kept separate so it never enters durable preferences;
+	 * `practiceRequest` is the learner's own words about what felt hard or what
+	 * they want to work on next — the most direct signal for the next objective.
 	 */
-	onSubmit: (feedback: string, nextStoryTheme: string) => void;
+	onSubmit: (
+		feedback: string,
+		nextStoryTheme: string,
+		practiceRequest: string,
+	) => void;
 	/**
 	 * Reports the form's current contents as they change, so leaving the
 	 * completion screen resolves them even without an explicit Submit.
 	 */
-	onDraftChange: (feedback: string, nextStoryTheme: string) => void;
+	onDraftChange: (
+		feedback: string,
+		nextStoryTheme: string,
+		practiceRequest: string,
+	) => void;
 	submitted: boolean;
 }
 
@@ -41,11 +51,16 @@ export function StoryFeedbackForm({
 }: StoryFeedbackFormProps) {
 	const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
 	const [taste, setTaste] = useState("");
+	const [practice, setPractice] = useState("");
 	const [nextTheme, setNextTheme] = useState("");
 
 	useEffect(() => {
-		onDraftChange(composeFeedback(difficulty, taste), nextTheme.trim());
-	}, [difficulty, taste, nextTheme, onDraftChange]);
+		onDraftChange(
+			composeFeedback(difficulty, taste),
+			nextTheme.trim(),
+			practice.trim(),
+		);
+	}, [difficulty, taste, practice, nextTheme, onDraftChange]);
 
 	if (submitted) {
 		return (
@@ -55,7 +70,11 @@ export function StoryFeedbackForm({
 
 	function handleSubmit() {
 		if (!difficulty) return;
-		onSubmit(composeFeedback(difficulty, taste), nextTheme.trim());
+		onSubmit(
+			composeFeedback(difficulty, taste),
+			nextTheme.trim(),
+			practice.trim(),
+		);
 	}
 
 	return (
@@ -78,6 +97,17 @@ export function StoryFeedbackForm({
 					</button>
 				))}
 			</div>
+
+			<p className="lesson-doc__subheading">
+				What felt tricky, or what would you like to practice next?
+			</p>
+			<textarea
+				className="story-completion__note"
+				value={practice}
+				onChange={(event) => setPractice(event.target.value)}
+				placeholder="e.g. the -n endings confused me, I want more past tense (optional)"
+				rows={2}
+			/>
 
 			<p className="lesson-doc__subheading">
 				What would you like more or less of?

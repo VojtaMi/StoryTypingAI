@@ -216,6 +216,9 @@ export function useStorySession({
 	// resolves whatever the learner had entered — clicking Submit is not required.
 	const storyFeedbackDraftRef = useRef<string>("");
 	const storyThemeDraftRef = useRef<string>("");
+	// The learner's own words about what felt hard / what to practice next — the
+	// most direct signal for the next objective. Transient, like the theme draft.
+	const storyPracticeDraftRef = useRef<string>("");
 	// Interactive continuity: the learner's tutor questions asked while reading are
 	// buffered here (deduped, bounded) and folded once into the baseline at story
 	// end — they stay out of the durable handout until the story finalizes.
@@ -1416,6 +1419,7 @@ export function useStorySession({
 			// empty so nothing from a previous story leaks into this resolution.
 			storyFeedbackDraftRef.current = "";
 			storyThemeDraftRef.current = "";
+			storyPracticeDraftRef.current = "";
 			setStoryFeedback(null);
 			setFeedbackEditable(true);
 			setPhase("finished");
@@ -1472,7 +1476,7 @@ export function useStorySession({
 	 * clears the session as it navigates away.
 	 */
 	const finalizeReadingEvidence = useCallback(
-		(feedback?: string, nextTheme?: string) => {
+		(feedback?: string, nextTheme?: string, practiceRequest?: string) => {
 			const story = readingStoryRef.current;
 			const saveId = activeSaveIdRef.current;
 			// `justFinishedReadingRef` is what makes this safe to call from both
@@ -1497,6 +1501,9 @@ export function useStorySession({
 					learnerQuestions: botQuestionsRef.current,
 					recapResults: storyRecapResultsRef.current,
 					...(feedback?.trim() ? { feedback: feedback.trim() } : {}),
+					...(practiceRequest?.trim()
+						? { practiceRequest: practiceRequest.trim() }
+						: {}),
 				},
 				nextTheme?.trim() || undefined,
 			);
@@ -1516,13 +1523,19 @@ export function useStorySession({
 				draftFeedback || storyFeedbackRef.current || undefined;
 			const resolvedTheme =
 				draftTheme || storyNextThemeRef.current || undefined;
+			const resolvedPractice =
+				storyPracticeDraftRef.current.trim() || undefined;
 			if (resolvedFeedback) {
 				storyFeedbackRef.current = resolvedFeedback;
 				if (!storyFeedbackSubmittedAtRef.current) {
 					storyFeedbackSubmittedAtRef.current = new Date().toISOString();
 				}
 			}
-			finalizeReadingEvidence(resolvedFeedback, resolvedTheme);
+			finalizeReadingEvidence(
+				resolvedFeedback,
+				resolvedTheme,
+				resolvedPractice,
+			);
 		}
 		if (genre && activeSaveId) {
 			void persistStory(
@@ -1672,6 +1685,7 @@ export function useStorySession({
 				setFeedbackEditable(false);
 				storyFeedbackDraftRef.current = "";
 				storyThemeDraftRef.current = "";
+				storyPracticeDraftRef.current = "";
 				setStoryRecapError(
 					restoredPhase === "recap-loading"
 						? "The recap practice needs to be generated again."
@@ -1742,22 +1756,25 @@ export function useStorySession({
 	// The live form reports its current contents here so leaving the completion
 	// screen can resolve them without an explicit Submit.
 	const handleStoryFeedbackDraftChange = useCallback(
-		(feedback: string, nextStoryTheme: string) => {
+		(feedback: string, nextStoryTheme: string, practiceRequest: string) => {
 			storyFeedbackDraftRef.current = feedback;
 			storyThemeDraftRef.current = nextStoryTheme;
+			storyPracticeDraftRef.current = practiceRequest;
 		},
 		[],
 	);
 
 	const submitStoryFeedback = useCallback(
-		(feedback: string, nextStoryTheme = "") => {
+		(feedback: string, nextStoryTheme = "", practiceRequest = "") => {
 			const submittedAt = new Date().toISOString();
 			const cleanFeedback = feedback.trim();
 			const cleanTheme = nextStoryTheme.trim();
+			const cleanPractice = practiceRequest.trim();
 			storyFeedbackRef.current = cleanFeedback;
 			storyNextThemeRef.current = cleanTheme || null;
 			storyFeedbackDraftRef.current = cleanFeedback;
 			storyThemeDraftRef.current = cleanTheme;
+			storyPracticeDraftRef.current = cleanPractice;
 			storyFeedbackSubmittedAtRef.current = submittedAt;
 			setStoryFeedback(cleanFeedback);
 			setStoryFeedbackSubmittedAt(submittedAt);
@@ -1783,7 +1800,7 @@ export function useStorySession({
 				);
 			}
 			if (readingStory && phase === "finished") {
-				finalizeReadingEvidence(cleanFeedback, cleanTheme);
+				finalizeReadingEvidence(cleanFeedback, cleanTheme, cleanPractice);
 			}
 		},
 		[

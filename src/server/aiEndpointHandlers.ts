@@ -404,6 +404,13 @@ export async function handleFinalizeStoryEvidenceRequest(
 		sendJson(res, 400, { error: "feedback must be a string." });
 		return;
 	}
+	if (
+		body.practiceRequest !== undefined &&
+		typeof body.practiceRequest !== "string"
+	) {
+		sendJson(res, 400, { error: "practiceRequest must be a string." });
+		return;
+	}
 
 	const profile = await finalizeStoryEvidence(
 		openai,
@@ -414,6 +421,7 @@ export async function handleFinalizeStoryEvidenceRequest(
 			learnerQuestions: body.learnerQuestions ?? [],
 			recapResults: body.recapResults ?? [],
 			feedback: body.feedback,
+			practiceRequest: body.practiceRequest,
 		},
 		anthropicKey,
 	);

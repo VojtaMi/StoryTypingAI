@@ -283,6 +283,8 @@ export interface StoryFinishEvidence {
 	learnerQuestions?: string[];
 	recapResults: StoryRecapExerciseResult[];
 	feedback?: string;
+	/** The learner's own words about what felt hard or what to practice next. */
+	practiceRequest?: string;
 }
 
 /**

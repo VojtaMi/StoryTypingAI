@@ -26,6 +26,8 @@ export interface StoryFinishEvidence {
 	learnerQuestions?: string[];
 	recapResults?: StoryRecapEvidenceItem[];
 	feedback?: string;
+	/** The learner's own words about what felt hard or what to practice next. */
+	practiceRequest?: string;
 }
 
 export interface StoryRecapEvidenceItem {
@@ -54,11 +56,11 @@ const STATE_RULES_BODY =
  */
 const READING_CHAIN_RULES =
 	"After maintaining the learner state, also emit readingChain, a transient hint for the NEXT reading story. It is reading-only and must never restate or duplicate anything in languageProfile, preferences, or storyMemory. " +
-	"The evidence includes the finished story's languageFocus (the grammar concept it targeted), the recap results (the fill-missing-word item is the focus test for that concept), and any difficulty feedback. " +
-	"Set nextFocus.mode to 'advance' only when the focus test was answered cleanly (a single attempt) AND the difficulty feedback is neither 'a bit hard' nor 'too hard'; otherwise set it to 'reinforce'. " +
-	"For 'advance', set nextFocus.focus to the next grammar step beyond the finished focus, drawn from languageProfile.learning or a minimal next step for the learner. " +
-	"For 'reinforce', set nextFocus.focus to the same concept as the finished languageFocus, phrased to require a different construction or sentence pattern than before, so the concept is practiced without repeating the prior phrasing. " +
-	"Set nextPace from the difficulty feedback: 'too hard' or 'a bit hard' gives 'simpler'; 'too easy' or 'a bit easy' gives 'harder'; 'just right' or no feedback gives 'steady'. ";
+	"Choose nextFocus.focus as the single most useful language objective for the learner's next story, weighing ALL the evidence together, not just the finished story's focus: the recap results across all three exercises (the fill-missing-word item tests THIS story's stated focus, but the word-connect and story-question items reveal other gaps), the words the learner looked up, the questions they asked the tutor, their difficulty feedback, their explicit practiceRequest (their own words about what was hard or what they want to work on — treat this as strong, direct signal), and their current confident/learning/shaky profile. " +
+	"The finished story's languageFocus is only one input, not the required answer: if the stronger signal points elsewhere — many lookups of one form, repeated questions about one construction, or an explicit practiceRequest — target that instead. " +
+	"State nextFocus.focus as a clean, concise concept label (for example 'Using ĉar and por', 'Past-tense verb endings', 'Plural accusative noun phrases'). Do NOT append qualifiers describing how to vary or practise it, and never build on or extend a previous phrasing — restate the concept plainly each time so the label cannot grow across stories. " +
+	"Set nextFocus.mode to 'reinforce' when the objective continues a concept the learner is still working on or did not handle cleanly, and 'advance' when it is a genuinely new next step because recent work on the prior concept was handled cleanly and did not feel hard. Prefer continuity: keep the same objective across a few stories when the learner is still working on it, and change objective when the evidence gives a clear reason — do not switch every story for weak reasons. " +
+	"Set nextPace from how hard the story was for this learner (difficulty feedback plus struggle signals such as many lookups or a failed focus test): 'simpler' when it was too hard, 'harder' when it was clearly too easy, otherwise 'steady'. ";
 
 const STATE_RULES = `${STATE_RULES_BODY}Return only valid JSON with exactly this shape: ${STATE_OUTPUT_SHAPE}`;
 
@@ -276,7 +278,8 @@ function hasStoryEvidence(evidence: StoryFinishEvidence): boolean {
 			evidence.wordLookups?.length ||
 			evidence.learnerQuestions?.length ||
 			evidence.recapResults?.length ||
-			evidence.feedback?.trim(),
+			evidence.feedback?.trim() ||
+			evidence.practiceRequest?.trim(),
 	);
 }
 
@@ -290,5 +293,6 @@ function boundedEvidence(evidence: StoryFinishEvidence): StoryFinishEvidence {
 			.map((question) => question.slice(0, 300)),
 		recapResults: evidence.recapResults?.slice(0, 12),
 		feedback: evidence.feedback?.trim().slice(0, 1000),
+		practiceRequest: evidence.practiceRequest?.trim().slice(0, 500),
 	};
 }

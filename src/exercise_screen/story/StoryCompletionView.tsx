@@ -12,10 +12,15 @@ interface StoryCompletionViewProps {
 	priorFeedback: string | null;
 	canShowGallery: boolean;
 	onOpenGallery: () => void;
-	onSubmitStoryFeedback: (feedback: string, nextStoryTheme: string) => void;
+	onSubmitStoryFeedback: (
+		feedback: string,
+		nextStoryTheme: string,
+		practiceRequest: string,
+	) => void;
 	onStoryFeedbackDraftChange: (
 		feedback: string,
 		nextStoryTheme: string,
+		practiceRequest: string,
 	) => void;
 }
 
