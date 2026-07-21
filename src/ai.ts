@@ -278,6 +278,8 @@ export async function refineLearnerProfileFromChat(
 export interface StoryFinishEvidence {
 	storyId: string;
 	storySummary: string;
+	/** The primary language focus this story targeted; the chain advance/reinforce signal depends on it. */
+	languageFocus: string;
 	learnerQuestions?: string[];
 	recapResults: StoryRecapExerciseResult[];
 	feedback?: string;
@@ -332,7 +334,10 @@ export async function generateStoryRecapLesson(
 	const learnerProfile = await fetchLearnerProfile();
 	const text = await complete(
 		[
-			{ role: "system", content: buildStoryRecapPrompt() },
+			{
+				role: "system",
+				content: buildStoryRecapPrompt(input.languageFocuses[0]),
+			},
 			{
 				role: "user",
 				content: [

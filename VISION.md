@@ -103,6 +103,31 @@ profile rather than replacing the profile immediately:
 The prose profile can then be regenerated from the structured evidence and used
 only as compact context for story generation.
 
+### Reading focus: from per-story handoff toward curriculum progression
+
+The near-term step for reading adaptation is a per-story *focus handoff*: a
+finished story hands the next one a single grammar focus and a pace nudge,
+chosen at finalization from that story's recap performance and difficulty
+feedback. It advances the focus when the concept was handled cleanly and
+reinforces it (with a different construction) when it was not. This is
+deliberately pragmatic and reversible — a wrong advance simply self-corrects on
+the next story — so it needs no concept taxonomy or scoring to be useful, and it
+replaces the previously LLM-guessed difficulty level with a pure feedback nudge.
+
+The deterministic evolution is to anchor that focus selection to an explicit,
+ordered grammar-concept curriculum rather than an ad-hoc per-story choice. The
+lesson system already defines identified concepts (`GrammarConcept.id`); as a
+learner completes lessons, that progress can be stored in the learner model as a
+derived level and a set of known/unlocked concepts. Reading focus then becomes
+"advance along the known curriculum order, gated by recap performance," with the
+AI reduced to the pass/fail read and the prose itself — consistent with the AI
+Boundary below. Dropping the LLM-guessed level in the handoff step is not in
+tension with this: a future level would be *derived* from lesson completion, not
+guessed. This direction is gated on the lesson curriculum being filled in (not
+all lessons are implemented yet); until then, the per-story handoff is the
+working mechanism, and it is a stepping stone toward the curriculum-anchored
+version rather than a detour from it.
+
 ## Exercise Direction
 
 Exercise types in use or planned:

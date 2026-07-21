@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Difficulty = "tooEasy" | "bitEasy" | "right" | "bitHard" | "tooHard";
 
@@ -10,6 +10,15 @@ const DIFFICULTY_LABEL: Record<Difficulty, string> = {
 	tooHard: "Too hard",
 };
 
+/** Composes the feedback string identically for submit and draft capture. */
+function composeFeedback(difficulty: Difficulty | null, taste: string): string {
+	if (!difficulty) return "";
+	const trimmedTaste = taste.trim();
+	return trimmedTaste
+		? `${DIFFICULTY_LABEL[difficulty]}. ${trimmedTaste}`
+		: DIFFICULTY_LABEL[difficulty];
+}
+
 interface StoryFeedbackFormProps {
 	/**
 	 * `feedback` composes difficulty and taste into the profile-refinement
@@ -17,16 +26,26 @@ interface StoryFeedbackFormProps {
 	 * story's subject, kept separate so it never enters durable preferences.
 	 */
 	onSubmit: (feedback: string, nextStoryTheme: string) => void;
+	/**
+	 * Reports the form's current contents as they change, so leaving the
+	 * completion screen resolves them even without an explicit Submit.
+	 */
+	onDraftChange: (feedback: string, nextStoryTheme: string) => void;
 	submitted: boolean;
 }
 
 export function StoryFeedbackForm({
 	onSubmit,
+	onDraftChange,
 	submitted,
 }: StoryFeedbackFormProps) {
 	const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
 	const [taste, setTaste] = useState("");
 	const [nextTheme, setNextTheme] = useState("");
+
+	useEffect(() => {
+		onDraftChange(composeFeedback(difficulty, taste), nextTheme.trim());
+	}, [difficulty, taste, nextTheme, onDraftChange]);
 
 	if (submitted) {
 		return (
@@ -36,13 +55,7 @@ export function StoryFeedbackForm({
 
 	function handleSubmit() {
 		if (!difficulty) return;
-		const trimmedTaste = taste.trim();
-		onSubmit(
-			trimmedTaste
-				? `${DIFFICULTY_LABEL[difficulty]}. ${trimmedTaste}`
-				: DIFFICULTY_LABEL[difficulty],
-			nextTheme.trim(),
-		);
+		onSubmit(composeFeedback(difficulty, taste), nextTheme.trim());
 	}
 
 	return (

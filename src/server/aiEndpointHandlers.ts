@@ -369,6 +369,10 @@ export async function handleFinalizeStoryEvidenceRequest(
 		sendJson(res, 400, { error: "storySummary must be a non-empty string." });
 		return;
 	}
+	if (typeof body.languageFocus !== "string" || !body.languageFocus.trim()) {
+		sendJson(res, 400, { error: "languageFocus must be a non-empty string." });
+		return;
+	}
 	if (
 		!Array.isArray(body.learnerQuestions) ||
 		body.learnerQuestions.some((question) => typeof question !== "string")
@@ -406,6 +410,7 @@ export async function handleFinalizeStoryEvidenceRequest(
 		{
 			storyId: body.storyId,
 			storySummary: body.storySummary,
+			languageFocus: body.languageFocus,
 			learnerQuestions: body.learnerQuestions ?? [],
 			recapResults: body.recapResults ?? [],
 			feedback: body.feedback,

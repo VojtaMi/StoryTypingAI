@@ -21,30 +21,10 @@ import {
 export interface StoryFinalizationInput {
 	storyId: string;
 	storySummary: string;
+	languageFocus: string;
 	learnerQuestions: string[];
 	recapResults: StoryRecapEvidenceItem[];
 	feedback?: string;
-}
-
-async function applyLateEvidence(
-	openai: OpenAI,
-	storySummary: string,
-	learnerQuestions: string[],
-	feedback: string | undefined,
-	anthropicKey: string,
-): Promise<LearnerLanguageProfile> {
-	const current = await readLearnerContext();
-	const today = new Date().toISOString().slice(0, 10);
-	const updated = await refineLearnerStateFromStory(
-		openai,
-		current,
-		{ storySummary, learnerQuestions, feedback },
-		"delta",
-		anthropicKey,
-		today,
-	);
-	await writeLearnerContext(updated);
-	return updated.languageProfile;
 }
 
 async function finalizeOnce(
@@ -53,52 +33,32 @@ async function finalizeOnce(
 	anthropicKey: string,
 ): Promise<LearnerLanguageProfile> {
 	const record = await readFinishEvidence(evidence.storyId);
-	const incomingQuestions = evidence.learnerQuestions;
-	const storedQuestions = record.learnerQuestions ?? [];
-	const newQuestions = incomingQuestions.filter(
-		(question) => !storedQuestions.includes(question),
-	);
-	const feedback = evidence.feedback?.trim() || undefined;
-	const newFeedback =
-		feedback !== undefined && feedback !== record.feedback
-			? feedback
-			: undefined;
-
+	// Finalization is resolved exactly once, at the moment the next story is
+	// generated. A story that has already finalized ignores any later evidence:
+	// there is no late-delta path, so a reopened story cannot re-refine the
+	// profile behind a chain hint that was already bound.
 	if (record.finalizedAt) {
-		if (!newQuestions.length && newFeedback === undefined) {
-			return (await readLearnerContext()).languageProfile;
-		}
-		const updated = await applyLateEvidence(
-			openai,
-			record.storySummary ?? evidence.storySummary,
-			newQuestions,
-			newFeedback,
-			anthropicKey,
-		);
-		await updateFinishEvidence(evidence.storyId, {
-			learnerQuestions: [...storedQuestions, ...newQuestions],
-			...(newFeedback !== undefined ? { feedback: newFeedback } : {}),
-		});
-		return updated;
+		return (await readLearnerContext()).languageProfile;
 	}
 
+	const feedback = evidence.feedback?.trim() || undefined;
 	const [current, scoped, unscoped] = await Promise.all([
 		readLearnerContext(),
 		readWordLookupsForStory(evidence.storyId),
 		readWordLookupsSinceLastRefine(),
 	]);
 	const today = new Date().toISOString().slice(0, 10);
-	const updated = await refineLearnerStateFromStory(
+	const { context: updated, readingChain } = await refineLearnerStateFromStory(
 		openai,
 		current,
 		{
 			storySummary: evidence.storySummary,
+			languageFocus: evidence.languageFocus,
 			wordLookups: [...scoped.lookups, ...unscoped.lookups],
-			learnerQuestions: incomingQuestions,
+			learnerQuestions: evidence.learnerQuestions,
 			recapResults: evidence.recapResults,
 			feedback,
 		},
-		"story",
 		anthropicKey,
 		today,
 	);
@@ -111,11 +71,14 @@ async function finalizeOnce(
 	await updateFinishEvidence(evidence.storyId, {
 		finalizedAt: new Date().toISOString(),
 		storySummary: evidence.storySummary,
-		learnerQuestions: incomingQuestions,
+		learnerQuestions: evidence.learnerQuestions,
 		recapResults: evidence.recapResults,
 		feedback,
 		wordLookups: scoped.aggregated,
 		globalWordLookups: unscoped.aggregated,
+		// The transient chain hint rides in the reading-lifecycle record, keyed by
+		// this story's id, for the next prepare to read via basedOnStoryId.
+		...(readingChain ? { readingChain } : {}),
 	});
 	return updated.languageProfile;
 }

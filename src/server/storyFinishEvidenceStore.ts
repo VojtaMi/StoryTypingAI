@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import type { ReadingChainHint } from "../story";
 import type { StoryRecapEvidenceItem } from "./learnerProfileService";
 import { bundledFinishEvidencePath } from "./storyBundleStore";
 
@@ -27,6 +28,12 @@ export interface StoryFinishEvidenceRecord {
 	feedback?: string;
 	/** The story summary, kept purely as context for a later feedback update. */
 	storySummary?: string;
+	/**
+	 * The transient reading-chain hint the producer emitted for the NEXT story.
+	 * Read by the reading-opening preparation via `basedOnStoryId`; never folded
+	 * into the durable shared learner state.
+	 */
+	readingChain?: ReadingChainHint;
 	/** The aggregated, story-scoped word lookups folded at baseline. Audit only. */
 	wordLookups?: FinishEvidenceLookup[];
 	/** Unscoped menu/tutor lookups folded through the global cursor at baseline. Audit only. */
@@ -64,6 +71,11 @@ export async function readFinishEvidence(
 					: {}),
 				...(typeof parsed.storySummary === "string"
 					? { storySummary: parsed.storySummary }
+					: {}),
+				...(parsed.readingChain &&
+				typeof parsed.readingChain === "object" &&
+				!Array.isArray(parsed.readingChain)
+					? { readingChain: parsed.readingChain }
 					: {}),
 				...(Array.isArray(parsed.wordLookups)
 					? { wordLookups: parsed.wordLookups }

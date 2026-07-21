@@ -185,6 +185,14 @@ export function useStorySession({
 	const [storyFeedbackSubmittedAt, setStoryFeedbackSubmittedAt] = useState<
 		string | null
 	>(null);
+	// The submittable feedback form renders only for a story just finished in this
+	// live session; a reopened/reread finished save shows its prior rating
+	// read-only. This is the boundary that stops a reread from re-resolving
+	// feedback behind an already-bound chain hint.
+	const [feedbackEditable, setFeedbackEditable] = useState(false);
+	// The resolved feedback for the current story, kept reactive so a reread can
+	// display it read-only.
+	const [storyFeedback, setStoryFeedback] = useState<string | null>(null);
 	const activeSaveIdRef = useRef<string | null>(null);
 	const activeTitleRef = useRef<string | null>(null);
 	const messagesRef = useRef<ChatMessage[]>([]);
@@ -204,6 +212,10 @@ export function useStorySession({
 	// handed to the preparation lifecycle at finalize, never persisted in this
 	// story's save and never folded into the durable learner profile.
 	const storyNextThemeRef = useRef<string | null>(null);
+	// The live feedback-form draft, mirrored here so leaving the completion screen
+	// resolves whatever the learner had entered — clicking Submit is not required.
+	const storyFeedbackDraftRef = useRef<string>("");
+	const storyThemeDraftRef = useRef<string>("");
 	// Interactive continuity: the learner's tutor questions asked while reading are
 	// buffered here (deduped, bounded) and folded once into the baseline at story
 	// end — they stay out of the durable handout until the story finalizes.
@@ -1400,6 +1412,12 @@ export function useStorySession({
 			if (!genre || !activeSaveId) return;
 			storyRecapResultsRef.current = results;
 			justFinishedReadingRef.current = true;
+			// A live finish: the feedback form is submittable, and its draft starts
+			// empty so nothing from a previous story leaks into this resolution.
+			storyFeedbackDraftRef.current = "";
+			storyThemeDraftRef.current = "";
+			setStoryFeedback(null);
+			setFeedbackEditable(true);
 			setPhase("finished");
 			setStoryRecapError(null);
 			void persistStory(
@@ -1475,6 +1493,7 @@ export function useStorySession({
 				{
 					storyId: saveId,
 					storySummary: readingStorySummary(story),
+					languageFocus: story.languageFocus,
 					learnerQuestions: botQuestionsRef.current,
 					recapResults: storyRecapResultsRef.current,
 					...(feedback?.trim() ? { feedback: feedback.trim() } : {}),
@@ -1487,10 +1506,23 @@ export function useStorySession({
 
 	const backToMenu = useCallback(() => {
 		if (readingStory && activeSaveId && phase === "finished") {
-			finalizeReadingEvidence(
-				storyFeedbackRef.current ?? undefined,
-				storyNextThemeRef.current ?? undefined,
-			);
+			// Leaving the completion screen resolves feedback from whatever is on the
+			// form right now — Submit is not required. finalizeReadingEvidence is
+			// guarded by justFinishedReadingRef, so a reread's leave is a no-op and
+			// its stale draft is never consumed.
+			const draftFeedback = storyFeedbackDraftRef.current.trim();
+			const draftTheme = storyThemeDraftRef.current.trim();
+			const resolvedFeedback =
+				draftFeedback || storyFeedbackRef.current || undefined;
+			const resolvedTheme =
+				draftTheme || storyNextThemeRef.current || undefined;
+			if (resolvedFeedback) {
+				storyFeedbackRef.current = resolvedFeedback;
+				if (!storyFeedbackSubmittedAtRef.current) {
+					storyFeedbackSubmittedAtRef.current = new Date().toISOString();
+				}
+			}
+			finalizeReadingEvidence(resolvedFeedback, resolvedTheme);
 		}
 		if (genre && activeSaveId) {
 			void persistStory(
@@ -1634,6 +1666,12 @@ export function useStorySession({
 				storyFeedbackSubmittedAtRef.current =
 					save.storyFeedbackSubmittedAt ?? null;
 				setStoryFeedbackSubmittedAt(save.storyFeedbackSubmittedAt ?? null);
+				// A reopened save is never a live finish: its feedback form is
+				// read-only, showing only whatever rating was recorded before.
+				setStoryFeedback(save.storyFeedback ?? null);
+				setFeedbackEditable(false);
+				storyFeedbackDraftRef.current = "";
+				storyThemeDraftRef.current = "";
 				setStoryRecapError(
 					restoredPhase === "recap-loading"
 						? "The recap practice needs to be generated again."
@@ -1701,6 +1739,16 @@ export function useStorySession({
 		],
 	);
 
+	// The live form reports its current contents here so leaving the completion
+	// screen can resolve them without an explicit Submit.
+	const handleStoryFeedbackDraftChange = useCallback(
+		(feedback: string, nextStoryTheme: string) => {
+			storyFeedbackDraftRef.current = feedback;
+			storyThemeDraftRef.current = nextStoryTheme;
+		},
+		[],
+	);
+
 	const submitStoryFeedback = useCallback(
 		(feedback: string, nextStoryTheme = "") => {
 			const submittedAt = new Date().toISOString();
@@ -1708,7 +1756,10 @@ export function useStorySession({
 			const cleanTheme = nextStoryTheme.trim();
 			storyFeedbackRef.current = cleanFeedback;
 			storyNextThemeRef.current = cleanTheme || null;
+			storyFeedbackDraftRef.current = cleanFeedback;
+			storyThemeDraftRef.current = cleanTheme;
 			storyFeedbackSubmittedAtRef.current = submittedAt;
+			setStoryFeedback(cleanFeedback);
 			setStoryFeedbackSubmittedAt(submittedAt);
 			if (genre && activeSaveId) {
 				void persistStory(
@@ -1869,6 +1920,9 @@ export function useStorySession({
 		storyRecapError,
 		storyRecapLesson,
 		storyFeedbackSubmittedAt,
+		storyFeedback,
+		feedbackEditable,
+		onStoryFeedbackDraftChange: handleStoryFeedbackDraftChange,
 		submitContinuation,
 		submitStoryFeedback,
 		wordTranslations,

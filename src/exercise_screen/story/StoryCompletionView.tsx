@@ -6,9 +6,17 @@ interface StoryCompletionViewProps {
 	currentImageUrl: string | null;
 	readingTotalParts: number | null;
 	storyFeedbackSubmittedAt: string | null;
+	/** True only for a story just finished in this live session. */
+	feedbackEditable: boolean;
+	/** The prior feedback shown read-only when a finished save is reopened. */
+	priorFeedback: string | null;
 	canShowGallery: boolean;
 	onOpenGallery: () => void;
 	onSubmitStoryFeedback: (feedback: string, nextStoryTheme: string) => void;
+	onStoryFeedbackDraftChange: (
+		feedback: string,
+		nextStoryTheme: string,
+	) => void;
 }
 
 export function StoryCompletionView({
@@ -16,9 +24,12 @@ export function StoryCompletionView({
 	currentImageUrl,
 	readingTotalParts,
 	storyFeedbackSubmittedAt,
+	feedbackEditable,
+	priorFeedback,
 	canShowGallery,
 	onOpenGallery,
 	onSubmitStoryFeedback,
+	onStoryFeedbackDraftChange,
 }: StoryCompletionViewProps) {
 	return (
 		<div className="story-completion">
@@ -53,12 +64,25 @@ export function StoryCompletionView({
 				</button>
 			)}
 
-			<hr className="lesson-doc__rule" />
-			<StoryFeedbackForm
-				key={storyId}
-				onSubmit={onSubmitStoryFeedback}
-				submitted={storyFeedbackSubmittedAt !== null}
-			/>
+			{feedbackEditable ? (
+				<>
+					<hr className="lesson-doc__rule" />
+					<StoryFeedbackForm
+						key={storyId}
+						onSubmit={onSubmitStoryFeedback}
+						onDraftChange={onStoryFeedbackDraftChange}
+						submitted={storyFeedbackSubmittedAt !== null}
+					/>
+				</>
+			) : (
+				priorFeedback && (
+					<>
+						<hr className="lesson-doc__rule" />
+						<p className="lesson-doc__subheading">Your feedback</p>
+						<p className="lesson-doc__paragraph">{priorFeedback}</p>
+					</>
+				)
+			)}
 		</div>
 	);
 }

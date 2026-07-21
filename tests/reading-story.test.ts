@@ -74,7 +74,6 @@ const learnerContext: LearnerContext = {
 	languageProfile: {
 		version: 1,
 		updated: "2026-07-20",
-		level: "beginner",
 		confident: ["Simple present-tense sentences."],
 		learning: ["Plural direct-object noun phrases."],
 		shaky: ["Accusative endings need reinforcement."],
@@ -111,7 +110,12 @@ assert.equal(
 assert.match(promptMessages[0].content, /exactly one primary language target/);
 assert.match(
 	promptMessages[0].content,
-	/languageProfile\.level as the overall difficulty baseline/,
+	/Read the overall difficulty baseline from languageProfile/,
+);
+assert.doesNotMatch(
+	promptMessages[0].content,
+	/languageProfile\.level/,
+	"the dropped level field must not reappear in the authoring prompt",
 );
 assert.match(
 	promptMessages[0].content,
@@ -151,6 +155,63 @@ assert.equal(
 	1,
 );
 console.log("checked reading story: compact prompt has one context boundary");
+
+// --- Reading-chain hard override ---------------------------------------------
+
+const reinforceMessages = readingStoryPromptMessages(
+	genre,
+	learnerContext,
+	undefined,
+	{
+		nextFocus: { focus: "Using pensi pri", mode: "reinforce" },
+		nextPace: "simpler",
+	},
+);
+const reinforceContent = reinforceMessages.at(-1)?.content ?? "";
+assert.match(
+	reinforceContent,
+	/Set this story's single primary languageFocus to exactly this concept: "Using pensi pri"/,
+	"a chain hint hard-overrides the story's languageFocus",
+);
+assert.match(
+	reinforceContent,
+	/required override of the rule that chooses the focus from languageProfile\.learning/,
+	"the override is stated as required, not a soft nudge",
+);
+assert.match(
+	reinforceContent,
+	/different construction/i,
+	"reinforce mode demands a varied construction",
+);
+assert.match(reinforceContent, /a step simpler/i, "simpler pace nudges down");
+
+const advanceMessages = readingStoryPromptMessages(
+	genre,
+	learnerContext,
+	undefined,
+	{
+		nextFocus: { focus: "Accusative on plural nouns", mode: "advance" },
+		nextPace: "harder",
+	},
+);
+const advanceContent = advanceMessages.at(-1)?.content ?? "";
+assert.match(
+	advanceContent,
+	/next step beyond the concept/i,
+	"advance moves on",
+);
+assert.match(
+	advanceContent,
+	/a step more challenging/i,
+	"harder pace nudges up",
+);
+
+assert.equal(
+	readingStoryPromptMessages(genre, learnerContext).length,
+	3,
+	"no chain hint leaves the prompt at its three baseline messages",
+);
+console.log("checked reading story: chain hint hard-overrides focus and pace");
 
 // --- Parsing and validation ---------------------------------------------------
 

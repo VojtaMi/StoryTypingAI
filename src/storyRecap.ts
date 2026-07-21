@@ -109,6 +109,8 @@ const fillMissingWordSpec: RecapExerciseSpec<StoryRecapFillMissingWordExercise> 
 		},
 		instructions:
 			"Use exactly three fill choices, using only words and facts from the story. " +
+			"This exercise is the story's focus test: it must exercise the story's primary language focus stated below. " +
+			"Choose the fill sentence so its blanked `answer` is the exact Esperanto word or short phrase that realizes that focus. " +
 			"The `answer` is a single word or at most a short two-word phrase (e.g. `pensas pri`). " +
 			"The fill sentence must be one complete, natural Esperanto sentence containing the answer written exactly as in `answer` — the app carves the blank out of it itself, so write a normal sentence and do not pre-split it or omit the answer.",
 		parse(value) {
@@ -187,19 +189,30 @@ const RECAP_EXERCISE_SPECS = [
 	storyQuestionSpec,
 ];
 
+/**
+ * The fill-missing-word exercise is the deterministic focus test: it is always
+ * the exercise that probes the story's primary language focus, so a finished
+ * story yields a clean pass/fail on the exact concept. The blank itself is still
+ * derived in code (see {@link fillMissingWordSpec} and `splitOnWord`); only the
+ * choice of the focus-realizing sentence needs the model.
+ */
+export const RECAP_FOCUS_EXERCISE_TYPE = "fill-missing-word" as const;
+
 /** Composes the recap generation prompt from each exercise type's own shape and rules. */
-export function buildStoryRecapPrompt(): string {
+export function buildStoryRecapPrompt(primaryFocus?: string): string {
 	const shape = JSON.stringify({
 		exercises: RECAP_EXERCISE_SPECS.map((spec) => spec.shape),
 	});
 	const instructions = RECAP_EXERCISE_SPECS.map(
 		(spec) => spec.instructions,
 	).join(" ");
+	const focus = primaryFocus?.trim();
 	return (
 		"Create a tiny end-of-story Esperanto recap lesson for a beginner. " +
 		"Return only valid JSON with this exact shape: " +
 		`${shape} ` +
 		`${instructions} ` +
+		(focus ? `Story's primary language focus: "${focus}". ` : "") +
 		"Do not include markdown, comments, explanations, trailing commas, or extra fields."
 	);
 }

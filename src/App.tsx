@@ -164,6 +164,9 @@ export default function App() {
 		retryReadingPreparation,
 		readingTotalParts,
 		storyFeedbackSubmittedAt,
+		storyFeedback,
+		feedbackEditable,
+		onStoryFeedbackDraftChange,
 		retryStoryRecap,
 		resumeStory,
 		segments,
@@ -347,6 +350,8 @@ export default function App() {
 					readingPartIndex={readingPartIndex}
 					readingTotalParts={readingTotalParts}
 					storyFeedbackSubmittedAt={storyFeedbackSubmittedAt}
+					storyFeedback={storyFeedback}
+					feedbackEditable={feedbackEditable}
 					wordTranslations={wordTranslations}
 					nonTranslatableWords={nonTranslatableWords}
 					storyRecapLesson={storyRecapLesson}
@@ -361,6 +366,7 @@ export default function App() {
 					onAutoContinue={autoContinueStory}
 					onBackToMenu={backToMenu}
 					onSubmitStoryFeedback={submitStoryFeedback}
+					onStoryFeedbackDraftChange={onStoryFeedbackDraftChange}
 					onCaptureBotQuestions={captureBotQuestions}
 				/>
 			)}

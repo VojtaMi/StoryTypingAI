@@ -34,6 +34,7 @@ import {
 	createBundleId,
 	pathExists,
 } from "./storyBundleStore";
+import { readFinishEvidence } from "./storyFinishEvidenceStore";
 import { lookupWords, storeTranslations } from "./translationCacheStore";
 
 const openingsDir = join(process.cwd(), "openings");
@@ -383,6 +384,11 @@ async function createPreparedReadingOpening(
 	ttsModel: TtsModelId = DEFAULT_TTS_MODEL,
 ): Promise<PreparedReadingOpening> {
 	const learnerContext = await readLearnerContext();
+	// The transient reading-chain hint the finished story produced. It lives in
+	// that story's finish-evidence record and hard-overrides this story's focus.
+	const chainHint = basedOnStoryId
+		? ((await readFinishEvidence(basedOnStoryId)).readingChain ?? undefined)
+		: undefined;
 	const readingStory = await generateReadingStory(
 		(messages, maxTokens, options) =>
 			completeStructuredAi(
@@ -396,7 +402,7 @@ async function createPreparedReadingOpening(
 		genre,
 		learnerContext,
 		nextTheme,
-		{ reasoningEffort },
+		{ reasoningEffort, chainHint },
 	);
 	const text = readingStory.parts[0].text;
 	const title = readingStory.title;

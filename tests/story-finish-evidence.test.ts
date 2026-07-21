@@ -51,7 +51,6 @@ const storyC = "story-c--0003";
 const profile = {
 	version: 1 as const,
 	updated: "2026-07-16",
-	level: "beginner" as const,
 	confident: ["Existing strength."],
 	learning: ["Existing target."],
 	shaky: ["Existing watch item."],
@@ -250,22 +249,27 @@ try {
 					messages: Array<{ content: string }>;
 				}) => {
 					refinementCalls += 1;
-					const isMemory = messages[0]?.content.includes("anti-repetition");
-					const output = isMemory
-						? {
-								languageProfile: profile,
-								preferences: DEFAULT_LEARNER_PREFERENCES,
-								storyMemory: {
-									recentStory: storyMemory.recentStories[0],
-								},
-							}
-						: {
-								languageProfile: profile,
-								preferences: DEFAULT_LEARNER_PREFERENCES,
-								storyMemory: {
-									recentStory: storyMemory.recentStories[0],
-								},
-							};
+					// The story path asks for the transient reading-chain hint; the
+					// delta/chat paths do not. Emit it only when requested.
+					const isStory = messages[0]?.content.includes("readingChain");
+					const output = {
+						languageProfile: profile,
+						preferences: DEFAULT_LEARNER_PREFERENCES,
+						storyMemory: {
+							recentStory: storyMemory.recentStories[0],
+						},
+						...(isStory
+							? {
+									readingChain: {
+										nextFocus: {
+											focus: "Naming actions with the -ado suffix",
+											mode: "advance",
+										},
+										nextPace: "steady",
+									},
+								}
+							: {}),
+					};
 					return {
 						choices: [
 							{
@@ -280,6 +284,7 @@ try {
 	const evidence = {
 		storyId: storyC,
 		storySummary: "A learner visits a quiet workshop.",
+		languageFocus: "Naming tools with the -ilo suffix",
 		learnerQuestions: ["What does ilo mean?"],
 		recapResults: [{ type: "word-connect", label: "ilo = tool", attempts: 1 }],
 		feedback: "just right",
@@ -295,6 +300,20 @@ try {
 	assert.deepEqual(firstRecord.learnerQuestions, evidence.learnerQuestions);
 	assert.deepEqual(firstRecord.recapResults, evidence.recapResults);
 	assert.equal(firstRecord.feedback, "just right");
+	// The producer's transient chain hint is stored in the reading-lifecycle
+	// record, keyed by this story, for the next prepare to read via basedOnStoryId.
+	assert.deepEqual(firstRecord.readingChain, {
+		nextFocus: {
+			focus: "Naming actions with the -ado suffix",
+			mode: "advance",
+		},
+		nextPace: "steady",
+	});
+	// The transient hint must never leak into the durable shared learner state.
+	assert.equal(
+		"readingChain" in (await readLearnerContext()).languageProfile,
+		false,
+	);
 	assert.deepEqual((await readLearnerContext()).languageProfile, {
 		...profile,
 		updated: new Date().toISOString().slice(0, 10),
@@ -302,30 +321,32 @@ try {
 
 	await finalizeStoryEvidence(fakeOpenai, evidence, "");
 	assert.equal(refinementCalls, 1, "identical finalization is a no-op");
+	// Late evidence is intentionally ignored once a story has finalized: feedback
+	// is resolved exactly once, when the next story is generated, so a reopened
+	// story cannot re-refine the profile behind an already-bound chain hint.
 	await finalizeStoryEvidence(
 		fakeOpenai,
 		{
 			...evidence,
 			learnerQuestions: [...evidence.learnerQuestions, "Why ilo?"],
-		},
-		"",
-	);
-	assert.equal(refinementCalls, 2, "a late question applies one state delta");
-	await finalizeStoryEvidence(
-		fakeOpenai,
-		{
-			...evidence,
-			learnerQuestions: [...evidence.learnerQuestions, "Why ilo?"],
+			feedback: "actually too hard",
 		},
 		"",
 	);
 	assert.equal(
 		refinementCalls,
-		2,
-		"omitting existing feedback adds no evidence",
+		1,
+		"late evidence after finalization does not re-refine",
 	);
+	const afterLate = await readFinishEvidence(storyC);
+	assert.deepEqual(
+		afterLate.learnerQuestions,
+		evidence.learnerQuestions,
+		"the finalized record is not mutated by late evidence",
+	);
+	assert.equal(afterLate.feedback, "just right");
 	console.log(
-		"checked finalization service: full evidence, idempotence, and late deltas",
+		"checked finalization service: full evidence, idempotence, no late deltas",
 	);
 
 	const queueEvents: string[] = [];

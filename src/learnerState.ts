@@ -1,18 +1,8 @@
 export const LEARNER_STATE_VERSION = 1 as const;
 
-export const LEARNER_LEVELS = [
-	"absolute-beginner",
-	"beginner",
-	"elementary",
-	"intermediate",
-] as const;
-
-export type LearnerLevel = (typeof LEARNER_LEVELS)[number];
-
 export interface LearnerLanguageProfile {
 	version: typeof LEARNER_STATE_VERSION;
 	updated: string;
-	level: LearnerLevel;
 	confident: string[];
 	learning: string[];
 	shaky: string[];
@@ -50,7 +40,6 @@ export interface LearnerContext {
 export const DEFAULT_LEARNER_PROFILE: LearnerLanguageProfile = {
 	version: LEARNER_STATE_VERSION,
 	updated: "never",
-	level: "absolute-beginner",
 	confident: [],
 	learning: ["The first Esperanto words and the copula `estas`."],
 	shaky: ["New vocabulary needs gradual introduction and meaningful reuse."],
@@ -83,7 +72,6 @@ export const DEFAULT_LEARNER_CONTEXT: LearnerContext = {
 const PROFILE_KEYS = [
 	"version",
 	"updated",
-	"level",
 	"confident",
 	"learning",
 	"shaky",
@@ -118,11 +106,7 @@ export function parseLearnerLanguageProfile(
 	value: unknown,
 ): LearnerLanguageProfile | null {
 	const object = exactObject(value, PROFILE_KEYS);
-	if (
-		!object ||
-		!validBase(object) ||
-		!LEARNER_LEVELS.includes(object.level as LearnerLevel)
-	) {
+	if (!object || !validBase(object)) {
 		return null;
 	}
 	const confident = boundedStrings(object.confident, LIMITS.confident);
@@ -139,7 +123,6 @@ export function parseLearnerLanguageProfile(
 	return {
 		version: LEARNER_STATE_VERSION,
 		updated: object.updated as string,
-		level: object.level as LearnerLevel,
 		confident,
 		learning,
 		shaky,

@@ -45,6 +45,8 @@ interface ExerciseScreenProps {
 	readingPartIndex: number | null;
 	readingTotalParts: number | null;
 	storyFeedbackSubmittedAt: string | null;
+	storyFeedback: string | null;
+	feedbackEditable: boolean;
 	wordTranslations: Record<string, string> | null;
 	nonTranslatableWords: string[];
 	storyRecapLesson: StoryRecapLesson | null;
@@ -59,6 +61,10 @@ interface ExerciseScreenProps {
 	onAutoContinue: () => void;
 	onBackToMenu: () => void;
 	onSubmitStoryFeedback: (feedback: string, nextStoryTheme: string) => void;
+	onStoryFeedbackDraftChange: (
+		feedback: string,
+		nextStoryTheme: string,
+	) => void;
 	/** Buffers the learner's tutor questions for the reading-story baseline. */
 	onCaptureBotQuestions: (questions: string[]) => void;
 }
@@ -79,6 +85,8 @@ export default function ExerciseScreen({
 	readingPartIndex,
 	readingTotalParts,
 	storyFeedbackSubmittedAt,
+	storyFeedback,
+	feedbackEditable,
 	wordTranslations,
 	nonTranslatableWords,
 	storyRecapLesson,
@@ -93,6 +101,7 @@ export default function ExerciseScreen({
 	onAutoContinue,
 	onBackToMenu,
 	onSubmitStoryFeedback,
+	onStoryFeedbackDraftChange,
 	onCaptureBotQuestions,
 }: ExerciseScreenProps) {
 	const [galleryOpen, setGalleryOpen] = useState(false);
@@ -262,9 +271,12 @@ export default function ExerciseScreen({
 					currentImageUrl={currentImageUrl}
 					readingTotalParts={readingTotalParts}
 					storyFeedbackSubmittedAt={storyFeedbackSubmittedAt}
+					feedbackEditable={feedbackEditable}
+					priorFeedback={storyFeedback}
 					canShowGallery={canShowGallery}
 					onOpenGallery={() => setGalleryOpen(true)}
 					onSubmitStoryFeedback={onSubmitStoryFeedback}
+					onStoryFeedbackDraftChange={onStoryFeedbackDraftChange}
 				/>
 			)}
 
