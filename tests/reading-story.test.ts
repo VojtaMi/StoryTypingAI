@@ -127,7 +127,7 @@ assert.match(
 );
 assert.match(promptMessages[0].content, /exactly 6 moments/i);
 assert.match(promptMessages[0].content, /exactly 3 imagePrompts/i);
-assert.match(promptMessages[0].content, /single dominant action/i);
+assert.match(promptMessages[0].content, /depicts a single moment/i);
 assert.match(promptMessages[0].content, /apply the removal test/i);
 assert.match(promptMessages[0].content, /part N expands only moment N/i);
 const promptContext = JSON.parse(

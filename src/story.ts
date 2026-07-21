@@ -108,7 +108,8 @@ const READING_STORY_JSON_SHAPE = JSON.stringify({
 });
 
 const MAIN_CHARACTER_VISUAL_GUIDANCE =
-	"Describe stable visible traits needed for image continuity: approximate age, gender, hair, and clothing. " +
+	"Describe the stable visible traits an illustrator needs to redraw this exact character across scenes, matched to what the character actually is. " +
+	"For a person, that means approximate age, gender, hair, and clothing; for a creature, animal, or other non-human protagonist, describe its form, size, color, and distinctive markings instead. " +
 	"Include distinctive features, accessories, or recurring objects only when they naturally support the character or story. ";
 
 const READING_STORY_AUTHORING_PROMPT = `Write one coherent Esperanto reading story in exactly ${READING_STORY_TOTAL_PARTS} finished parts. Prioritize: valid output, learner level, coherence, preferences, novelty.
@@ -125,13 +126,13 @@ Story:
 - Every moment must establish something used later, change state needed later, or pay off an earlier setup. Apply the removal test: if deleting it would not change a later action or the ending, replace it. Important objects, rules, and problems must recur or visibly affect the ending. A complication is optional and must have a later consequence.
 - After writing the moments, expand them without changing the plan. Part N expands only moment N and must not perform a later moment early. Add concrete description, emotion, short dialogue, and connective actions, but no new plot event, named character, important object, world rule, problem, or solution.
 - Use 3-5 short sentences and about 35-55 Esperanto words per part. Keep character movements and locations explicit and consistent.
-- Keep visual metadata consistent with the prose. Include stable age, gender, hair, and clothing, but no accessory or recurring object without a story role.
+- Keep visual metadata consistent with the prose. Give the main character stable traits matched to what it is: for a person, age, gender, hair, and clothing; for a non-human protagonist, its form, size, color, and distinctive markings. Add no accessory or recurring object without a story role.
 - Avoid recent protagonists, settings, motifs, and key objects; weight the newest story most.
 
 Images:
 - Provide exactly ${READING_STORY_IMAGE_COUNT} imagePrompts in narrative order. Each covers a pair of parts: prompt 1 covers parts 1-2, prompt 2 covers parts 3-4, prompt 3 covers parts 5-6.
-- Each prompt is a short English description of the single dominant action or moment of its pair: one clear action, one location, and the people and objects actually present in it. Never depict several sequential actions, and never show the same character more than once.
-- Do not restate the character's fixed appearance; it is supplied separately. Name recurring people and objects consistently across the prompts so the images read as one story.
+- Each prompt depicts a single moment of its pair: one clear action in one location. Never depict several sequential actions, and never show the same character more than once. Within that one moment, describe it concretely and completely — the people and objects actually present, where they stand relative to each other, and the time of day and lighting. Let length follow the visual content the scene needs; do not pad with plot, backstory, or narration, but do not strip out the concrete detail that keeps the scene coherent.
+- Do not restate the main character's fixed appearance; it is supplied separately. For every other named character who appears, give a brief, concrete visual descriptor, and repeat the same descriptor consistently across each prompt where that character recurs so the images read as one story. Name recurring people and objects consistently too.
 
 Output only valid JSON matching exactly: ${READING_STORY_JSON_SHAPE}
 The parts array must contain exactly ${READING_STORY_TOTAL_PARTS} sections in narrative order. Metadata and languageFocus are English; every part text is Esperanto. List every named character exactly as written in the prose. No markdown, comments, extra prose, or trailing commas.`;
@@ -143,7 +144,7 @@ const READING_STORY_REPAIR_PROMPT =
 	"Preserve all valid metadata and prose. Fix only the reported structural problem and anything strictly necessary to produce a complete story; do not summarize or rewrite valid parts. " +
 	"Write metadata and languageFocus in English, and every part text in Esperanto. " +
 	MAIN_CHARACTER_VISUAL_GUIDANCE +
-	"Do not leave the visual identity as only Adult or person when the story, name, or pronouns clearly identify the character's gender. " +
+	"Do not leave the visual identity vague as only Adult, person, or creature when the story, name, or pronouns identify the character's gender or specific form. " +
 	"No markdown, comments, trailing commas, or ellipses.";
 
 /** Messages that begin a new story. Pass a seed to nudge the opening toward a specific element. */
