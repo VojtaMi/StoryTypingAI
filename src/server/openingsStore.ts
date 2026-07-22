@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type OpenAI from "openai";
+import sharp from "sharp";
 import { type Genre, type GenreId, genres } from "../genres";
 import { DEFAULT_TEXT_MODEL, type TextReasoningEffort } from "../models";
 import {
@@ -508,11 +509,34 @@ interface BackgroundImageOptions {
 	anchorToFirstSection?: boolean;
 }
 
+/**
+ * The anchor only has to carry identity — faces, clothing, creature design — not
+ * detail, so it is sent at half size. Image input is billed per token and scales
+ * with dimensions: 768x512 costs 704 tokens against 1536 for the full frame,
+ * about a third off an anchored image, with no measurable loss of likeness.
+ */
+const ANCHOR_WIDTH = 768;
+const ANCHOR_HEIGHT = 512;
+
+/**
+ * Deliberately high: image input is billed by dimensions, not by file size, so
+ * compressing the anchor harder saves nothing and only degrades the likeness it
+ * exists to carry.
+ */
+const ANCHOR_QUALITY = 90;
+
 /** Section 1's generated image, or null when there is nothing to anchor to. */
 async function readAnchorImage(storyId: string): Promise<Buffer | null> {
 	try {
-		return await readStoryImage(`${storyId}/section_1.webp`);
-	} catch {
+		const original = await readStoryImage(`${storyId}/section_1.webp`);
+		return await sharp(original)
+			.resize(ANCHOR_WIDTH, ANCHOR_HEIGHT)
+			.webp({ quality: ANCHOR_QUALITY })
+			.toBuffer();
+	} catch (err) {
+		// An unusable anchor costs continuity, not the section: the image is still
+		// generated, just unanchored, the way it was before anchoring existed.
+		console.warn(`Could not prepare the anchor image for ${storyId}.`, err);
 		return null;
 	}
 }
