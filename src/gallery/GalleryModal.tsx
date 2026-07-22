@@ -20,8 +20,7 @@ export function GalleryModal({
 			const all =
 				urls.length > 0 ? urls : currentImageUrl ? [currentImageUrl] : [];
 			setImages(all);
-			const current = currentImageUrl ? all.indexOf(currentImageUrl) : -1;
-			setIndex(current >= 0 ? current : all.length - 1);
+			setIndex(0);
 		});
 	}, [storyId, currentImageUrl]);
 

@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { listStoryImages } from "../../gallery/galleryApi";
 import "../../lessons/lesson.css";
 import type { StoryFeedbackRecord } from "../../storyFeedback";
 import { StoryFeedbackForm } from "./StoryFeedbackForm";
@@ -29,6 +31,27 @@ export function StoryCompletionView({
 	onSubmitStoryFeedback,
 	onStoryFeedbackDraftChange,
 }: StoryCompletionViewProps) {
+	const [firstImageUrl, setFirstImageUrl] = useState<string | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		setFirstImageUrl(null);
+
+		if (!canShowGallery || !storyId) return;
+
+		listStoryImages(storyId)
+			.then((urls) => {
+				if (!cancelled) setFirstImageUrl(urls[0] ?? currentImageUrl);
+			})
+			.catch(() => {
+				if (!cancelled) setFirstImageUrl(currentImageUrl);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [canShowGallery, storyId, currentImageUrl]);
+
 	return (
 		<div className="story-completion">
 			<p className="lesson-doc__eyebrow">Story complete</p>
@@ -51,14 +74,14 @@ export function StoryCompletionView({
 				)}
 			</div>
 
-			{canShowGallery && currentImageUrl && (
+			{canShowGallery && firstImageUrl && (
 				<button
 					type="button"
 					className="story-completion__preview"
 					onClick={onOpenGallery}
 					aria-label="Review story image gallery"
 				>
-					<img src={currentImageUrl} alt="Latest story scene" />
+					<img src={firstImageUrl} alt="First story scene" />
 				</button>
 			)}
 
