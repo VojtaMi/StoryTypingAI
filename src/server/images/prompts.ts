@@ -1,9 +1,20 @@
 import type { Genre } from "../../genres";
 
+/**
+ * Anchors a later section to the story's first image. The second sentence is
+ * load-bearing: the reference predates every object the story introduces after
+ * section 1, and without it the reference outvotes the scene description and
+ * those objects go missing.
+ */
+const REFERENCE_IMAGE_INSTRUCTION =
+	"The attached image is an earlier scene of this same story, provided only to fix identity: keep the same faces, hair, clothing, creature design, and art style. " +
+	"The scene description above has final authority over what happens and what is present: render every object it names, exactly as described, even when that object is absent from or looks different in the attached image.";
+
 export function buildStoryBackgroundPrompt(
 	genre: Genre,
 	storyText: string,
 	visualContext?: string,
+	hasReferenceImage = false,
 ) {
 	return [
 		"Create a cinematic full-page background image",
@@ -15,6 +26,7 @@ export function buildStoryBackgroundPrompt(
 		"Use a 3:2 landscape composition",
 		"Put details toward the edges rather than behind the center.",
 		"Most scenes should have no visible text at all. If a sign, poster, or billboard with writing would be natural, include at most one small, secondary instance, not a dominant subject.",
+		hasReferenceImage ? REFERENCE_IMAGE_INSTRUCTION : "",
 	]
 		.filter(Boolean)
 		.join("\n");

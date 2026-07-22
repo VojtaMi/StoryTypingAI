@@ -468,7 +468,11 @@ export async function generateStoryBackgroundImage(
 	genreId: GenreId,
 	messages: ChatMessage[],
 	storyId: string,
-	options: { sectionIndex?: number; visualContext?: string } = {},
+	options: {
+		sectionIndex?: number;
+		visualContext?: string;
+		anchorToFirstSection?: boolean;
+	} = {},
 ): Promise<StoryBackgroundImage> {
 	return postJson<StoryBackgroundImage>(
 		"/api/ai/background-image",

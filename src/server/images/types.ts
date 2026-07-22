@@ -12,6 +12,11 @@ export interface StoryImageRequest {
 	geminiModel?: GeminiImageModel;
 	openai: OpenAI;
 	provider?: ImageProviderPreference;
+	/**
+	 * An earlier image of this story, attached to hold the characters' identity
+	 * steady across sections. Only the OpenAI provider uses it.
+	 */
+	referenceImage?: Buffer;
 	storyText: string;
 	visualContext?: string;
 }
@@ -20,6 +25,7 @@ export interface ProviderImageRequest {
 	geminiModel?: GeminiImageModel;
 	prompt: string;
 	openai: OpenAI;
+	referenceImage?: Buffer;
 }
 
 export interface GeneratedStoryImage {

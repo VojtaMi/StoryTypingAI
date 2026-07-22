@@ -259,6 +259,8 @@ export function useStorySession({
 					readingBackgroundMessages(section.genre, section.imagePrompt),
 					section.storyId,
 					{
+						// Section 1 is the anchor itself; every later section attaches it.
+						anchorToFirstSection: section.partIndex > 1,
 						sectionIndex: section.partIndex,
 						visualContext: section.visualContext,
 					},

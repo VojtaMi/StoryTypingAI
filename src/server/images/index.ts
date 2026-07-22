@@ -27,10 +27,10 @@ export async function generateStoryImage({
 	genre,
 	openai,
 	provider = "openai",
+	referenceImage,
 	storyText,
 	visualContext,
 }: StoryImageRequest): Promise<GeneratedStoryImage> {
-	const prompt = buildStoryBackgroundPrompt(genre, storyText, visualContext);
 	const requestedProvider =
 		provider === "auto"
 			? process.env.GEMINI_API_KEY
@@ -38,9 +38,23 @@ export async function generateStoryImage({
 				: "openai"
 			: provider;
 
+	// Only the OpenAI path attaches the reference, so only it earns the extra
+	// instruction that tells the model what the attachment is for.
+	const anchored = Boolean(referenceImage) && requestedProvider === "openai";
+	const prompt = buildStoryBackgroundPrompt(
+		genre,
+		storyText,
+		visualContext,
+		anchored,
+	);
+
 	if (requestedProvider === "gemini") {
 		return generateGeminiImage({ geminiModel, openai, prompt });
 	}
 
-	return generateOpenAiImage({ openai, prompt });
+	return generateOpenAiImage({
+		openai,
+		prompt,
+		referenceImage: anchored ? referenceImage : undefined,
+	});
 }

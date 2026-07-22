@@ -497,6 +497,26 @@ const backgroundImagesInFlight = new Map<
 	Promise<StoryBackgroundImage>
 >();
 
+interface BackgroundImageOptions {
+	sectionIndex?: number;
+	visualContext?: string;
+	/**
+	 * Attach section 1's image to this request. Every later section anchors to
+	 * that one frame rather than to the section before it, so a drifting face or
+	 * costume cannot compound across the story.
+	 */
+	anchorToFirstSection?: boolean;
+}
+
+/** Section 1's generated image, or null when there is nothing to anchor to. */
+async function readAnchorImage(storyId: string): Promise<Buffer | null> {
+	try {
+		return await readStoryImage(`${storyId}/section_1.webp`);
+	} catch {
+		return null;
+	}
+}
+
 /**
  * Generates a section's background image, or joins the request already
  * generating that exact image. Reading prepares a section's media ahead and can
@@ -509,16 +529,19 @@ export async function createBackgroundImage(
 	genre: Genre,
 	storyText: string,
 	storyId: string,
-	options: { sectionIndex?: number; visualContext?: string } = {},
+	options: BackgroundImageOptions = {},
 ): Promise<StoryBackgroundImage> {
-	const prompt = buildStoryBackgroundPrompt(
-		genre,
+	// Keyed on the request rather than on the finished prompt: resolving the
+	// anchor image is async, and the dedupe has to happen before the first await
+	// or two concurrent callers both miss the map and pay for the same picture.
+	const key = [
+		genre.id,
+		storyId,
+		options.sectionIndex ?? "none",
+		options.anchorToFirstSection ? "anchored" : "plain",
+		options.visualContext ?? "",
 		storyText,
-		options.visualContext,
-	);
-	const key = [genre.id, storyId, options.sectionIndex ?? "none", prompt].join(
-		"\0",
-	);
+	].join("\0");
 	const inFlight = backgroundImagesInFlight.get(key);
 	if (inFlight) return inFlight;
 
@@ -527,7 +550,6 @@ export async function createBackgroundImage(
 		genre,
 		storyText,
 		storyId,
-		prompt,
 		options,
 	).finally(() => {
 		backgroundImagesInFlight.delete(key);
@@ -541,13 +563,22 @@ async function generateBackgroundImage(
 	genre: Genre,
 	storyText: string,
 	storyId: string,
-	prompt: string,
-	options: { sectionIndex?: number; visualContext?: string },
+	options: BackgroundImageOptions,
 ): Promise<StoryBackgroundImage> {
+	const referenceImage = options.anchorToFirstSection
+		? await readAnchorImage(storyId)
+		: null;
+	const prompt = buildStoryBackgroundPrompt(
+		genre,
+		storyText,
+		options.visualContext,
+		Boolean(referenceImage),
+	);
 	try {
 		const image = await generateStoryImage({
 			genre,
 			openai,
+			referenceImage: referenceImage ?? undefined,
 			storyText,
 			visualContext: options.visualContext,
 		});

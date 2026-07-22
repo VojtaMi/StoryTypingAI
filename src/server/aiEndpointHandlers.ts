@@ -43,8 +43,14 @@ export async function handleBackgroundImageRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { genreId, messages, storyId, sectionIndex, visualContext } =
-		JSON.parse(await readBody(req));
+	const {
+		genreId,
+		messages,
+		storyId,
+		sectionIndex,
+		visualContext,
+		anchorToFirstSection,
+	} = JSON.parse(await readBody(req));
 	const genre = findGenre(genreId);
 	if (!genre) {
 		sendJson(res, 404, { error: "Genre not found." });
@@ -66,6 +72,7 @@ export async function handleBackgroundImageRequest(
 					storyTextFromMessages(messages),
 					storyId,
 					{
+						anchorToFirstSection: anchorToFirstSection === true,
 						sectionIndex: validSectionIndex(sectionIndex),
 						visualContext:
 							typeof visualContext === "string" ? visualContext : undefined,
