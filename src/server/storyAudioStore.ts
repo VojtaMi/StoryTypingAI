@@ -9,6 +9,7 @@ import {
 import type { StoryOpeningAudio } from "../storyAudio";
 import {
 	DEFAULT_TTS_MODEL,
+	TTS_MODELS,
 	type TtsModelId,
 	ttsModelInfo,
 	ttsModelSpeechOptions,
@@ -74,6 +75,15 @@ export async function createOpeningAudio(
 	}
 }
 
+/**
+ * A section is narrated once. The selected model decides what gets generated
+ * next, not whether narration that already exists is usable — so the requested
+ * model is tried first and any other model's recording of the same section, in
+ * the same voice, of the same exact text is accepted after it. Insisting on an
+ * exact model match instead costs a paid call per section every time the
+ * selection differs from what is on disk, which a browser with no stored
+ * selection does by default, and leaves one story speaking in two models.
+ */
 async function findExistingSectionAudio(
 	text: string,
 	storyId: string,
@@ -83,26 +93,34 @@ async function findExistingSectionAudio(
 ): Promise<StoryOpeningAudio | null> {
 	if (sectionIndex === undefined) return null;
 
-	const provider = ttsModelInfo(ttsModel);
-	const filename = audioFilename(
-		text,
-		narrationVoice,
-		provider.model,
-		provider.extension,
-		sectionIndex,
-	);
-	if (!(await pathExists(audioPath(storyId, filename)))) return null;
+	const candidates: TtsModelId[] = [
+		ttsModel,
+		...TTS_MODELS.map((model) => model.id).filter((id) => id !== ttsModel),
+	];
 
-	return {
-		openingAudioUrl: `/api/story-audio/${storyId}/${filename}`,
-		openingAudioSource: "generated",
-		openingAudioText: text,
-		openingAudioTextHash: audioTextHash(text),
-		openingAudioVoice: narrationVoice,
-		openingAudioProvider: provider.provider,
-		openingAudioModel: provider.model,
-		openingAudioMimeType: provider.mimeType,
-	};
+	for (const candidate of candidates) {
+		const provider = ttsModelInfo(candidate);
+		const filename = audioFilename(
+			text,
+			narrationVoice,
+			provider.model,
+			provider.extension,
+			sectionIndex,
+		);
+		if (!(await pathExists(audioPath(storyId, filename)))) continue;
+
+		return {
+			openingAudioUrl: `/api/story-audio/${storyId}/${filename}`,
+			openingAudioSource: "generated",
+			openingAudioText: text,
+			openingAudioTextHash: audioTextHash(text),
+			openingAudioVoice: narrationVoice,
+			openingAudioProvider: provider.provider,
+			openingAudioModel: provider.model,
+			openingAudioMimeType: provider.mimeType,
+		};
+	}
+	return null;
 }
 
 export async function readStoryAudio(relativePath: string) {
