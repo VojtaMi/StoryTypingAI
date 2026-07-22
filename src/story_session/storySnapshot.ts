@@ -19,6 +19,7 @@ interface StorySaveSnapshotInput {
 	backgroundIntro?: string;
 	narrationVoice?: NarrationVoiceId;
 	readingStory?: ReadingStory;
+	wordTranslations?: Record<string, string>;
 	readingPartIndex?: number;
 	backgroundImage?: StoryBackgroundImage | null;
 	openingAudio?: StoryOpeningAudio | null;
@@ -64,6 +65,7 @@ export function buildStorySaveSnapshot({
 	backgroundIntro,
 	narrationVoice,
 	readingStory,
+	wordTranslations,
 	readingPartIndex,
 	backgroundImage,
 	openingAudio,
@@ -85,6 +87,7 @@ export function buildStorySaveSnapshot({
 		backgroundIntro,
 		narrationVoice,
 		readingStory,
+		wordTranslations,
 		readingPartIndex,
 		storyRecapLesson: storyRecapLesson ?? undefined,
 		storyRecapResults: storyRecapResults ?? undefined,

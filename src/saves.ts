@@ -22,6 +22,8 @@ export interface SavedStory
 	narrationVoice?: NarrationVoiceId;
 	/** The whole story a reading save is a cursor into; absent on typing saves. */
 	readingStory?: ReadingStory;
+	/** Contextual glosses for the reading story's words; absent on typing saves. */
+	wordTranslations?: Record<string, string>;
 	readingPartIndex?: number;
 	storyRecapLesson?: StoryRecapLesson | null;
 	storyRecapResults?: StoryRecapExerciseResult[];

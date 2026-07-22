@@ -30,11 +30,6 @@ import {
 	type StoryFinalizationInput,
 } from "./storyFinalizationService";
 import {
-	evictWord,
-	lookupWords,
-	storeTranslations,
-} from "./translationCacheStore";
-import {
 	getOrCreateWordAudio,
 	regenerateWordAudio,
 	wordFilePattern,
@@ -144,39 +139,18 @@ function validSectionIndex(value: unknown) {
 		: undefined;
 }
 
-export async function handleTranslateWordsRequest(
-	req: IncomingMessage,
-	res: ServerResponse,
-	openai: OpenAI,
-) {
-	const { words } = JSON.parse(await readBody(req));
-	if (!Array.isArray(words) || words.some((w) => typeof w !== "string")) {
-		sendJson(res, 400, { error: "words must be a string array." });
-		return;
-	}
-	const { hits, misses } = await lookupWords(words);
-	if (misses.length === 0) {
-		sendJson(res, 200, { translations: hits });
-		return;
-	}
-	const fresh = await translateWords(openai, misses);
-	await storeTranslations(fresh);
-	sendJson(res, 200, { translations: { ...hits, ...fresh } });
-}
-
 export async function handleRegenerateWordRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { word } = JSON.parse(await readBody(req));
+	const { word, storyContext } = JSON.parse(await readBody(req));
 	if (!word || typeof word !== "string") {
 		sendJson(res, 400, { error: "word is required." });
 		return;
 	}
-	await evictWord(word);
-	const fresh = await translateWords(openai, [word]);
-	await storeTranslations(fresh);
+	const context = typeof storyContext === "string" ? storyContext : undefined;
+	const fresh = await translateWords(openai, [word], context);
 	sendJson(res, 200, { translation: fresh[word] ?? null });
 }
 

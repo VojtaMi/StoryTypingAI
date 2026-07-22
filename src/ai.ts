@@ -502,18 +502,6 @@ export async function generateStoryIntro(
 	return generateIntro(httpCompleter(model), genreLabel, openingText);
 }
 
-export async function translateWords(
-	words: string[],
-): Promise<Record<string, string>> {
-	if (words.length === 0) return {};
-	const body = await postJson<{ translations: Record<string, string> }>(
-		"/api/ai/translate-words",
-		{ words },
-		"Translation request",
-	);
-	return body.translations;
-}
-
 export async function getWordAudioUrl(word: string): Promise<string> {
 	const body = await postJson<{ url: string }>(
 		"/api/word-audio",
@@ -549,10 +537,11 @@ export async function regenerateWordAudioUrl(word: string): Promise<string> {
 
 export async function regenerateWordTranslation(
 	word: string,
+	storyContext?: string,
 ): Promise<string | null> {
 	const body = await postJson<{ translation: string | null }>(
 		"/api/ai/translate-words/regenerate",
-		{ word },
+		{ word, storyContext },
 		"Regenerate request",
 	);
 	return body.translation;

@@ -39,6 +39,12 @@ export interface PreparedReadingOpening
 	messages: ChatMessage[];
 	/** The complete story; `text` and the media fields above are its part 1. */
 	readingStory: ReadingStory;
+	/**
+	 * Contextual English glosses for every story word, generated once at prepare
+	 * time against the full story. The hover glossary and recap read from this
+	 * map; there is no global word cache.
+	 */
+	wordTranslations: Record<string, string>;
 	readingPartIndex: number;
 	narrationVoice: NarrationVoiceId;
 	createdAt: string;

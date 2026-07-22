@@ -35,7 +35,6 @@ import {
 	pathExists,
 } from "./storyBundleStore";
 import { readFinishEvidence } from "./storyFinishEvidenceStore";
-import { lookupWords, storeTranslations } from "./translationCacheStore";
 
 const openingsDir = join(process.cwd(), "openings");
 const readingOpeningsDir = join(process.cwd(), "reading-openings");
@@ -70,6 +69,8 @@ interface PreparedReadingOpening
 	text: string;
 	messages: ChatMessage[];
 	readingStory: ReadingStory;
+	/** Contextual glosses for every story word, generated once at prepare time. */
+	wordTranslations: Record<string, string>;
 	readingPartIndex: number;
 	narrationVoice: NarrationVoiceId;
 	createdAt: string;
@@ -408,7 +409,7 @@ async function createPreparedReadingOpening(
 	const title = readingStory.title;
 	const id = createBundleId(title, randomUUID());
 	const narrationVoice = pickRandomNarrationVoice();
-	const [backgroundImage, openingAudio] = await Promise.all([
+	const [backgroundImage, openingAudio, wordTranslations] = await Promise.all([
 		createBackgroundImage(
 			openai,
 			genre,
@@ -434,6 +435,7 @@ async function createPreparedReadingOpening(
 		readingStory,
 		readingPartIndex: 1,
 		narrationVoice,
+		wordTranslations,
 		...backgroundImage,
 		...(openingAudio ?? {}),
 		createdAt: new Date().toISOString(),
@@ -444,17 +446,15 @@ async function createPreparedReadingOpening(
 async function prewarmReadingTranslations(
 	openai: OpenAI,
 	readingStory: ReadingStory,
-): Promise<void> {
+): Promise<Record<string, string>> {
 	try {
-		const words = storyWords(
-			readingStory.parts.map((part) => part.text),
-			readingStory.characterNames,
-		);
-		const { misses } = await lookupWords(words);
-		if (misses.length === 0) return;
-		await storeTranslations(await translateWords(openai, misses));
+		const partTexts = readingStory.parts.map((part) => part.text);
+		const words = storyWords(partTexts, readingStory.characterNames);
+		if (words.length === 0) return {};
+		return await translateWords(openai, words, partTexts.join("\n"));
 	} catch (err) {
 		console.warn("Could not prewarm reading-story translations.", err);
+		return {};
 	}
 }
 

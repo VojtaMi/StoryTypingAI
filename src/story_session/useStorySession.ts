@@ -12,7 +12,6 @@ import {
 	type StoryMemory,
 	startStory,
 	titleStory,
-	translateWords,
 } from "../ai";
 import type {
 	StoryPhase,
@@ -47,7 +46,6 @@ import {
 } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
 import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
-import { storyWords } from "../storyVocabulary";
 import {
 	backgroundFromOpening,
 	buildSectionImageMap,
@@ -312,6 +310,11 @@ export function useStorySession({
 		readingStoryRef.current = readingStory;
 	}, [readingStory]);
 
+	const wordTranslationsRef = useRef<Record<string, string> | null>(null);
+	useEffect(() => {
+		wordTranslationsRef.current = wordTranslations;
+	}, [wordTranslations]);
+
 	useEffect(() => {
 		readingPartIndexRef.current = readingPartIndex;
 	}, [readingPartIndex]);
@@ -332,6 +335,7 @@ export function useStorySession({
 		(input: Parameters<typeof buildStorySaveSnapshot>[0]) =>
 			buildStorySaveSnapshot({
 				...input,
+				wordTranslations: wordTranslationsRef.current ?? undefined,
 				storyRecapResults: storyRecapResultsRef.current,
 				storyLearnerQuestions: botQuestionsRef.current,
 				storyFeedback: storyFeedbackRef.current ?? undefined,
@@ -340,28 +344,13 @@ export function useStorySession({
 			}),
 	);
 
+	// The whole-story gloss map is seeded when a reading story starts (from the
+	// prepared opening) or resumes (from the save). It follows the reading story:
+	// clear it whenever there is no reading story, which covers every path back to
+	// a typing story or the menu without touching each reset site.
 	useEffect(() => {
-		if (phase !== "reading" || !currentTarget) {
-			setWordTranslations(null);
-			return;
-		}
-		const words = storyWords(
-			[currentTarget],
-			readingStory?.characterNames ?? [],
-		);
-		if (words.length === 0) return;
-		let cancelled = false;
-		translateWords(words)
-			.then((translations) => {
-				if (!cancelled) setWordTranslations(translations);
-			})
-			.catch((err) => {
-				console.warn("Could not translate words.", err);
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, [currentTarget, phase, readingStory?.characterNames]);
+		if (!readingStory) setWordTranslations(null);
+	}, [readingStory]);
 
 	const persistStory = useStoryPersistence({
 		model,
@@ -902,6 +891,8 @@ export function useStorySession({
 			setOpeningAudio(nextOpeningAudio);
 			setReadingStory(story);
 			readingStoryRef.current = story;
+			wordTranslationsRef.current = preparedOpening.wordTranslations ?? {};
+			setWordTranslations(preparedOpening.wordTranslations ?? {});
 			setReadingPartIndex(1);
 			setPhase("reading");
 			void persistStory(
@@ -1181,9 +1172,9 @@ export function useStorySession({
 				const storyParts = finishedSegments
 					.filter((segment) => segment.author === "ai")
 					.map((segment) => segment.text);
-				const translations = await translateWords(
-					storyWords(storyParts, readingStory.characterNames),
-				);
+				// Reuse the contextual glosses prepared with the story; they already
+				// cover every story word, so the recap needs no fresh translation call.
+				const translations = wordTranslationsRef.current ?? {};
 				// The recap is a small structured exercise, not prose, so it does not
 				// follow the story-generation preset (a prose-tier model + reasoning
 				// effort chosen for the story itself). It uses EXERCISE_MODEL.
@@ -1665,6 +1656,8 @@ export function useStorySession({
 				setPhase(restoredPhase);
 				setReadingStory(save.readingStory ?? null);
 				readingStoryRef.current = save.readingStory ?? null;
+				wordTranslationsRef.current = save.wordTranslations ?? null;
+				setWordTranslations(save.wordTranslations ?? null);
 				setReadingPartIndex(save.readingPartIndex ?? null);
 				narrationVoiceRef.current = savedNarrationVoice;
 				setNarrationVoice(savedNarrationVoice);
@@ -1882,7 +1875,10 @@ export function useStorySession({
 	const handleRegenerateWord = useCallback(
 		async (word: string): Promise<string | null> => {
 			try {
-				const translation = await regenerateWordTranslation(word);
+				const storyContext = readingStoryRef.current?.parts
+					.map((part) => part.text)
+					.join("\n");
+				const translation = await regenerateWordTranslation(word, storyContext);
 				if (translation !== null) {
 					setWordTranslations((prev) =>
 						prev ? { ...prev, [word]: translation } : { [word]: translation },

@@ -112,14 +112,17 @@ export async function streamAi(
 export async function translateWords(
 	openai: OpenAI,
 	words: string[],
+	storyContext?: string,
 ): Promise<Record<string, string>> {
 	if (words.length === 0) return {};
+	const context = storyContext?.trim();
+	const systemContent =
+		"You are an Esperanto-English dictionary for a language-learning app. Given a JSON array of Esperanto words, return a JSON object mapping each exact input word to a concise, natural English gloss — the short label a learner sees on hover. Give the single most likely meaning. Only when a word is genuinely ambiguous, offer at most two alternatives separated by a slash. Reflect grammatical distinctions (tense, number, participle voice) only through your choice of English words; never add explanatory notes, parenthetical annotations, part-of-speech labels, or grammar commentary such as '(as an object)' or '(adjectival)'. Do not omit any input word. Return only valid JSON, with no markdown or explanation." +
+		(context
+			? ` The words are taken from the Esperanto reading story below. Gloss each word as it is used in THIS story, choosing the sense the context supports.\n\nStory:\n${context}`
+			: "");
 	const messages: ChatMessage[] = [
-		{
-			role: "system",
-			content:
-				"You are an Esperanto-English dictionary for a language-learning app. Given a JSON array of Esperanto words, return a JSON object where each key is the exact input word and each value is a concise, natural English translation. Preserve important Esperanto grammatical distinctions, including tense, modality, number, and object endings, whenever they affect the English meaning. Prefer context-appropriate translations. If a word genuinely has multiple useful common translations, you may provide concise alternatives separated by a slash. Do not omit any input word. Return only valid JSON, with no markdown or explanation.",
-		},
+		{ role: "system", content: systemContent },
 		{ role: "user", content: JSON.stringify(words) },
 	];
 	const response = await traceAiCall(

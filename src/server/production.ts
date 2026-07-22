@@ -22,7 +22,6 @@ import {
 	handleOpeningAudioRequest,
 	handleRegenerateWordAudioRequest,
 	handleRegenerateWordRequest,
-	handleTranslateWordsRequest,
 	handleWordAudioRequest,
 } from "./aiEndpointHandlers";
 import { createAiTraceContext, withAiTraceContext } from "./aiTrace";
@@ -404,11 +403,6 @@ async function handleRequest(
 
 		if (pathname === "/api/ai/complete-stream" && req.method === "POST") {
 			await handleCompleteStreamRequest(req, res, openai, ANTHROPIC_API_KEY);
-			return;
-		}
-
-		if (pathname === "/api/ai/translate-words" && req.method === "POST") {
-			await handleTranslateWordsRequest(req, res, openai);
 			return;
 		}
 
