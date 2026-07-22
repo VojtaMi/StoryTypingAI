@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 /**
  * What the learner said about a finished reading story, resolved into the shape
@@ -10,6 +10,32 @@ export interface ResolvedStoryFeedback {
 	nextStoryTheme?: string;
 	practiceRequest?: string;
 }
+
+/** The live contents of the completion-screen form. */
+interface StoryFeedbackDraft {
+	feedback: string;
+	nextStoryTheme: string;
+	practiceRequest: string;
+}
+
+/** What has actually been resolved for this story, and when. */
+interface StoryFeedbackResolution {
+	feedback: string | null;
+	nextStoryTheme: string | null;
+	submittedAt: string | null;
+}
+
+const EMPTY_DRAFT: StoryFeedbackDraft = {
+	feedback: "",
+	nextStoryTheme: "",
+	practiceRequest: "",
+};
+
+const EMPTY_RESOLUTION: StoryFeedbackResolution = {
+	feedback: null,
+	nextStoryTheme: null,
+	submittedAt: null,
+};
 
 /** The feedback fields a story save persists. */
 export interface StoryFeedbackSnapshot {
@@ -72,43 +98,34 @@ export function useStoryFeedback(): StoryFeedback {
 	const [feedback, setFeedback] = useState<string | null>(null);
 	const [submittedAt, setSubmittedAt] = useState<string | null>(null);
 
-	const feedbackRef = useRef<string | null>(null);
-	const submittedAtRef = useRef<string | null>(null);
-	const nextThemeRef = useRef<string | null>(null);
-	const feedbackDraftRef = useRef("");
-	const themeDraftRef = useRef("");
-	const practiceDraftRef = useRef("");
-
-	useEffect(() => {
-		submittedAtRef.current = submittedAt;
-	}, [submittedAt]);
-
-	const clearDrafts = useCallback(() => {
-		feedbackDraftRef.current = "";
-		themeDraftRef.current = "";
-		practiceDraftRef.current = "";
-	}, []);
+	const draftRef = useRef<StoryFeedbackDraft>(EMPTY_DRAFT);
+	const resolutionRef = useRef<StoryFeedbackResolution>(EMPTY_RESOLUTION);
 
 	const reportDraft = useCallback(
 		(nextFeedback: string, nextStoryTheme: string, practiceRequest: string) => {
-			feedbackDraftRef.current = nextFeedback;
-			themeDraftRef.current = nextStoryTheme;
-			practiceDraftRef.current = practiceRequest;
+			draftRef.current = {
+				feedback: nextFeedback,
+				nextStoryTheme,
+				practiceRequest,
+			};
 		},
 		[],
 	);
 
 	const resolve = useCallback((): ResolvedStoryFeedback => {
-		const draftFeedback = feedbackDraftRef.current.trim();
-		const draftTheme = themeDraftRef.current.trim();
-		const resolvedFeedback = draftFeedback || feedbackRef.current || undefined;
-		const resolvedTheme = draftTheme || nextThemeRef.current || undefined;
-		const resolvedPractice = practiceDraftRef.current.trim() || undefined;
+		const draft = draftRef.current;
+		const previous = resolutionRef.current;
+		const resolvedFeedback =
+			draft.feedback.trim() || previous.feedback || undefined;
+		const resolvedTheme =
+			draft.nextStoryTheme.trim() || previous.nextStoryTheme || undefined;
+		const resolvedPractice = draft.practiceRequest.trim() || undefined;
 		if (resolvedFeedback) {
-			feedbackRef.current = resolvedFeedback;
-			if (!submittedAtRef.current) {
-				submittedAtRef.current = new Date().toISOString();
-			}
+			resolutionRef.current = {
+				feedback: resolvedFeedback,
+				nextStoryTheme: resolvedTheme ?? null,
+				submittedAt: previous.submittedAt ?? new Date().toISOString(),
+			};
 		}
 		return {
 			feedback: resolvedFeedback,
@@ -123,59 +140,55 @@ export function useStoryFeedback(): StoryFeedback {
 			nextStoryTheme: string,
 			practiceRequest: string,
 		): ResolvedStoryFeedback => {
-			const stamp = new Date().toISOString();
-			const cleanFeedback = nextFeedback.trim();
-			const cleanTheme = nextStoryTheme.trim();
-			const cleanPractice = practiceRequest.trim();
-			// Submitting is just an early, explicit resolution: fold the values into
-			// the draft so `resolve` would produce the same answer afterwards.
-			reportDraft(cleanFeedback, cleanTheme, cleanPractice);
-			feedbackRef.current = cleanFeedback;
-			nextThemeRef.current = cleanTheme || null;
-			submittedAtRef.current = stamp;
-			setFeedback(cleanFeedback);
-			setSubmittedAt(stamp);
-			return {
-				feedback: cleanFeedback,
-				nextStoryTheme: cleanTheme,
-				practiceRequest: cleanPractice,
-			};
+			// Submitting is not a second way to resolve feedback, only an earlier and
+			// explicit one: put the values on the draft and run the same resolution
+			// leaving the screen would run, so the two can never disagree.
+			reportDraft(
+				nextFeedback.trim(),
+				nextStoryTheme.trim(),
+				practiceRequest.trim(),
+			);
+			const resolved = resolve();
+			setFeedback(resolutionRef.current.feedback);
+			setSubmittedAt(resolutionRef.current.submittedAt);
+			return resolved;
 		},
-		[reportDraft],
+		[reportDraft, resolve],
 	);
 
 	const beginLiveFinish = useCallback(() => {
-		clearDrafts();
+		draftRef.current = EMPTY_DRAFT;
 		setFeedback(null);
 		setEditable(true);
-	}, [clearDrafts]);
+	}, []);
 
 	const loadFromSave = useCallback(
 		(savedFeedback: string | null, savedSubmittedAt: string | null) => {
-			feedbackRef.current = savedFeedback;
-			submittedAtRef.current = savedSubmittedAt;
+			draftRef.current = EMPTY_DRAFT;
+			resolutionRef.current = {
+				feedback: savedFeedback,
+				nextStoryTheme: null,
+				submittedAt: savedSubmittedAt,
+			};
 			setFeedback(savedFeedback);
 			setSubmittedAt(savedSubmittedAt);
 			setEditable(false);
-			clearDrafts();
 		},
-		[clearDrafts],
+		[],
 	);
 
 	const reset = useCallback(() => {
-		feedbackRef.current = null;
-		submittedAtRef.current = null;
-		nextThemeRef.current = null;
+		draftRef.current = EMPTY_DRAFT;
+		resolutionRef.current = EMPTY_RESOLUTION;
 		setFeedback(null);
 		setSubmittedAt(null);
 		setEditable(false);
-		clearDrafts();
-	}, [clearDrafts]);
+	}, []);
 
 	const readSnapshot = useCallback(
 		(): StoryFeedbackSnapshot => ({
-			storyFeedback: feedbackRef.current ?? undefined,
-			storyFeedbackSubmittedAt: submittedAtRef.current ?? undefined,
+			storyFeedback: resolutionRef.current.feedback ?? undefined,
+			storyFeedbackSubmittedAt: resolutionRef.current.submittedAt ?? undefined,
 		}),
 		[],
 	);
