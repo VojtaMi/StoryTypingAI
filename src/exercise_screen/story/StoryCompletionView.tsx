@@ -1,4 +1,5 @@
 import "../../lessons/lesson.css";
+import type { StoryFeedbackRecord } from "../../storyFeedback";
 import { StoryFeedbackForm } from "./StoryFeedbackForm";
 
 interface StoryCompletionViewProps {
@@ -12,16 +13,8 @@ interface StoryCompletionViewProps {
 	priorFeedback: string | null;
 	canShowGallery: boolean;
 	onOpenGallery: () => void;
-	onSubmitStoryFeedback: (
-		feedback: string,
-		nextStoryTheme: string,
-		practiceRequest: string,
-	) => void;
-	onStoryFeedbackDraftChange: (
-		feedback: string,
-		nextStoryTheme: string,
-		practiceRequest: string,
-	) => void;
+	onSubmitStoryFeedback: (record: StoryFeedbackRecord) => void;
+	onStoryFeedbackDraftChange: (record: StoryFeedbackRecord) => void;
 }
 
 export function StoryCompletionView({

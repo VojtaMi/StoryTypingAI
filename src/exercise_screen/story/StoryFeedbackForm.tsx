@@ -1,46 +1,24 @@
 import { useEffect, useState } from "react";
-
-type Difficulty = "tooEasy" | "bitEasy" | "right" | "bitHard" | "tooHard";
-
-const DIFFICULTY_LABEL: Record<Difficulty, string> = {
-	tooEasy: "Too easy",
-	bitEasy: "A bit easy",
-	right: "Just right",
-	bitHard: "A bit hard",
-	tooHard: "Too hard",
-};
-
-/** Composes the feedback string identically for submit and draft capture. */
-function composeFeedback(difficulty: Difficulty | null, taste: string): string {
-	if (!difficulty) return "";
-	const trimmedTaste = taste.trim();
-	return trimmedTaste
-		? `${DIFFICULTY_LABEL[difficulty]}. ${trimmedTaste}`
-		: DIFFICULTY_LABEL[difficulty];
-}
+import {
+	STORY_DIFFICULTIES,
+	STORY_DIFFICULTY_LABEL,
+	type StoryDifficulty,
+	type StoryFeedbackRecord,
+} from "../../storyFeedback";
 
 interface StoryFeedbackFormProps {
 	/**
-	 * `feedback` composes difficulty and taste into the profile-refinement
-	 * evidence; `nextStoryTheme` is the learner's one-shot request for the next
-	 * story's subject, kept separate so it never enters durable preferences;
-	 * `practiceRequest` is the learner's own words about what felt hard or what
-	 * they want to work on next — the most direct signal for the next objective.
+	 * Explicit Submit. The four answers stay separate all the way to the server:
+	 * difficulty and the practice request steer the next objective, the taste
+	 * note is durable story preference, and the theme is a one-shot subject
+	 * request.
 	 */
-	onSubmit: (
-		feedback: string,
-		nextStoryTheme: string,
-		practiceRequest: string,
-	) => void;
+	onSubmit: (record: StoryFeedbackRecord) => void;
 	/**
 	 * Reports the form's current contents as they change, so leaving the
 	 * completion screen resolves them even without an explicit Submit.
 	 */
-	onDraftChange: (
-		feedback: string,
-		nextStoryTheme: string,
-		practiceRequest: string,
-	) => void;
+	onDraftChange: (record: StoryFeedbackRecord) => void;
 	submitted: boolean;
 }
 
@@ -49,18 +27,21 @@ export function StoryFeedbackForm({
 	onDraftChange,
 	submitted,
 }: StoryFeedbackFormProps) {
-	const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
+	const [difficulty, setDifficulty] = useState<StoryDifficulty | null>(null);
 	const [taste, setTaste] = useState("");
-	const [practice, setPractice] = useState("");
-	const [nextTheme, setNextTheme] = useState("");
+	const [practiceRequest, setPracticeRequest] = useState("");
+	const [nextStoryTheme, setNextStoryTheme] = useState("");
+
+	const record: StoryFeedbackRecord = {
+		difficulty,
+		taste,
+		practiceRequest,
+		nextStoryTheme,
+	};
 
 	useEffect(() => {
-		onDraftChange(
-			composeFeedback(difficulty, taste),
-			nextTheme.trim(),
-			practice.trim(),
-		);
-	}, [difficulty, taste, practice, nextTheme, onDraftChange]);
+		onDraftChange({ difficulty, taste, practiceRequest, nextStoryTheme });
+	}, [difficulty, taste, practiceRequest, nextStoryTheme, onDraftChange]);
 
 	if (submitted) {
 		return (
@@ -68,20 +49,11 @@ export function StoryFeedbackForm({
 		);
 	}
 
-	function handleSubmit() {
-		if (!difficulty) return;
-		onSubmit(
-			composeFeedback(difficulty, taste),
-			nextTheme.trim(),
-			practice.trim(),
-		);
-	}
-
 	return (
 		<div className="story-completion__feedback">
 			<p className="lesson-doc__subheading">How was this story's difficulty?</p>
 			<div className="phrase-builder__tiles">
-				{(Object.keys(DIFFICULTY_LABEL) as Difficulty[]).map((option) => (
+				{STORY_DIFFICULTIES.map((option) => (
 					<button
 						type="button"
 						key={option}
@@ -93,7 +65,7 @@ export function StoryFeedbackForm({
 						aria-pressed={difficulty === option}
 						onClick={() => setDifficulty(option)}
 					>
-						{DIFFICULTY_LABEL[option]}
+						{STORY_DIFFICULTY_LABEL[option]}
 					</button>
 				))}
 			</div>
@@ -103,8 +75,8 @@ export function StoryFeedbackForm({
 			</p>
 			<textarea
 				className="story-completion__note"
-				value={practice}
-				onChange={(event) => setPractice(event.target.value)}
+				value={practiceRequest}
+				onChange={(event) => setPracticeRequest(event.target.value)}
 				placeholder="e.g. the -n endings confused me, I want more past tense (optional)"
 				rows={2}
 			/>
@@ -123,8 +95,8 @@ export function StoryFeedbackForm({
 			<p className="lesson-doc__subheading">Theme for your next story</p>
 			<textarea
 				className="story-completion__note"
-				value={nextTheme}
-				onChange={(event) => setNextTheme(event.target.value)}
+				value={nextStoryTheme}
+				onChange={(event) => setNextStoryTheme(event.target.value)}
 				placeholder="e.g. a shipwreck on a deserted island (optional)"
 				rows={2}
 			/>
@@ -133,7 +105,7 @@ export function StoryFeedbackForm({
 				type="button"
 				className="lesson-doc__begin"
 				disabled={!difficulty}
-				onClick={handleSubmit}
+				onClick={() => difficulty && onSubmit(record)}
 			>
 				Submit feedback
 			</button>

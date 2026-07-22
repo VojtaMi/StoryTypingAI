@@ -45,6 +45,7 @@ import {
 	type StoryOpeningAudio,
 } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
+import type { StoryFeedbackRecord } from "../storyFeedback";
 import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
 import {
 	backgroundFromOpening,
@@ -64,7 +65,10 @@ import {
 	fallbackTitle,
 } from "./storySnapshot";
 import { useReadingPreparation } from "./useReadingPreparation";
-import { useStoryFeedback } from "./useStoryFeedback";
+import {
+	type ResolvedStoryFeedback,
+	useStoryFeedback,
+} from "./useStoryFeedback";
 
 // The session only distinguishes "am I on the main menu" from "in a story" from
 // "somewhere in the lesson flow" — it never branches on individual lesson views.
@@ -1448,7 +1452,7 @@ export function useStorySession({
 	 * clears the session as it navigates away.
 	 */
 	const finalizeReadingEvidence = useCallback(
-		(feedback?: string, nextTheme?: string, practiceRequest?: string) => {
+		(resolved: ResolvedStoryFeedback) => {
 			const story = readingStoryRef.current;
 			const saveId = activeSaveIdRef.current;
 			// `justFinishedReadingRef` is what makes this safe to call from both
@@ -1472,12 +1476,13 @@ export function useStorySession({
 					languageFocus: story.languageFocus,
 					learnerQuestions: botQuestionsRef.current,
 					recapResults: storyRecapResultsRef.current,
-					...(feedback?.trim() ? { feedback: feedback.trim() } : {}),
-					...(practiceRequest?.trim()
-						? { practiceRequest: practiceRequest.trim() }
+					...(resolved.difficulty ? { difficulty: resolved.difficulty } : {}),
+					...(resolved.taste ? { taste: resolved.taste } : {}),
+					...(resolved.practiceRequest
+						? { practiceRequest: resolved.practiceRequest }
 						: {}),
 				},
-				nextTheme?.trim() || undefined,
+				resolved.nextStoryTheme,
 			);
 		},
 		[makeNextReadingStory],
@@ -1489,12 +1494,7 @@ export function useStorySession({
 			// form right now — Submit is not required. finalizeReadingEvidence is
 			// guarded by justFinishedReadingRef, so a reread's leave is a no-op and
 			// its stale draft is never consumed.
-			const resolved = resolveStoryFeedback();
-			finalizeReadingEvidence(
-				resolved.feedback,
-				resolved.nextStoryTheme,
-				resolved.practiceRequest,
-			);
+			finalizeReadingEvidence(resolveStoryFeedback());
 		}
 		if (genre && activeSaveId) {
 			void persistStory(
@@ -1712,12 +1712,8 @@ export function useStorySession({
 	);
 
 	const submitStoryFeedback = useCallback(
-		(feedback: string, nextStoryTheme = "", practiceRequest = "") => {
-			const resolved = submitFeedbackValues(
-				feedback,
-				nextStoryTheme,
-				practiceRequest,
-			);
+		(record: StoryFeedbackRecord) => {
+			const resolved = submitFeedbackValues(record);
 			if (genre && activeSaveId) {
 				void persistStory(
 					makeStorySaveSnapshot.current({
@@ -1740,11 +1736,7 @@ export function useStorySession({
 				);
 			}
 			if (readingStory && phase === "finished") {
-				finalizeReadingEvidence(
-					resolved.feedback,
-					resolved.nextStoryTheme,
-					resolved.practiceRequest,
-				);
+				finalizeReadingEvidence(resolved);
 			}
 		},
 		[

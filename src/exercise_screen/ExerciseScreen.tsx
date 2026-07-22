@@ -6,6 +6,7 @@ import {
 } from "../ai";
 import "../gallery/gallery.css";
 import { GalleryModal } from "../gallery/GalleryModal";
+import type { StoryFeedbackRecord } from "../storyFeedback";
 import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
 import { isStoryName } from "../storyVocabulary";
 import { AuthoringInput } from "./authoring/AuthoringInput";
@@ -60,16 +61,8 @@ interface ExerciseScreenProps {
 	onSubmitContinuation: (text: string) => void;
 	onAutoContinue: () => void;
 	onBackToMenu: () => void;
-	onSubmitStoryFeedback: (
-		feedback: string,
-		nextStoryTheme: string,
-		practiceRequest: string,
-	) => void;
-	onStoryFeedbackDraftChange: (
-		feedback: string,
-		nextStoryTheme: string,
-		practiceRequest: string,
-	) => void;
+	onSubmitStoryFeedback: (record: StoryFeedbackRecord) => void;
+	onStoryFeedbackDraftChange: (record: StoryFeedbackRecord) => void;
 	/** Buffers the learner's tutor questions for the reading-story baseline. */
 	onCaptureBotQuestions: (questions: string[]) => void;
 }

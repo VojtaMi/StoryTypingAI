@@ -31,6 +31,7 @@ import {
 import { prepareStoryContext, type StoryMemory } from "./story_memory";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
+import type { StoryDifficulty } from "./storyFeedback";
 import {
 	buildStoryRecapPrompt,
 	parseStoryRecapLesson,
@@ -282,7 +283,10 @@ export interface StoryFinishEvidence {
 	languageFocus: string;
 	learnerQuestions?: string[];
 	recapResults: StoryRecapExerciseResult[];
-	feedback?: string;
+	/** How hard the story felt, on the 5-point scale the completion form offers. */
+	difficulty?: StoryDifficulty;
+	/** Durable story taste: what the learner wants more or less of. */
+	taste?: string;
 	/** The learner's own words about what felt hard or what to practice next. */
 	practiceRequest?: string;
 }

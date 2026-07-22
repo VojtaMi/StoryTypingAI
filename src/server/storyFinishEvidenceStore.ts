@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { ReadingChainHint } from "../story";
+import { isStoryDifficulty, type StoryDifficulty } from "../storyFeedback";
 import type { StoryRecapEvidenceItem } from "./learnerProfileService";
 import { bundledFinishEvidencePath } from "./storyBundleStore";
 
@@ -24,8 +25,12 @@ export interface StoryFinishEvidenceRecord {
 	learnerQuestions?: string[];
 	/** Recap results included in the final evidence bundle. */
 	recapResults?: StoryRecapEvidenceItem[];
-	/** Custom feedback included in the final evidence bundle. */
-	feedback?: string;
+	/** How hard the story felt, on the completion form's 5-point scale. */
+	difficulty?: StoryDifficulty;
+	/** The learner's durable story-taste note from the final evidence bundle. */
+	taste?: string;
+	/** What the learner said felt hard, or wanted to practise next. */
+	practiceRequest?: string;
 	/** The story summary, kept purely as context for a later feedback update. */
 	storySummary?: string;
 	/**
@@ -66,8 +71,12 @@ export async function readFinishEvidence(
 				...(Array.isArray(parsed.recapResults)
 					? { recapResults: parsed.recapResults }
 					: {}),
-				...(typeof parsed.feedback === "string"
-					? { feedback: parsed.feedback }
+				...(isStoryDifficulty(parsed.difficulty)
+					? { difficulty: parsed.difficulty }
+					: {}),
+				...(typeof parsed.taste === "string" ? { taste: parsed.taste } : {}),
+				...(typeof parsed.practiceRequest === "string"
+					? { practiceRequest: parsed.practiceRequest }
 					: {}),
 				...(typeof parsed.storySummary === "string"
 					? { storySummary: parsed.storySummary }

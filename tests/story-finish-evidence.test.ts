@@ -134,21 +134,21 @@ try {
 		recapResults: [
 			{ type: "word-connect", label: "hundo = hundred", attempts: 1 },
 		],
-		feedback: "just right",
+		difficulty: "right",
 		wordLookups: [{ word: "hundo", count: 2 }],
 		globalWordLookups: [{ word: "libro", count: 1 }],
 	});
 	// A repeated finalization must retain the complete original evidence.
 	const merged = await updateFinishEvidence(storyA, {
 		learnerQuestions: ["What does hundo mean?", "Why is it hundo?"],
-		feedback: "a little hard",
+		difficulty: "bitHard",
 	});
 	assert.equal(merged.finalizedAt, "2026-07-16T00:00:00.000Z");
 	assert.deepEqual(merged.learnerQuestions, [
 		"What does hundo mean?",
 		"Why is it hundo?",
 	]);
-	assert.equal(merged.feedback, "a little hard");
+	assert.equal(merged.difficulty, "bitHard");
 	assert.deepEqual(merged.recapResults, [
 		{ type: "word-connect", label: "hundo = hundred", attempts: 1 },
 	]);
@@ -165,13 +165,13 @@ try {
 		updateFinishEvidence(storyB, { finalizedAt: "t1" }),
 		updateFinishEvidence(storyB, {
 			learnerQuestions: ["late question"],
-			feedback: "just right",
+			difficulty: "right",
 		}),
 	]);
 	const bRecord = await readFinishEvidence(storyB);
 	assert.equal(bRecord.finalizedAt, "t1");
 	assert.deepEqual(bRecord.learnerQuestions, ["late question"]);
-	assert.equal(bRecord.feedback, "just right");
+	assert.equal(bRecord.difficulty, "right");
 	console.log(
 		"checked finish-evidence: concurrent updates to one story serialize",
 	);
@@ -287,7 +287,9 @@ try {
 		languageFocus: "Naming tools with the -ilo suffix",
 		learnerQuestions: ["What does ilo mean?"],
 		recapResults: [{ type: "word-connect", label: "ilo = tool", attempts: 1 }],
-		feedback: "just right",
+		difficulty: "right" as const,
+		taste: "more workshops",
+		practiceRequest: "the -ilo suffix kept slipping",
 	};
 	await finalizeStoryEvidence(fakeOpenai, evidence, "");
 	assert.equal(
@@ -299,7 +301,11 @@ try {
 	assert.ok(firstRecord.finalizedAt);
 	assert.deepEqual(firstRecord.learnerQuestions, evidence.learnerQuestions);
 	assert.deepEqual(firstRecord.recapResults, evidence.recapResults);
-	assert.equal(firstRecord.feedback, "just right");
+	assert.equal(firstRecord.difficulty, "right");
+	// The four answers stay separated by destination instead of being flattened
+	// into one sentence the server would have to take apart again.
+	assert.equal(firstRecord.taste, "more workshops");
+	assert.equal(firstRecord.practiceRequest, "the -ilo suffix kept slipping");
 	// The producer's transient chain hint is stored in the reading-lifecycle
 	// record, keyed by this story, for the next prepare to read via basedOnStoryId.
 	assert.deepEqual(firstRecord.readingChain, {
@@ -329,7 +335,7 @@ try {
 		{
 			...evidence,
 			learnerQuestions: [...evidence.learnerQuestions, "Why ilo?"],
-			feedback: "actually too hard",
+			difficulty: "tooHard" as const,
 		},
 		"",
 	);
@@ -344,7 +350,7 @@ try {
 		evidence.learnerQuestions,
 		"the finalized record is not mutated by late evidence",
 	);
-	assert.equal(afterLate.feedback, "just right");
+	assert.equal(afterLate.difficulty, "right");
 	console.log(
 		"checked finalization service: full evidence, idempotence, no late deltas",
 	);

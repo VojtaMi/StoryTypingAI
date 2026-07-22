@@ -1,5 +1,6 @@
 import type OpenAI from "openai";
 import type { LearnerLanguageProfile } from "../learnerState";
+import type { StoryDifficulty } from "../storyFeedback";
 import { withAiTraceMetadata } from "./aiTrace";
 import { enqueueLearnerProfileMutation } from "./learnerProfileMutationQueue";
 import {
@@ -24,7 +25,8 @@ export interface StoryFinalizationInput {
 	languageFocus: string;
 	learnerQuestions: string[];
 	recapResults: StoryRecapEvidenceItem[];
-	feedback?: string;
+	difficulty?: StoryDifficulty;
+	taste?: string;
 	practiceRequest?: string;
 }
 
@@ -42,7 +44,8 @@ async function finalizeOnce(
 		return (await readLearnerContext()).languageProfile;
 	}
 
-	const feedback = evidence.feedback?.trim() || undefined;
+	const taste = evidence.taste?.trim() || undefined;
+	const practiceRequest = evidence.practiceRequest?.trim() || undefined;
 	const [current, scoped, unscoped] = await Promise.all([
 		readLearnerContext(),
 		readWordLookupsForStory(evidence.storyId),
@@ -58,8 +61,9 @@ async function finalizeOnce(
 			wordLookups: [...scoped.lookups, ...unscoped.lookups],
 			learnerQuestions: evidence.learnerQuestions,
 			recapResults: evidence.recapResults,
-			feedback,
-			practiceRequest: evidence.practiceRequest?.trim() || undefined,
+			difficulty: evidence.difficulty,
+			taste,
+			practiceRequest,
 		},
 		anthropicKey,
 		today,
@@ -75,7 +79,9 @@ async function finalizeOnce(
 		storySummary: evidence.storySummary,
 		learnerQuestions: evidence.learnerQuestions,
 		recapResults: evidence.recapResults,
-		feedback,
+		difficulty: evidence.difficulty,
+		taste,
+		practiceRequest,
 		wordLookups: scoped.aggregated,
 		globalWordLookups: unscoped.aggregated,
 		// The transient chain hint rides in the reading-lifecycle record, keyed by

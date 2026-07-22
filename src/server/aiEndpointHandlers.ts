@@ -8,6 +8,7 @@ import {
 	type TextReasoningEffort,
 } from "../models";
 import { isNarrationVoiceId } from "../narrationVoice";
+import { isStoryDifficulty } from "../storyFeedback";
 import { DEFAULT_TTS_MODEL, isTtsModelId } from "../ttsModel";
 import {
 	completeAi,
@@ -374,8 +375,14 @@ export async function handleFinalizeStoryEvidenceRequest(
 		});
 		return;
 	}
-	if (body.feedback !== undefined && typeof body.feedback !== "string") {
-		sendJson(res, 400, { error: "feedback must be a string." });
+	if (body.difficulty !== undefined && !isStoryDifficulty(body.difficulty)) {
+		sendJson(res, 400, {
+			error: "difficulty must be one of the story difficulty ratings.",
+		});
+		return;
+	}
+	if (body.taste !== undefined && typeof body.taste !== "string") {
+		sendJson(res, 400, { error: "taste must be a string." });
 		return;
 	}
 	if (
@@ -394,7 +401,8 @@ export async function handleFinalizeStoryEvidenceRequest(
 			languageFocus: body.languageFocus,
 			learnerQuestions: body.learnerQuestions ?? [],
 			recapResults: body.recapResults ?? [],
-			feedback: body.feedback,
+			difficulty: body.difficulty,
+			taste: body.taste,
 			practiceRequest: body.practiceRequest,
 		},
 		anthropicKey,
