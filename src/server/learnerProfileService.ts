@@ -9,7 +9,7 @@ import {
 	parseStoryMemory,
 	type RecentStoryMemory,
 } from "../learnerState";
-import { SYSTEM_AI_MODEL } from "../models";
+import { SYSTEM_AI_PRESET } from "../models";
 import type { ReadingChainHint } from "../story";
 import type { StoryDifficulty } from "../storyFeedback";
 import { completeStructuredAi } from "./aiService";
@@ -182,8 +182,9 @@ async function completeStructuredUpdate(
 			{ role: "user", content: JSON.stringify(payload) },
 		],
 		REFINE_MAX_TOKENS,
-		SYSTEM_AI_MODEL,
+		SYSTEM_AI_PRESET.model,
 		anthropicKey,
+		{ reasoningEffort: SYSTEM_AI_PRESET.reasoningEffort },
 	);
 	try {
 		return parseJsonResponse(response);

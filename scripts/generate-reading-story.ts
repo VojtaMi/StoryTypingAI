@@ -35,6 +35,7 @@ export type ReadingStoryCliOptions = {
 type StructuredCompletion = (request: {
 	messages: ChatMessage[];
 	maxTokens: number;
+	model?: TextModelId;
 	reasoningEffort?: TextReasoningEffort;
 }) => Promise<string>;
 
@@ -168,6 +169,7 @@ export function createReadingStoryComplete(
 		completeStructured({
 			messages,
 			maxTokens,
+			model: options?.model,
 			reasoningEffort: reasoningOverride ?? options?.reasoningEffort,
 		});
 }
@@ -202,12 +204,12 @@ export async function runReadingStoryCli(rawArgs: string[]): Promise<void> {
 	const { anthropicKey, openaiKey } = requireProviderKey(options.model);
 	const openai = new OpenAI({ apiKey: openaiKey || "unused-by-provider" });
 	const complete = createReadingStoryComplete(
-		({ messages, maxTokens, reasoningEffort }) =>
+		({ messages, maxTokens, model, reasoningEffort }) =>
 			completeStructuredAi(
 				openai,
 				messages,
 				maxTokens,
-				options.model,
+				model ?? options.model,
 				anthropicKey,
 				{ reasoningEffort },
 			),

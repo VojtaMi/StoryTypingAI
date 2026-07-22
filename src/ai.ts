@@ -176,13 +176,20 @@ async function completeStream(
 
 /** Binds the HTTP transport to a model, producing a generic completion function for the story domain. */
 function httpCompleter(model: TextModelId): Complete {
-	return (messages, maxTokens) => complete(messages, model, maxTokens);
+	return (messages, maxTokens, options) =>
+		complete(messages, options?.model ?? model, maxTokens);
 }
 
 /** Structured output must reach its parser without prose normalization. */
 function structuredHttpCompleter(model: TextModelId): Complete {
 	return (messages, maxTokens, options) =>
-		complete(messages, model, maxTokens, "json", options?.reasoningEffort);
+		complete(
+			messages,
+			options?.model ?? model,
+			maxTokens,
+			"json",
+			options?.reasoningEffort,
+		);
 }
 
 /** Begins a new story for the given genre. Returns the opening and the seeded history. */

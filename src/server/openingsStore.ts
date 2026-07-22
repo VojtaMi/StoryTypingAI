@@ -396,7 +396,7 @@ async function createPreparedReadingOpening(
 				openai,
 				messages,
 				maxTokens,
-				model,
+				options?.model ?? model,
 				anthropicKey,
 				options,
 			),

@@ -5,7 +5,12 @@ import type {
 	LearnerPreferences,
 	StoryMemory,
 } from "./learnerState";
-import { READING_STORY_MAX_TOKENS, type TextReasoningEffort } from "./models";
+import {
+	READING_STORY_MAX_TOKENS,
+	SYSTEM_AI_PRESET,
+	type TextModelId,
+	type TextReasoningEffort,
+} from "./models";
 
 export type ChatMessage = {
 	role: "system" | "user" | "assistant";
@@ -64,7 +69,10 @@ export interface ReadingChainHint {
 export type Complete = (
 	messages: ChatMessage[],
 	maxTokens: number,
-	options?: { reasoningEffort?: TextReasoningEffort },
+	options?: {
+		reasoningEffort?: TextReasoningEffort;
+		model?: TextModelId;
+	},
 ) => Promise<string>;
 
 const TITLE_PROMPT =
@@ -378,6 +386,7 @@ export async function generateReadingStory(
 				},
 			],
 			READING_STORY_MAX_TOKENS,
+			SYSTEM_AI_PRESET,
 		);
 		return parseReadingStory(repaired);
 	}
@@ -542,12 +551,35 @@ function inferGenderPresentation(
 
 function extractJsonObject(raw: string): string {
 	const trimmed = raw.trim();
-	if (trimmed.startsWith("{") && trimmed.endsWith("}")) return trimmed;
 	const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-	if (fenced?.[1]) return fenced[1].trim();
-	const start = trimmed.indexOf("{");
-	const end = trimmed.lastIndexOf("}");
-	if (start >= 0 && end > start) return trimmed.slice(start, end + 1);
+	const candidate = fenced?.[1]?.trim() ?? trimmed;
+	const start = candidate.indexOf("{");
+	if (start < 0) return candidate;
+
+	let depth = 0;
+	let inString = false;
+	let escaped = false;
+	for (let index = start; index < candidate.length; index += 1) {
+		const character = candidate[index];
+		if (inString) {
+			if (escaped) {
+				escaped = false;
+			} else if (character === "\\") {
+				escaped = true;
+			} else if (character === '"') {
+				inString = false;
+			}
+			continue;
+		}
+		if (character === '"') {
+			inString = true;
+		} else if (character === "{") {
+			depth += 1;
+		} else if (character === "}") {
+			depth -= 1;
+			if (depth === 0) return candidate.slice(start, index + 1);
+		}
+	}
 	return trimmed;
 }
 

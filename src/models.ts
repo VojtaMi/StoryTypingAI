@@ -25,6 +25,11 @@ export const TEXT_REASONING_EFFORTS = [
 ] as const;
 export type TextReasoningEffort = (typeof TEXT_REASONING_EFFORTS)[number];
 
+export type AiPreset = Readonly<{
+	model: TextModelId;
+	reasoningEffort: TextReasoningEffort;
+}>;
+
 /**
  * Curated story-generation choices. The tutor and CLI still use TEXT_MODELS;
  * this shorter list only exposes combinations we have evaluated for complete
@@ -112,5 +117,11 @@ export const EXERCISE_MODEL: TextModelId = "gpt-5.6-luna";
 /** Default model used for batch word translations — not user-selectable. */
 export const TRANSLATION_MODEL = "gpt-5.4-nano";
 
-/** Default model used for internal memory/refinement tasks — not user-selectable. */
-export const SYSTEM_AI_MODEL: TextModelId = "gpt-5.6-luna";
+/**
+ * Preset for bounded internal structured tasks such as learner-state
+ * maintenance and reading-story repair. It is not user-selectable.
+ */
+export const SYSTEM_AI_PRESET = {
+	model: "gpt-5.6-luna",
+	reasoningEffort: "none",
+} as const satisfies AiPreset;

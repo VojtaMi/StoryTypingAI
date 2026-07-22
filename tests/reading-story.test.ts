@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type { Genre } from "../src/genres.ts";
 import type { LearnerContext } from "../src/learnerState.ts";
-import { READING_STORY_MAX_TOKENS } from "../src/models.ts";
+import { READING_STORY_MAX_TOKENS, SYSTEM_AI_PRESET } from "../src/models.ts";
 import type { NarrationVoiceId } from "../src/narrationVoice.ts";
 import { completeAi, completeStructuredAi } from "../src/server/aiService.ts";
 import { AiTraceError } from "../src/server/aiTrace.ts";
@@ -247,6 +247,13 @@ assert.deepEqual(
 );
 console.log("checked reading story: fenced JSON accepted");
 
+assert.deepEqual(
+	parseReadingStory(`${storyJson()}}`),
+	parsed,
+	"A complete balanced JSON object should be recovered from trailing junk.",
+);
+console.log("checked reading story: trailing delimiter repaired locally");
+
 const rejected: Array<[string, string]> = [
 	[
 		"five parts",
@@ -455,20 +462,41 @@ console.log("checked reading story: incomplete generation fails after repair");
 
 // The repair pass is allowed to rescue malformed output.
 let attempt = 0;
-const repaired = await generateReadingStory(async (messages) => {
-	attempt += 1;
-	if (attempt === 2) {
-		assert.match(
-			messages.at(-1)?.content ?? "",
-			/Validation failure:/,
-			"repair receives the concrete parse failure",
-		);
-	}
-	return attempt === 1 ? "```\n{oops," : storyJson();
-}, genre);
+const repairOptions: Array<{
+	model?: string;
+	reasoningEffort?: string;
+}> = [];
+const repaired = await generateReadingStory(
+	async (messages, _maxTokens, options) => {
+		attempt += 1;
+		repairOptions.push(options ?? {});
+		if (attempt === 2) {
+			assert.match(
+				messages.at(-1)?.content ?? "",
+				/Validation failure:/,
+				"repair receives the concrete parse failure",
+			);
+		}
+		return attempt === 1 ? "```\n{oops," : storyJson();
+	},
+	genre,
+);
 assert.equal(attempt, 2);
+assert.deepEqual(repairOptions, [{ reasoningEffort: "low" }, SYSTEM_AI_PRESET]);
 assert.equal(repaired.parts.length, READING_STORY_TOTAL_PARTS);
 console.log("checked reading story: repair pass rescues malformed JSON");
+
+let deterministicAttempts = 0;
+await generateReadingStory(async () => {
+	deterministicAttempts += 1;
+	return `${storyJson()}}`;
+}, genre);
+assert.equal(
+	deterministicAttempts,
+	1,
+	"Deterministically recoverable JSON must not trigger an AI repair call.",
+);
+console.log("checked reading story: local repair avoids an AI retry");
 
 // --- Advancing costs no text generation --------------------------------------
 

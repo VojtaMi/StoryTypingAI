@@ -88,11 +88,16 @@ try {
 console.log("checked story CLI: explicit learner state is validated");
 
 const requestedEfforts: Array<string | undefined> = [];
+const requestedModels: Array<string | undefined> = [];
 const productionComplete = createReadingStoryComplete(async (request) => {
 	requestedEfforts.push(request.reasoningEffort);
+	requestedModels.push(request.model);
 	return "{}";
 });
-await productionComplete([], 100, { reasoningEffort: "low" });
+await productionComplete([], 100, {
+	model: "gpt-5.6-luna",
+	reasoningEffort: "low",
+});
 
 const overriddenComplete = createReadingStoryComplete(async (request) => {
 	requestedEfforts.push(request.reasoningEffort);
@@ -100,6 +105,7 @@ const overriddenComplete = createReadingStoryComplete(async (request) => {
 }, "medium");
 await overriddenComplete([], 100, { reasoningEffort: "low" });
 assert.deepEqual(requestedEfforts, ["low", "medium"]);
+assert.deepEqual(requestedModels, ["gpt-5.6-luna"]);
 console.log(
 	"checked story CLI: reasoning defaults and overrides are forwarded",
 );
