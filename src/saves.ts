@@ -68,6 +68,29 @@ export async function loadSavedStory(id: string): Promise<SavedStory> {
 	return parseResponse<SavedStory>(response);
 }
 
+/**
+ * Fold a section's narration or image into the stored save, leaving every other
+ * field as it was found.
+ *
+ * Media arrives whenever it finishes — which, for media prepared with the story,
+ * can be the same tick the story starts. Authoring a whole save from session
+ * state at that moment snapshots values that have not settled yet, and the write
+ * lands on top of the real one: that is how a live reading story was overwritten
+ * with an empty `phase: "loading"` save it could never resume from. What arrived
+ * is the only thing this knows to be true, so it is the only thing it writes.
+ */
+export async function saveStoryMedia(
+	id: string,
+	media: Partial<StoryBackgroundImage> & Partial<StoryOpeningAudio>,
+): Promise<SavedStory> {
+	const stored = await loadSavedStory(id);
+	return saveStory({
+		...stored,
+		...media,
+		updatedAt: new Date().toISOString(),
+	});
+}
+
 export async function saveStory(story: SavedStory): Promise<SavedStory> {
 	const response = await fetch(`/api/saves/${encodeURIComponent(story.id)}`, {
 		method: "PUT",

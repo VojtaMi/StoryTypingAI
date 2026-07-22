@@ -6,6 +6,7 @@ import {
 	listPreparedReadingOpenings,
 	prepareMissingReadingOpenings,
 } from "../openings";
+import { findUnfinishedReadingSave, listSavedStories } from "../saves";
 import {
 	clearPendingReadingEvidence,
 	readPendingReadingEvidence,
@@ -205,6 +206,9 @@ export interface ReadingPreparation {
  * reached "finished" yet, if one exists — the caller derives it from the
  * saved-story list. Its presence means the state isn't blank: resuming that
  * story is the only next step, and preparing must wait until it is finished.
+ * It is a hint rather than the authority: it also re-runs the decision as the
+ * caller's list changes, but an absent id is re-checked against the server
+ * before anything is generated.
  * `isMenuVisible` re-runs the decision every time the learner lands back on the
  * menu, since that is the only place a fresh reading story is ever started.
  */
@@ -279,12 +283,26 @@ export function useReadingPreparation(
 		void (async () => {
 			const pending = readPendingReadingEvidence();
 			try {
-				const prepared = await listPreparedReadingOpenings();
+				const [prepared, saves] = await Promise.all([
+					listPreparedReadingOpenings(),
+					listSavedStories(),
+				]);
+				// `unfinishedReadingSaveId` is trusted when it names a story and
+				// confirmed against the server when it does not. Only the second
+				// direction can be wrong in a way that costs money: the caller's list
+				// starts empty on a fresh load and is refreshed behind the write that
+				// leaving a story issues, so a stale "nothing unfinished" would
+				// authorize generating a whole new story on top of one still in
+				// progress. Whichever source sees an unfinished story wins.
+				const unfinishedSaveId =
+					unfinishedReadingSaveId ??
+					findUnfinishedReadingSave(saves)?.id ??
+					null;
 				// A live lifecycle is the better authority — don't let this answer,
 				// fetched before it started, overwrite its status.
 				if (cancelled || runRef.current) return;
 				const decision = decideReadingPreparationOnLoad({
-					hasUnfinishedSave: unfinishedReadingSaveId !== null,
+					hasUnfinishedSave: unfinishedSaveId !== null,
 					preparedCount: prepared.length,
 					hasPendingEvidence: pending !== null,
 				});
@@ -292,7 +310,7 @@ export function useReadingPreparation(
 					if (
 						isPendingEvidenceStaleWhileBlocked(
 							pending?.storyId ?? null,
-							unfinishedReadingSaveId,
+							unfinishedSaveId,
 						)
 					) {
 						clearPendingReadingEvidence();

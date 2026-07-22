@@ -33,7 +33,7 @@ import {
 	consumePreparedReadingOpening,
 	prepareMissingOpenings,
 } from "../openings";
-import { loadSavedStory } from "../saves";
+import { loadSavedStory, saveStoryMedia } from "../saves";
 import {
 	readingImagePrompt,
 	readingStoryMessages,
@@ -201,10 +201,6 @@ export function useStorySession({
 		readSnapshot: readStoryFeedbackSnapshot,
 	} = useStoryFeedback();
 	const activeSaveIdRef = useRef<string | null>(null);
-	const activeTitleRef = useRef<string | null>(null);
-	const messagesRef = useRef<ChatMessage[]>([]);
-	const memoryRef = useRef<StoryMemory | undefined>(undefined);
-	const segmentsRef = useRef<StorySegment[]>([]);
 	const currentTargetRef = useRef<string | null>(null);
 	const phaseRef = useRef<StoryPhase>("loading");
 	const openingAudioRef = useRef<StoryOpeningAudio | null>(null);
@@ -277,22 +273,6 @@ export function useStorySession({
 	}, [activeSaveId]);
 
 	useEffect(() => {
-		activeTitleRef.current = activeTitle;
-	}, [activeTitle]);
-
-	useEffect(() => {
-		messagesRef.current = messages;
-	}, [messages]);
-
-	useEffect(() => {
-		memoryRef.current = memory;
-	}, [memory]);
-
-	useEffect(() => {
-		segmentsRef.current = segments;
-	}, [segments]);
-
-	useEffect(() => {
 		currentTargetRef.current = currentTarget;
 	}, [currentTarget]);
 
@@ -352,6 +332,29 @@ export function useStorySession({
 		onTitleGenerated: setActiveTitle,
 	});
 
+	/**
+	 * Records a section's narration or image on the save without touching anything
+	 * else on it. Media resolves on its own schedule — including immediately, when
+	 * it was prepared with the story — so it must never be the write that decides
+	 * what the rest of the save says.
+	 */
+	const persistStoryMedia = useCallback(
+		async (
+			saveId: string,
+			media: Partial<StoryBackgroundImage> & Partial<StoryOpeningAudio>,
+		) => {
+			try {
+				await saveStoryMedia(saveId, media);
+				await onSavedStoriesChanged();
+			} catch (err) {
+				// It is already on screen and will ride along with the next real save,
+				// so a failed patch costs nothing worth surfacing to the learner.
+				console.warn("Could not record the story media.", err);
+			}
+		},
+		[onSavedStoriesChanged],
+	);
+
 	// Narration the learner is looking at but does not have — a reload mid-story,
 	// a section whose audio failed earlier. The media owner hands back the
 	// request already running for this section rather than starting another.
@@ -406,24 +409,7 @@ export function useStorySession({
 				}
 
 				setOpeningAudio(nextOpeningAudio);
-				void persistStory(
-					makeStorySaveSnapshot.current({
-						id: activeSaveId,
-						genre,
-						title: activeTitleRef.current ?? fallbackTitle(genre),
-						messages: messagesRef.current,
-						memory: memoryRef.current,
-						segments: segmentsRef.current,
-						currentTarget,
-						phase: phaseRef.current,
-						backgroundIntro: backgroundIntro ?? undefined,
-						backgroundImage: backgroundImage,
-						openingAudio: nextOpeningAudio,
-						readingStory,
-						readingPartIndex,
-						narrationVoice,
-					}),
-				);
+				void persistStoryMedia(activeSaveId, nextOpeningAudio);
 			});
 
 		return () => {
@@ -431,13 +417,11 @@ export function useStorySession({
 		};
 	}, [
 		activeSaveId,
-		backgroundImage,
-		backgroundIntro,
 		currentTarget,
 		genre,
 		narrationVoice,
 		openingAudio,
-		persistStory,
+		persistStoryMedia,
 		phase,
 		readingPartIndex,
 		readingStory,
@@ -467,29 +451,12 @@ export function useStorySession({
 				}
 
 				setBackgroundImage(nextBackgroundImage);
-				void persistStory(
-					makeStorySaveSnapshot.current({
-						id: saveId,
-						genre: selected,
-						title: activeTitleRef.current ?? fallbackTitle(selected),
-						messages: messagesRef.current,
-						memory: memoryRef.current,
-						segments: segmentsRef.current,
-						currentTarget: currentTargetRef.current,
-						phase: phaseRef.current,
-						backgroundImage: nextBackgroundImage,
-						openingAudio: openingAudioRef.current,
-						readingStory: readingStoryRef.current ?? undefined,
-						readingPartIndex: readingPartIndexRef.current ?? undefined,
-						narrationVoice: narrationVoiceRef.current,
-						storyRecapLesson: storyRecapLessonRef.current,
-					}),
-				);
+				await persistStoryMedia(saveId, nextBackgroundImage);
 			} catch (err) {
 				console.warn("Could not refresh the story background image.", err);
 			}
 		},
-		[persistStory],
+		[persistStoryMedia],
 	);
 
 	const refreshStoryBackground = useCallback(
@@ -507,26 +474,9 @@ export function useStorySession({
 			if (!image || activeSaveIdRef.current !== section.storyId) return;
 
 			setBackgroundImage(image);
-			void persistStory(
-				makeStorySaveSnapshot.current({
-					id: section.storyId,
-					genre: section.genre,
-					title: activeTitleRef.current ?? fallbackTitle(section.genre),
-					messages: messagesRef.current,
-					memory: memoryRef.current,
-					segments: segmentsRef.current,
-					currentTarget: currentTargetRef.current,
-					phase: phaseRef.current,
-					backgroundImage: image,
-					openingAudio: openingAudioRef.current,
-					readingStory: readingStoryRef.current ?? undefined,
-					readingPartIndex: readingPartIndexRef.current ?? undefined,
-					narrationVoice: narrationVoiceRef.current,
-					storyRecapLesson: storyRecapLessonRef.current,
-				}),
-			);
+			await persistStoryMedia(section.storyId, image);
 		},
-		[persistStory],
+		[persistStoryMedia],
 	);
 
 	/**
