@@ -64,6 +64,7 @@ import {
 	fallbackTitle,
 } from "./storySnapshot";
 import { useReadingPreparation } from "./useReadingPreparation";
+import { useStoryFeedback } from "./useStoryFeedback";
 
 // The session only distinguishes "am I on the main menu" from "in a story" from
 // "somewhere in the lesson flow" — it never branches on individual lesson views.
@@ -180,17 +181,21 @@ export function useStorySession({
 	const [storyRecapLesson, setStoryRecapLesson] =
 		useState<StoryRecapLesson | null>(null);
 	const [storyRecapError, setStoryRecapError] = useState<string | null>(null);
-	const [storyFeedbackSubmittedAt, setStoryFeedbackSubmittedAt] = useState<
-		string | null
-	>(null);
-	// The submittable feedback form renders only for a story just finished in this
-	// live session; a reopened/reread finished save shows its prior rating
-	// read-only. This is the boundary that stops a reread from re-resolving
-	// feedback behind an already-bound chain hint.
-	const [feedbackEditable, setFeedbackEditable] = useState(false);
-	// The resolved feedback for the current story, kept reactive so a reread can
-	// display it read-only.
-	const [storyFeedback, setStoryFeedback] = useState<string | null>(null);
+	// End-of-story feedback is its own slice: it owns the live form draft, the
+	// resolved values, and whether the form is submittable at all. The session
+	// keeps only the orchestration around it — persistence and finalization.
+	const {
+		editable: feedbackEditable,
+		feedback: storyFeedback,
+		submittedAt: storyFeedbackSubmittedAt,
+		reportDraft: handleStoryFeedbackDraftChange,
+		submit: submitFeedbackValues,
+		resolve: resolveStoryFeedback,
+		beginLiveFinish: beginStoryFeedback,
+		loadFromSave: loadStoryFeedbackFromSave,
+		reset: resetStoryFeedback,
+		readSnapshot: readStoryFeedbackSnapshot,
+	} = useStoryFeedback();
 	const activeSaveIdRef = useRef<string | null>(null);
 	const activeTitleRef = useRef<string | null>(null);
 	const messagesRef = useRef<ChatMessage[]>([]);
@@ -204,19 +209,6 @@ export function useStorySession({
 	const narrationVoiceRef = useRef<NarrationVoiceId>(DEFAULT_NARRATION_VOICE);
 	const storyRecapLessonRef = useRef<StoryRecapLesson | null>(null);
 	const storyRecapResultsRef = useRef<StoryRecapExerciseResult[]>([]);
-	const storyFeedbackRef = useRef<string | null>(null);
-	const storyFeedbackSubmittedAtRef = useRef<string | null>(null);
-	// The learner's one-shot theme request for the *next* story. Transient: it is
-	// handed to the preparation lifecycle at finalize, never persisted in this
-	// story's save and never folded into the durable learner profile.
-	const storyNextThemeRef = useRef<string | null>(null);
-	// The live feedback-form draft, mirrored here so leaving the completion screen
-	// resolves whatever the learner had entered — clicking Submit is not required.
-	const storyFeedbackDraftRef = useRef<string>("");
-	const storyThemeDraftRef = useRef<string>("");
-	// The learner's own words about what felt hard / what to practice next — the
-	// most direct signal for the next objective. Transient, like the theme draft.
-	const storyPracticeDraftRef = useRef<string>("");
 	// Interactive continuity: the learner's tutor questions asked while reading are
 	// buffered here (deduped, bounded) and folded once into the baseline at story
 	// end — they stay out of the durable handout until the story finalizes.
@@ -327,10 +319,6 @@ export function useStorySession({
 		storyRecapLessonRef.current = storyRecapLesson;
 	}, [storyRecapLesson]);
 
-	useEffect(() => {
-		storyFeedbackSubmittedAtRef.current = storyFeedbackSubmittedAt;
-	}, [storyFeedbackSubmittedAt]);
-
 	const makeStorySaveSnapshot = useRef(
 		(input: Parameters<typeof buildStorySaveSnapshot>[0]) =>
 			buildStorySaveSnapshot({
@@ -338,9 +326,7 @@ export function useStorySession({
 				wordTranslations: wordTranslationsRef.current ?? undefined,
 				storyRecapResults: storyRecapResultsRef.current,
 				storyLearnerQuestions: botQuestionsRef.current,
-				storyFeedback: storyFeedbackRef.current ?? undefined,
-				storyFeedbackSubmittedAt:
-					storyFeedbackSubmittedAtRef.current ?? undefined,
+				...readStoryFeedbackSnapshot(),
 			}),
 	);
 
@@ -643,12 +629,9 @@ export function useStorySession({
 		async (selected: Genre) => {
 			readingMediaRef.current.reset();
 			justFinishedReadingRef.current = false;
-			storyFeedbackSubmittedAtRef.current = null;
 			botQuestionsRef.current = [];
-			storyFeedbackRef.current = null;
-			storyNextThemeRef.current = null;
 			storyRecapResultsRef.current = [];
-			setStoryFeedbackSubmittedAt(null);
+			resetStoryFeedback();
 			setGenre(selected);
 			setMessages([]);
 			setMemory(undefined);
@@ -774,6 +757,7 @@ export function useStorySession({
 			onViewChange,
 			persistStory,
 			prepareOpeningsInBackground,
+			resetStoryFeedback,
 		],
 	);
 
@@ -803,12 +787,9 @@ export function useStorySession({
 
 		readingMediaRef.current.reset();
 		justFinishedReadingRef.current = false;
-		storyFeedbackSubmittedAtRef.current = null;
 		botQuestionsRef.current = [];
-		storyFeedbackRef.current = null;
-		storyNextThemeRef.current = null;
 		storyRecapResultsRef.current = [];
-		setStoryFeedbackSubmittedAt(null);
+		resetStoryFeedback();
 		setGenre(selected);
 		setMessages([]);
 		setMemory(undefined);
@@ -925,6 +906,7 @@ export function useStorySession({
 		persistStory,
 		prepareNextReadingSection,
 		retryReadingPreparationLifecycle,
+		resetStoryFeedback,
 	]);
 
 	const startLessonStory = useCallback(
@@ -944,12 +926,9 @@ export function useStorySession({
 
 			readingMediaRef.current.reset();
 			justFinishedReadingRef.current = false;
-			storyFeedbackSubmittedAtRef.current = null;
 			botQuestionsRef.current = [];
-			storyFeedbackRef.current = null;
-			storyNextThemeRef.current = null;
 			storyRecapResultsRef.current = [];
-			setStoryFeedbackSubmittedAt(null);
+			resetStoryFeedback();
 			narrationVoiceRef.current = nextNarrationVoice;
 			activeSaveIdRef.current = saveId;
 			setGenre(selected);
@@ -989,7 +968,12 @@ export function useStorySession({
 			);
 			void generateAndApplyStoryBackground(selected, saveId, seeded, 1);
 		},
-		[generateAndApplyStoryBackground, onViewChange, persistStory],
+		[
+			generateAndApplyStoryBackground,
+			onViewChange,
+			persistStory,
+			resetStoryFeedback,
+		],
 	);
 
 	const handleTypingComplete = useCallback(
@@ -1408,11 +1392,7 @@ export function useStorySession({
 			justFinishedReadingRef.current = true;
 			// A live finish: the feedback form is submittable, and its draft starts
 			// empty so nothing from a previous story leaks into this resolution.
-			storyFeedbackDraftRef.current = "";
-			storyThemeDraftRef.current = "";
-			storyPracticeDraftRef.current = "";
-			setStoryFeedback(null);
-			setFeedbackEditable(true);
+			beginStoryFeedback();
 			setPhase("finished");
 			setStoryRecapError(null);
 			void persistStory(
@@ -1449,6 +1429,7 @@ export function useStorySession({
 			readingPartIndex,
 			segments,
 			storyRecapLesson,
+			beginStoryFeedback,
 		],
 	);
 
@@ -1508,24 +1489,11 @@ export function useStorySession({
 			// form right now — Submit is not required. finalizeReadingEvidence is
 			// guarded by justFinishedReadingRef, so a reread's leave is a no-op and
 			// its stale draft is never consumed.
-			const draftFeedback = storyFeedbackDraftRef.current.trim();
-			const draftTheme = storyThemeDraftRef.current.trim();
-			const resolvedFeedback =
-				draftFeedback || storyFeedbackRef.current || undefined;
-			const resolvedTheme =
-				draftTheme || storyNextThemeRef.current || undefined;
-			const resolvedPractice =
-				storyPracticeDraftRef.current.trim() || undefined;
-			if (resolvedFeedback) {
-				storyFeedbackRef.current = resolvedFeedback;
-				if (!storyFeedbackSubmittedAtRef.current) {
-					storyFeedbackSubmittedAtRef.current = new Date().toISOString();
-				}
-			}
+			const resolved = resolveStoryFeedback();
 			finalizeReadingEvidence(
-				resolvedFeedback,
-				resolvedTheme,
-				resolvedPractice,
+				resolved.feedback,
+				resolved.nextStoryTheme,
+				resolved.practiceRequest,
 			);
 		}
 		if (genre && activeSaveId) {
@@ -1592,6 +1560,7 @@ export function useStorySession({
 		narrationVoice,
 		segments,
 		finalizeReadingEvidence,
+		resolveStoryFeedback,
 	]);
 
 	const resumeStory = useCallback(
@@ -1668,17 +1637,12 @@ export function useStorySession({
 				setStoryRecapLesson(save.storyRecapLesson ?? null);
 				storyRecapResultsRef.current = save.storyRecapResults ?? [];
 				botQuestionsRef.current = save.storyLearnerQuestions ?? [];
-				storyFeedbackRef.current = save.storyFeedback ?? null;
-				storyFeedbackSubmittedAtRef.current =
-					save.storyFeedbackSubmittedAt ?? null;
-				setStoryFeedbackSubmittedAt(save.storyFeedbackSubmittedAt ?? null);
 				// A reopened save is never a live finish: its feedback form is
 				// read-only, showing only whatever rating was recorded before.
-				setStoryFeedback(save.storyFeedback ?? null);
-				setFeedbackEditable(false);
-				storyFeedbackDraftRef.current = "";
-				storyThemeDraftRef.current = "";
-				storyPracticeDraftRef.current = "";
+				loadStoryFeedbackFromSave(
+					save.storyFeedback ?? null,
+					save.storyFeedbackSubmittedAt ?? null,
+				);
 				setStoryRecapError(
 					restoredPhase === "recap-loading"
 						? "The recap practice needs to be generated again."
@@ -1743,34 +1707,17 @@ export function useStorySession({
 			onViewChange,
 			prepareNextReadingSection,
 			seedReadingMediaFromHistory,
+			loadStoryFeedbackFromSave,
 		],
-	);
-
-	// The live form reports its current contents here so leaving the completion
-	// screen can resolve them without an explicit Submit.
-	const handleStoryFeedbackDraftChange = useCallback(
-		(feedback: string, nextStoryTheme: string, practiceRequest: string) => {
-			storyFeedbackDraftRef.current = feedback;
-			storyThemeDraftRef.current = nextStoryTheme;
-			storyPracticeDraftRef.current = practiceRequest;
-		},
-		[],
 	);
 
 	const submitStoryFeedback = useCallback(
 		(feedback: string, nextStoryTheme = "", practiceRequest = "") => {
-			const submittedAt = new Date().toISOString();
-			const cleanFeedback = feedback.trim();
-			const cleanTheme = nextStoryTheme.trim();
-			const cleanPractice = practiceRequest.trim();
-			storyFeedbackRef.current = cleanFeedback;
-			storyNextThemeRef.current = cleanTheme || null;
-			storyFeedbackDraftRef.current = cleanFeedback;
-			storyThemeDraftRef.current = cleanTheme;
-			storyPracticeDraftRef.current = cleanPractice;
-			storyFeedbackSubmittedAtRef.current = submittedAt;
-			setStoryFeedback(cleanFeedback);
-			setStoryFeedbackSubmittedAt(submittedAt);
+			const resolved = submitFeedbackValues(
+				feedback,
+				nextStoryTheme,
+				practiceRequest,
+			);
 			if (genre && activeSaveId) {
 				void persistStory(
 					makeStorySaveSnapshot.current({
@@ -1793,7 +1740,11 @@ export function useStorySession({
 				);
 			}
 			if (readingStory && phase === "finished") {
-				finalizeReadingEvidence(cleanFeedback, cleanTheme, cleanPractice);
+				finalizeReadingEvidence(
+					resolved.feedback,
+					resolved.nextStoryTheme,
+					resolved.practiceRequest,
+				);
 			}
 		},
 		[
@@ -1813,6 +1764,7 @@ export function useStorySession({
 			readingPartIndex,
 			segments,
 			finalizeReadingEvidence,
+			submitFeedbackValues,
 		],
 	);
 
