@@ -98,7 +98,7 @@ export const STORY_SEGMENT_MAX_TOKENS = 400;
  * spent on the way there. Sized well above a well-formed story, because a
  * story truncated at the ceiling is thrown away, not shown.
  */
-export const READING_STORY_MAX_TOKENS = 4000;
+export const READING_STORY_MAX_TOKENS = 8000;
 
 /**
  * Model for generated end-of-story exercises (the recap lesson) — not

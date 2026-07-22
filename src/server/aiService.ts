@@ -8,7 +8,7 @@ import {
 	TRANSLATION_MODEL,
 } from "../models";
 import { normalizeStoryText } from "../storyText";
-import { traceAiCall } from "./aiTrace";
+import { AiTraceError, traceAiCall } from "./aiTrace";
 
 type AnthropicMessages = {
 	systemContent: string;
@@ -175,13 +175,25 @@ async function completeOpenAi(
 			input: messages,
 			metadata: { maxTokens, reasoningEffort },
 		},
-		() =>
-			openai.chat.completions.create({
+		async () => {
+			const completion = await openai.chat.completions.create({
 				model,
 				max_completion_tokens: maxTokens,
 				messages,
 				reasoning_effort: reasoningEffort,
-			}),
+			});
+			const choice = completion.choices[0];
+			if (!choice?.message?.content?.trim()) {
+				throw new AiTraceError("The AI returned an empty response.", {
+					responseId: completion.id,
+					finishReason: choice?.finish_reason,
+					refusal: choice?.message?.refusal,
+					usage: completion.usage,
+					choiceCount: completion.choices.length,
+				});
+			}
+			return completion;
+		},
 		(value) => value.choices[0]?.message?.content ?? "",
 	);
 	const choice = response.choices[0];

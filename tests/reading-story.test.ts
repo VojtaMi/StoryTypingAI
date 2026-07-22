@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import type { Genre } from "../src/genres.ts";
 import type { LearnerContext } from "../src/learnerState.ts";
+import { READING_STORY_MAX_TOKENS } from "../src/models.ts";
 import type { NarrationVoiceId } from "../src/narrationVoice.ts";
 import { completeAi, completeStructuredAi } from "../src/server/aiService.ts";
+import { AiTraceError } from "../src/server/aiTrace.ts";
 import {
 	type ChatMessage,
 	generateReadingStory,
@@ -353,6 +355,45 @@ assert.equal(
 	rawStructuredStory,
 	"Generic text completion must not apply typing-specific normalization.",
 );
+const emptyOpenAi = {
+	chat: {
+		completions: {
+			create: async () => ({
+				id: "completion-empty",
+				choices: [
+					{
+						finish_reason: "length",
+						message: { content: "", refusal: null },
+					},
+				],
+				usage: {
+					completion_tokens: 4000,
+					prompt_tokens: 1000,
+					total_tokens: 5000,
+				},
+			}),
+		},
+	},
+} as never;
+await assert.rejects(
+	completeStructuredAi(emptyOpenAi, []),
+	(error: unknown) => {
+		assert(error instanceof AiTraceError);
+		assert.deepEqual(error.details, {
+			responseId: "completion-empty",
+			finishReason: "length",
+			refusal: null,
+			usage: {
+				completion_tokens: 4000,
+				prompt_tokens: 1000,
+				total_tokens: 5000,
+			},
+			choiceCount: 1,
+		});
+		return true;
+	},
+	"Empty completions should retain provider diagnostics for the failure trace.",
+);
 await completeStructuredAi(fakeStructuredOpenAi, [], 400, "gpt-5.6-luna", "", {
 	reasoningEffort: "low",
 });
@@ -366,10 +407,17 @@ console.log(
 );
 
 let storyReasoningEffort: string | undefined;
-await generateReadingStory(async (_messages, _maxTokens, options) => {
+let storyMaxTokens: number | undefined;
+await generateReadingStory(async (_messages, maxTokens, options) => {
 	storyReasoningEffort = options?.reasoningEffort;
+	storyMaxTokens = maxTokens;
 	return storyJson();
 }, genre);
+assert.equal(
+	storyMaxTokens,
+	READING_STORY_MAX_TOKENS,
+	"Whole-story generation should use the dedicated reading-story budget.",
+);
 assert.equal(
 	storyReasoningEffort,
 	"low",
