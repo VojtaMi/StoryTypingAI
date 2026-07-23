@@ -12,6 +12,11 @@
 		"enabled": true,
 		"indentStyle": "tab"
 	},
+	"json": {
+		"formatter": {
+			"enabled": true
+		}
+	},
 	"linter": {
 		"enabled": true,
 		"rules": {
