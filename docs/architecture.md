@@ -54,8 +54,8 @@ lifecycle**, and conflating them is the mistake this section exists to prevent.
 | Who writes the next passage | The AI, from conversation history | Nobody — it already exists |
 | Learner's job | Type the passage, then author a continuation | Read the section, look up words |
 | Text generation per step | One streamed continuation | **None** |
-| Adapted to the learner profile | No | Yes — at generation time |
-| Ends with | Nothing; you stop when you stop | A recap quiz, then profile and memory refinement |
+| Adapted from previous work | No | Yes — through one transient brief |
+| Ends with | Nothing; you stop when you stop | A recap quiz, then a next-story brief |
 
 ### Typing-story lifecycle
 
@@ -88,7 +88,7 @@ There is no completion state. The learner leaves; the save resumes.
 
 ```text
 prepare queued reading story → consume it → reveal finite sections
-→ prepare narration/backgrounds → recap → profile/memory refinement
+→ prepare narration/backgrounds → recap → next-story brief
 ```
 
 Concretely:
@@ -97,14 +97,13 @@ Concretely:
    (`src/story_session/useReadingPreparation.ts`) is its only writer. Unlike
    typing openings, nothing prepares a reading story just because the menu is
    up: finishing a story finalizes its evidence, then prepares exactly the next
-   one, so the story generated always sees the state the one before it just
-   produced. The exception is the very first story — nothing has finished yet,
-   so there is no evidence to finalize, and preparation runs immediately with
-   that step skipped. Either way, the server generates a **complete story** —
-   title, story summary, characters, setting, and all six parts of Esperanto
-   prose — in a single call against the learner profile, preferences, story
-   memory, and genre guidance, then prepares part 1's narration and image
-   alongside it.
+	one, so the story generated always sees the self-contained brief the one
+	before it just produced. The first story uses a fixed absolute-beginner brief.
+	Either way, the server generates a **complete story** —
+	title, story summary, characters, setting, and all six parts of Esperanto
+	prose — in a single call against that brief, explicit non-empty preferences,
+	an optional one-shot theme, and genre guidance. It then prepares part 1's
+	narration and image alongside it.
 2. Starting a reading story consumes that queued story whole — **this is the
    last prose generation the story ever makes**. If the queue is empty,
    `startReadingStory` refuses to start rather than generating one on the
@@ -129,12 +128,14 @@ Concretely:
    previous one on screen. Because the whole story is known up front, that
    cadence is a property of the section number, not of accumulated history.
 7. After the last section the session generates a recap lesson from the finished
-   prose and stores it in the save. No learner handout refinement runs yet.
+	prose and stores it in the save. No next-story handoff exists yet.
 8. When the learner completes the recap and submits feedback, or leaves the
    finished story without custom feedback, one finalization request sends the
    recap results, feedback, story-scoped word lookups, and buffered learner tutor
-   questions together. The server refines the profile and story memory once per
-   story, guarded by `finish-evidence.json`; repeated navigation is safe. See
+	questions together with all six Esperanto parts. The server distills one broad
+	theme suggestion, one language focus, a progression/complexity direction, and
+	one or two grounded calibration snippets. That transient brief is stored once
+	per story in `finish-evidence.json`; repeated navigation is safe. See
    [ai-workflows.md](./ai-workflows.md#the-story-finish-evidence-manager).
 
 ### Why they stay separate

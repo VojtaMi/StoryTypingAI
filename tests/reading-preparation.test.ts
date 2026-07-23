@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 /**
  * The reading-story lifecycle exists to enforce one ordering: the next story is
  * never generated until the finished story's evidence has landed. A story
- * prepared too early is generated against the learner state and story memory its
- * predecessor was about to replace, and repeats that story's premise.
+ * prepared too early misses the self-contained handoff its predecessor was
+ * about to produce.
  *
  * `runReadingPreparation` is the pass that carries the ordering, taking its
  * effects as arguments, so these assert the property directly — no React, no

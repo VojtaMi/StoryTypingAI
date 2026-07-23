@@ -1,19 +1,16 @@
 import type OpenAI from "openai";
-import type { LearnerLanguageProfile } from "../learnerState";
+import {
+	type NextStoryBrief,
+	STARTER_NEXT_STORY_BRIEF,
+} from "../nextStoryBrief";
 import type { StoryDifficulty } from "../storyFeedback";
 import { withAiTraceMetadata } from "./aiTrace";
-import { enqueueLearnerProfileMutation } from "./learnerProfileMutationQueue";
+import type { StoryRecapEvidenceItem } from "./learnerProfileService";
 import {
-	refineLearnerStateFromStory,
-	type StoryRecapEvidenceItem,
-} from "./learnerProfileService";
-import { readLearnerContext, writeLearnerContext } from "./learnerProfileStore";
-import {
-	advanceWordLogCursor,
 	pruneWordLogForStory,
 	readWordLookupsForStory,
-	readWordLookupsSinceLastRefine,
 } from "./learnerWordLogStore";
+import { generateNextStoryBrief } from "./nextStoryBriefService";
 import {
 	readFinishEvidence,
 	updateFinishEvidence,
@@ -22,93 +19,75 @@ import {
 export interface StoryFinalizationInput {
 	storyId: string;
 	storySummary: string;
+	storyParts: string[];
 	languageFocus: string;
 	learnerQuestions: string[];
 	recapResults: StoryRecapEvidenceItem[];
 	difficulty?: StoryDifficulty;
-	taste?: string;
 	practiceRequest?: string;
 }
+
+const finalizationTasks = new Map<string, Promise<NextStoryBrief>>();
 
 async function finalizeOnce(
 	openai: OpenAI,
 	evidence: StoryFinalizationInput,
 	anthropicKey: string,
-): Promise<LearnerLanguageProfile> {
+): Promise<NextStoryBrief> {
 	const record = await readFinishEvidence(evidence.storyId);
 	// Finalization is resolved exactly once, at the moment the next story is
-	// generated. A story that has already finalized ignores any later evidence:
-	// there is no late-delta path, so a reopened story cannot re-refine the
-	// profile behind a chain hint that was already bound.
+	// generated. A story that has already finalized ignores later evidence so a
+	// reopened story cannot replace the handoff already bound to its successor.
 	if (record.finalizedAt) {
-		return (await readLearnerContext()).languageProfile;
+		return record.nextStoryBrief ?? STARTER_NEXT_STORY_BRIEF;
 	}
 
-	const taste = evidence.taste?.trim() || undefined;
 	const practiceRequest = evidence.practiceRequest?.trim() || undefined;
-	const [current, scoped, unscoped] = await Promise.all([
-		readLearnerContext(),
-		readWordLookupsForStory(evidence.storyId),
-		readWordLookupsSinceLastRefine(),
-	]);
-	const today = new Date().toISOString().slice(0, 10);
-	const { context: updated, readingChain } = await refineLearnerStateFromStory(
+	const scoped = await readWordLookupsForStory(evidence.storyId);
+	const nextStoryBrief = await generateNextStoryBrief(
 		openai,
-		current,
 		{
 			storySummary: evidence.storySummary,
+			storyParts: evidence.storyParts,
 			languageFocus: evidence.languageFocus,
-			wordLookups: [...scoped.lookups, ...unscoped.lookups],
+			wordLookups: scoped.lookups,
 			learnerQuestions: evidence.learnerQuestions,
 			recapResults: evidence.recapResults,
 			difficulty: evidence.difficulty,
-			taste,
 			practiceRequest,
 		},
 		anthropicKey,
-		today,
 	);
 
-	await writeLearnerContext(updated);
 	await pruneWordLogForStory(evidence.storyId);
-	if (unscoped.cursorCandidate) {
-		await advanceWordLogCursor(unscoped.cursorCandidate);
-	}
 	await updateFinishEvidence(evidence.storyId, {
 		finalizedAt: new Date().toISOString(),
 		storySummary: evidence.storySummary,
 		learnerQuestions: evidence.learnerQuestions,
 		recapResults: evidence.recapResults,
 		difficulty: evidence.difficulty,
-		taste,
 		practiceRequest,
 		wordLookups: scoped.aggregated,
-		globalWordLookups: unscoped.aggregated,
-		// The transient chain hint rides in the reading-lifecycle record, keyed by
-		// this story's id, for the next prepare to read via basedOnStoryId.
-		...(readingChain ? { readingChain } : {}),
+		// The self-contained handoff rides in the reading-lifecycle record, keyed
+		// by this story for the next preparation to consume.
+		nextStoryBrief,
 	});
-	return updated.languageProfile;
+	return nextStoryBrief;
 }
 
 export async function finalizeStoryEvidence(
 	openai: OpenAI,
 	evidence: StoryFinalizationInput,
 	anthropicKey: string,
-): Promise<LearnerLanguageProfile> {
-	let result = (await readLearnerContext()).languageProfile;
-	const task = enqueueLearnerProfileMutation(() =>
-		withAiTraceMetadata(
-			{ storyId: evidence.storyId, storyPhase: "finalize" },
-			async () => {
-				result = await finalizeOnce(openai, evidence, anthropicKey);
-			},
-		),
-	);
-	try {
-		await task;
-	} catch (err) {
-		console.warn("Could not finalize reading story evidence.", err);
-	}
-	return result;
+): Promise<NextStoryBrief> {
+	const existing = finalizationTasks.get(evidence.storyId);
+	if (existing) return existing;
+	const task = withAiTraceMetadata(
+		{ storyId: evidence.storyId, storyPhase: "finalize" },
+		() => finalizeOnce(openai, evidence, anthropicKey),
+	).finally(() => {
+		finalizationTasks.delete(evidence.storyId);
+	});
+	finalizationTasks.set(evidence.storyId, task);
+	return task;
 }

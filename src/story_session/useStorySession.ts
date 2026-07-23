@@ -1425,11 +1425,11 @@ export function useStorySession({
 				{
 					storyId: saveId,
 					storySummary: readingStorySummary(story),
+					storyParts: story.parts.map((part) => part.text),
 					languageFocus: story.languageFocus,
 					learnerQuestions: botQuestionsRef.current,
 					recapResults: storyRecapResultsRef.current,
 					...(resolved.difficulty ? { difficulty: resolved.difficulty } : {}),
-					...(resolved.taste ? { taste: resolved.taste } : {}),
 					...(resolved.practiceRequest
 						? { practiceRequest: resolved.practiceRequest }
 						: {}),

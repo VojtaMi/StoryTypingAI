@@ -217,7 +217,10 @@ export async function runReadingStoryCli(rawArgs: string[]): Promise<void> {
 	);
 	const genre = genres[0];
 	if (!genre) throw new Error("No reading-story genre is configured.");
-	const story = await generateReadingStory(complete, genre, learnerContext);
+	const story = await generateReadingStory(complete, genre, {
+		prefer: learnerContext.preferences.prefer,
+		avoid: learnerContext.preferences.avoid,
+	});
 	process.stdout.write(`${JSON.stringify(story, null, 2)}\n`);
 }
 

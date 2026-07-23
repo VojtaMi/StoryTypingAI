@@ -17,7 +17,6 @@ import {
  */
 export interface ResolvedStoryFeedback {
 	difficulty?: StoryDifficulty;
-	taste?: string;
 	practiceRequest?: string;
 	nextStoryTheme?: string;
 }
@@ -43,7 +42,7 @@ export interface StoryFeedback {
 	 * True only for a story just finished in this live session, which is the only
 	 * time the feedback form is submittable. A reopened/reread finished save is
 	 * read-only: it may show a prior rating but can never re-resolve feedback
-	 * behind a chain hint that has already been bound.
+	 * behind a next-story brief that has already been bound.
 	 */
 	editable: boolean;
 	/** A readable summary of the resolved feedback, for the read-only reread panel. */
@@ -108,7 +107,6 @@ export function useStoryFeedback(): StoryFeedback {
 		}
 		return {
 			difficulty: record.difficulty ?? undefined,
-			taste: record.taste.trim() || undefined,
 			practiceRequest: record.practiceRequest.trim() || undefined,
 			nextStoryTheme: record.nextStoryTheme.trim() || undefined,
 		};

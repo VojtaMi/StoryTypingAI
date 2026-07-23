@@ -8,10 +8,8 @@ import {
 
 interface StoryFeedbackFormProps {
 	/**
-	 * Explicit Submit. The four answers stay separate all the way to the server:
-	 * difficulty and the practice request steer the next objective, the taste
-	 * note is durable story preference, and the theme is a one-shot subject
-	 * request.
+	 * Explicit Submit. Difficulty and the practice request steer the next
+	 * objective; the theme is a one-shot subject request.
 	 */
 	onSubmit: (record: StoryFeedbackRecord) => void;
 	/**
@@ -28,20 +26,18 @@ export function StoryFeedbackForm({
 	submitted,
 }: StoryFeedbackFormProps) {
 	const [difficulty, setDifficulty] = useState<StoryDifficulty | null>(null);
-	const [taste, setTaste] = useState("");
 	const [practiceRequest, setPracticeRequest] = useState("");
 	const [nextStoryTheme, setNextStoryTheme] = useState("");
 
 	const record: StoryFeedbackRecord = {
 		difficulty,
-		taste,
 		practiceRequest,
 		nextStoryTheme,
 	};
 
 	useEffect(() => {
-		onDraftChange({ difficulty, taste, practiceRequest, nextStoryTheme });
-	}, [difficulty, taste, practiceRequest, nextStoryTheme, onDraftChange]);
+		onDraftChange({ difficulty, practiceRequest, nextStoryTheme });
+	}, [difficulty, practiceRequest, nextStoryTheme, onDraftChange]);
 
 	if (submitted) {
 		return (
@@ -78,17 +74,6 @@ export function StoryFeedbackForm({
 				value={practiceRequest}
 				onChange={(event) => setPracticeRequest(event.target.value)}
 				placeholder="e.g. the -n endings confused me, I want more past tense (optional)"
-				rows={2}
-			/>
-
-			<p className="lesson-doc__subheading">
-				What would you like more or less of?
-			</p>
-			<textarea
-				className="story-completion__note"
-				value={taste}
-				onChange={(event) => setTaste(event.target.value)}
-				placeholder="e.g. more fantasy, I like horses, more diverse characters (optional)"
 				rows={2}
 			/>
 

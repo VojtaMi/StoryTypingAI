@@ -169,8 +169,7 @@ export function SettingsPanel({
 				</p>
 				<h3>Story preferences</h3>
 				<p className="settings-panel__hint">
-					One preference per line. These edit the same preferences the app
-					refines after stories.
+					One preference per line. Only these settings persist across stories.
 				</p>
 				{draft ? (
 					<>

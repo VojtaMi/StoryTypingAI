@@ -40,9 +40,6 @@ const {
 const { finalizeStoryEvidence } = await import(
 	"../src/server/storyFinalizationService.ts"
 );
-const { enqueueLearnerProfileMutation } = await import(
-	"../src/server/learnerProfileMutationQueue.ts"
-);
 
 const storyA = "story-a--0001";
 const storyB = "story-b--0002";
@@ -243,32 +240,16 @@ try {
 	const fakeOpenai = {
 		chat: {
 			completions: {
-				create: async ({
-					messages,
-				}: {
-					messages: Array<{ content: string }>;
-				}) => {
+				create: async () => {
 					refinementCalls += 1;
-					// The story path asks for the transient reading-chain hint; the
-					// delta/chat paths do not. Emit it only when requested.
-					const isStory = messages[0]?.content.includes("readingChain");
 					const output = {
-						languageProfile: profile,
-						preferences: DEFAULT_LEARNER_PREFERENCES,
-						storyMemory: {
-							recentStory: storyMemory.recentStories[0],
+						themeSuggestion: "seaside",
+						language: {
+							focus: "Naming actions with the -ado suffix",
+							progression: "advance",
+							complexity: "similar",
+							calibrationSnippets: ["La lernanto vizitas laborejon."],
 						},
-						...(isStory
-							? {
-									readingChain: {
-										nextFocus: {
-											focus: "Naming actions with the -ado suffix",
-											mode: "advance",
-										},
-										nextPace: "steady",
-									},
-								}
-							: {}),
 					};
 					return {
 						choices: [
@@ -284,52 +265,53 @@ try {
 	const evidence = {
 		storyId: storyC,
 		storySummary: "A learner visits a quiet workshop.",
+		storyParts: [
+			"La lernanto vizitas laborejon.",
+			"Ŝi vidas ilojn sur tablo.",
+			"Unu ilo mankas.",
+			"Ŝi serĉas ĝin.",
+			"Ŝi trovas la ilon.",
+			"La laboro povas komenciĝi.",
+		],
 		languageFocus: "Naming tools with the -ilo suffix",
 		learnerQuestions: ["What does ilo mean?"],
 		recapResults: [{ type: "word-connect", label: "ilo = tool", attempts: 1 }],
 		difficulty: "right" as const,
-		taste: "more workshops",
 		practiceRequest: "the -ilo suffix kept slipping",
 	};
 	await finalizeStoryEvidence(fakeOpenai, evidence, "");
 	assert.equal(
 		refinementCalls,
 		1,
-		"first finalization refines the complete learner state",
+		"first finalization produces one next-story brief",
 	);
 	const firstRecord = await readFinishEvidence(storyC);
 	assert.ok(firstRecord.finalizedAt);
 	assert.deepEqual(firstRecord.learnerQuestions, evidence.learnerQuestions);
 	assert.deepEqual(firstRecord.recapResults, evidence.recapResults);
 	assert.equal(firstRecord.difficulty, "right");
-	// The four answers stay separated by destination instead of being flattened
-	// into one sentence the server would have to take apart again.
-	assert.equal(firstRecord.taste, "more workshops");
 	assert.equal(firstRecord.practiceRequest, "the -ilo suffix kept slipping");
-	// The producer's transient chain hint is stored in the reading-lifecycle
+	// The producer's self-contained brief is stored in the reading-lifecycle
 	// record, keyed by this story, for the next prepare to read via basedOnStoryId.
-	assert.deepEqual(firstRecord.readingChain, {
-		nextFocus: {
+	assert.deepEqual(firstRecord.nextStoryBrief, {
+		themeSuggestion: "seaside",
+		language: {
 			focus: "Naming actions with the -ado suffix",
-			mode: "advance",
+			progression: "advance",
+			complexity: "similar",
+			calibrationSnippets: ["La lernanto vizitas laborejon."],
 		},
-		nextPace: "steady",
 	});
-	// The transient hint must never leak into the durable shared learner state.
-	assert.equal(
-		"readingChain" in (await readLearnerContext()).languageProfile,
-		false,
-	);
+	// Reading finalization no longer mutates durable learner state.
 	assert.deepEqual((await readLearnerContext()).languageProfile, {
 		...profile,
-		updated: new Date().toISOString().slice(0, 10),
 	});
 
 	await finalizeStoryEvidence(fakeOpenai, evidence, "");
 	assert.equal(refinementCalls, 1, "identical finalization is a no-op");
 	// Late evidence is intentionally ignored once a story has finalized: feedback
 	// is resolved exactly once, when the next story is generated, so a reopened
-	// story cannot re-refine the profile behind an already-bound chain hint.
+	// story cannot replace the already-bound handoff.
 	await finalizeStoryEvidence(
 		fakeOpenai,
 		{
@@ -353,22 +335,6 @@ try {
 	assert.equal(afterLate.difficulty, "right");
 	console.log(
 		"checked finalization service: full evidence, idempotence, no late deltas",
-	);
-
-	const queueEvents: string[] = [];
-	await Promise.all([
-		enqueueLearnerProfileMutation(async () => {
-			queueEvents.push("chat-start");
-			await new Promise((resolve) => setTimeout(resolve, 5));
-			queueEvents.push("chat-end");
-		}),
-		enqueueLearnerProfileMutation(async () => {
-			queueEvents.push("story");
-		}),
-	]);
-	assert.deepEqual(queueEvents, ["chat-start", "chat-end", "story"]);
-	console.log(
-		"checked shared profile queue: chat and story mutations serialize",
 	);
 
 	console.log("\nstory-finish evidence checks passed");

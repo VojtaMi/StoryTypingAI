@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { ReadingChainHint } from "../story";
+import { type NextStoryBrief, parseNextStoryBrief } from "../nextStoryBrief";
 import { isStoryDifficulty, type StoryDifficulty } from "../storyFeedback";
 import type { StoryRecapEvidenceItem } from "./learnerProfileService";
 import { bundledFinishEvidencePath } from "./storyBundleStore";
@@ -27,18 +27,16 @@ export interface StoryFinishEvidenceRecord {
 	recapResults?: StoryRecapEvidenceItem[];
 	/** How hard the story felt, on the completion form's 5-point scale. */
 	difficulty?: StoryDifficulty;
-	/** The learner's durable story-taste note from the final evidence bundle. */
-	taste?: string;
 	/** What the learner said felt hard, or wanted to practise next. */
 	practiceRequest?: string;
 	/** The story summary, kept purely as context for a later feedback update. */
 	storySummary?: string;
 	/**
-	 * The transient reading-chain hint the producer emitted for the NEXT story.
+	 * The transient handoff the producer emitted for the NEXT story.
 	 * Read by the reading-opening preparation via `basedOnStoryId`; never folded
 	 * into the durable shared learner state.
 	 */
-	readingChain?: ReadingChainHint;
+	nextStoryBrief?: NextStoryBrief;
 	/** The aggregated, story-scoped word lookups folded at baseline. Audit only. */
 	wordLookups?: FinishEvidenceLookup[];
 	/** Unscoped menu/tutor lookups folded through the global cursor at baseline. Audit only. */
@@ -60,6 +58,7 @@ export async function readFinishEvidence(
 			await readFile(bundledFinishEvidencePath(storyId), "utf8"),
 		) as StoryFinishEvidenceRecord;
 		if (parsed && typeof parsed === "object") {
+			const nextStoryBrief = parseNextStoryBrief(parsed.nextStoryBrief);
 			return {
 				storyId,
 				...(typeof parsed.finalizedAt === "string"
@@ -74,18 +73,13 @@ export async function readFinishEvidence(
 				...(isStoryDifficulty(parsed.difficulty)
 					? { difficulty: parsed.difficulty }
 					: {}),
-				...(typeof parsed.taste === "string" ? { taste: parsed.taste } : {}),
 				...(typeof parsed.practiceRequest === "string"
 					? { practiceRequest: parsed.practiceRequest }
 					: {}),
 				...(typeof parsed.storySummary === "string"
 					? { storySummary: parsed.storySummary }
 					: {}),
-				...(parsed.readingChain &&
-				typeof parsed.readingChain === "object" &&
-				!Array.isArray(parsed.readingChain)
-					? { readingChain: parsed.readingChain }
-					: {}),
+				...(nextStoryBrief ? { nextStoryBrief } : {}),
 				...(Array.isArray(parsed.wordLookups)
 					? { wordLookups: parsed.wordLookups }
 					: {}),

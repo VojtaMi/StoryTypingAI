@@ -351,6 +351,18 @@ export async function handleFinalizeStoryEvidenceRequest(
 		sendJson(res, 400, { error: "storySummary must be a non-empty string." });
 		return;
 	}
+	if (
+		!Array.isArray(body.storyParts) ||
+		body.storyParts.length !== 6 ||
+		body.storyParts.some(
+			(part) => typeof part !== "string" || !part.trim() || part.length > 5000,
+		)
+	) {
+		sendJson(res, 400, {
+			error: "storyParts must contain exactly six non-empty strings.",
+		});
+		return;
+	}
 	if (typeof body.languageFocus !== "string" || !body.languageFocus.trim()) {
 		sendJson(res, 400, { error: "languageFocus must be a non-empty string." });
 		return;
@@ -388,10 +400,6 @@ export async function handleFinalizeStoryEvidenceRequest(
 		});
 		return;
 	}
-	if (body.taste !== undefined && typeof body.taste !== "string") {
-		sendJson(res, 400, { error: "taste must be a string." });
-		return;
-	}
 	if (
 		body.practiceRequest !== undefined &&
 		typeof body.practiceRequest !== "string"
@@ -400,21 +408,21 @@ export async function handleFinalizeStoryEvidenceRequest(
 		return;
 	}
 
-	const profile = await finalizeStoryEvidence(
+	const nextStoryBrief = await finalizeStoryEvidence(
 		openai,
 		{
 			storyId: body.storyId,
 			storySummary: body.storySummary,
+			storyParts: body.storyParts,
 			languageFocus: body.languageFocus,
 			learnerQuestions: body.learnerQuestions ?? [],
 			recapResults: body.recapResults ?? [],
 			difficulty: body.difficulty,
-			taste: body.taste,
 			practiceRequest: body.practiceRequest,
 		},
 		anthropicKey,
 	);
-	sendJson(res, 200, { profile });
+	sendJson(res, 200, { nextStoryBrief });
 }
 
 export async function handleLearnerWordLogRequest(

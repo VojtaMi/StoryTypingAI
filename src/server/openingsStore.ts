@@ -10,6 +10,7 @@ import {
 	type NarrationVoiceId,
 	pickRandomNarrationVoice,
 } from "../narrationVoice";
+import { STARTER_NEXT_STORY_BRIEF } from "../nextStoryBrief";
 import {
 	type ChatMessage,
 	generateReadingStory,
@@ -196,7 +197,7 @@ export async function prepareMissingReadingOpenings(
 			const existing = await readPreparedReadingOpening(genre.id);
 			if (existing && existing.basedOnStoryId !== basedOnStoryId) {
 				// Stale relative to the finalization this call follows: it was
-				// generated against learner state finalization has since replaced.
+				// generated against a different predecessor's handoff.
 				// The queue is a cache, not history — discard it and generate fresh.
 				await rm(readingOpeningPath(genre.id), { force: true });
 			} else if (existing) {
@@ -385,12 +386,13 @@ async function createPreparedReadingOpening(
 	reasoningEffort: TextReasoningEffort = "low",
 	ttsModel: TtsModelId = DEFAULT_TTS_MODEL,
 ): Promise<PreparedReadingOpening> {
-	const learnerContext = await readLearnerContext();
-	// The transient reading-chain hint the finished story produced. It lives in
-	// that story's finish-evidence record and hard-overrides this story's focus.
-	const chainHint = basedOnStoryId
-		? ((await readFinishEvidence(basedOnStoryId)).readingChain ?? undefined)
-		: undefined;
+	const { preferences } = await readLearnerContext();
+	// The previous story's finalizer owns the complete pedagogical handoff. The
+	// first story starts from one fixed baseline rather than inferred history.
+	const nextStoryBrief = basedOnStoryId
+		? ((await readFinishEvidence(basedOnStoryId)).nextStoryBrief ??
+			STARTER_NEXT_STORY_BRIEF)
+		: STARTER_NEXT_STORY_BRIEF;
 	const readingStory = await generateReadingStory(
 		(messages, maxTokens, options) =>
 			completeStructuredAi(
@@ -402,9 +404,9 @@ async function createPreparedReadingOpening(
 				options,
 			),
 		genre,
-		learnerContext,
+		{ prefer: preferences.prefer, avoid: preferences.avoid },
 		nextTheme,
-		{ reasoningEffort, chainHint },
+		{ reasoningEffort, nextStoryBrief },
 	);
 	const text = readingStory.parts[0].text;
 	const title = readingStory.title;

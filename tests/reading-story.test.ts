@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import type { Genre } from "../src/genres.ts";
-import type { LearnerContext } from "../src/learnerState.ts";
 import { READING_STORY_MAX_TOKENS, SYSTEM_AI_PRESET } from "../src/models.ts";
 import type { NarrationVoiceId } from "../src/narrationVoice.ts";
+import {
+	type NextStoryBrief,
+	parseNextStoryBrief,
+	STARTER_NEXT_STORY_BRIEF,
+} from "../src/nextStoryBrief.ts";
 import { completeAi, completeStructuredAi } from "../src/server/aiService.ts";
 import { AiTraceError } from "../src/server/aiTrace.ts";
 import {
@@ -72,148 +76,78 @@ function storyJson(overrides: Record<string, unknown> = {}) {
 
 // --- Prompt composition ------------------------------------------------------
 
-const learnerContext: LearnerContext = {
-	languageProfile: {
-		version: 1,
-		updated: "2026-07-20",
-		confident: ["Simple present-tense sentences."],
-		learning: ["Plural direct-object noun phrases."],
-		shaky: ["Accusative endings need reinforcement."],
-		recentlyPracticed: ["Concrete location phrases."],
-		notes: ["The previous story felt difficult."],
-	},
-	preferences: {
-		version: 1,
-		updated: "2026-07-20",
-		prefer: ["Adult-respectful practical stories."],
-		avoid: ["Ambiguous character locations."],
-		clarityGuidance: ["Make clue relationships explicit."],
-	},
-	storyMemory: {
-		version: 1,
-		updated: "2026-07-20",
-		recentStories: [
-			{
-				motif: "finding a lost parcel",
-				protagonist: "a station clerk",
-				setting: "a railway station",
-				elements: ["parcel", "platform"],
-			},
-		],
+const preferences = {
+	prefer: ["Adult-respectful practical stories."],
+	avoid: ["Ambiguous character locations."],
+};
+const nextStoryBrief: NextStoryBrief = {
+	themeSuggestion: "seaside",
+	language: {
+		focus: "Using pensi pri",
+		progression: "reinforce",
+		complexity: "simpler",
+		calibrationSnippets: ["Ivo pensas pri hieraŭ."],
 	},
 };
 
-const promptMessages = readingStoryPromptMessages(genre, learnerContext);
+const promptMessages = readingStoryPromptMessages(
+	genre,
+	preferences,
+	"gremlins",
+	nextStoryBrief,
+);
 assert.equal(
 	promptMessages.length,
-	3,
-	"Story generation should use one authoring prompt, one context envelope, and one request.",
+	2,
+	"Story generation should use one authoring contract and one bounded handoff.",
 );
-assert.match(promptMessages[0].content, /exactly one primary language target/);
-assert.match(
-	promptMessages[0].content,
-	/Read the overall difficulty baseline from languageProfile/,
-);
-assert.doesNotMatch(
-	promptMessages[0].content,
-	/languageProfile\.level/,
-	"the dropped level field must not reappear in the authoring prompt",
-);
-assert.match(
-	promptMessages[0].content,
-	/not an exhaustive list of known words/,
-);
-assert.match(
-	promptMessages[0].content,
-	/return that target as the single story-level languageFocus/i,
-);
+assert.match(promptMessages[0].content, /languageFocus exactly/i);
+assert.doesNotMatch(promptMessages[0].content, /languageProfile|storyMemory/);
 assert.match(promptMessages[0].content, /exactly 6 moments/i);
 assert.match(promptMessages[0].content, /exactly 3 imagePrompts/i);
 assert.match(promptMessages[0].content, /depicts a single moment/i);
-assert.match(promptMessages[0].content, /apply the removal test/i);
+assert.match(promptMessages[0].content, /convenient solution late/i);
 assert.match(promptMessages[0].content, /part N expands only moment N/i);
 const promptContext = JSON.parse(
 	promptMessages[1].content.split("\n\n").at(-1) ?? "",
 );
-assert.deepEqual(promptContext.languageProfile.learning, [
-	"Plural direct-object noun phrases.",
-]);
+assert.deepEqual(promptContext.language, nextStoryBrief.language);
 assert.deepEqual(promptContext.preferences.prefer, [
 	"Adult-respectful practical stories.",
 ]);
-assert.deepEqual(promptContext.storyMemory.recentStories, [
-	learnerContext.storyMemory.recentStories[0],
-]);
+assert.equal(promptContext.storySubject, "gremlins");
 assert.equal(
-	promptMessages[1].content.includes('"updated"'),
+	promptMessages[1].content.includes("seaside"),
 	false,
-	"Persistence metadata should not consume generation context.",
+	"an explicit subject must remove the finalizer suggestion from model context",
+);
+assert.equal("languageProfile" in promptContext, false);
+assert.equal("storyMemory" in promptContext, false);
+
+const suggestedSubjectContext = JSON.parse(
+	readingStoryPromptMessages(genre, preferences, undefined, nextStoryBrief)[1]
+		.content.split("\n\n")
+		.at(-1) ?? "",
+);
+assert.equal(suggestedSubjectContext.storySubject, "seaside");
+console.log(
+	"checked reading story: prompt receives one self-contained handoff",
+);
+
+assert.deepEqual(
+	parseNextStoryBrief(STARTER_NEXT_STORY_BRIEF),
+	STARTER_NEXT_STORY_BRIEF,
 );
 assert.equal(
-	promptMessages
-		.map((message) => message.content)
-		.join("\n")
-		.match(/Untrusted learner data/g)?.length,
-	1,
-);
-console.log("checked reading story: compact prompt has one context boundary");
-
-// --- Reading-chain hard override ---------------------------------------------
-
-const reinforceMessages = readingStoryPromptMessages(
-	genre,
-	learnerContext,
-	undefined,
-	{
-		nextFocus: { focus: "Using pensi pri", mode: "reinforce" },
-		nextPace: "simpler",
-	},
-);
-const reinforceContent = reinforceMessages.at(-1)?.content ?? "";
-assert.match(
-	reinforceContent,
-	/Set this story's single primary languageFocus to exactly this concept: "Using pensi pri"/,
-	"a chain hint hard-overrides the story's languageFocus",
+	parseNextStoryBrief({ ...STARTER_NEXT_STORY_BRIEF, history: [] }),
+	null,
+	"the handoff rejects extra history fields",
 );
 assert.match(
-	reinforceContent,
-	/required override of the rule that chooses the focus from languageProfile\.learning/,
-	"the override is stated as required, not a soft nudge",
+	STARTER_NEXT_STORY_BRIEF.language.calibrationSnippets[0],
+	/ĝardeno/,
 );
-assert.match(
-	reinforceContent,
-	/different construction/i,
-	"reinforce mode demands a varied construction",
-);
-assert.match(reinforceContent, /a step simpler/i, "simpler pace nudges down");
-
-const advanceMessages = readingStoryPromptMessages(
-	genre,
-	learnerContext,
-	undefined,
-	{
-		nextFocus: { focus: "Accusative on plural nouns", mode: "advance" },
-		nextPace: "harder",
-	},
-);
-const advanceContent = advanceMessages.at(-1)?.content ?? "";
-assert.match(
-	advanceContent,
-	/next step beyond the concept/i,
-	"advance moves on",
-);
-assert.match(
-	advanceContent,
-	/a step more challenging/i,
-	"harder pace nudges up",
-);
-
-assert.equal(
-	readingStoryPromptMessages(genre, learnerContext).length,
-	3,
-	"no chain hint leaves the prompt at its three baseline messages",
-);
-console.log("checked reading story: chain hint hard-overrides focus and pace");
+console.log("checked reading story: fixed starter brief is strict and minimal");
 
 // --- Parsing and validation ---------------------------------------------------
 

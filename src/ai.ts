@@ -286,14 +286,14 @@ export async function refineLearnerProfileFromChat(
 export interface StoryFinishEvidence {
 	storyId: string;
 	storySummary: string;
+	/** Complete prose lets finalization choose grounded complexity examples. */
+	storyParts: string[];
 	/** The primary language focus this story targeted; the chain advance/reinforce signal depends on it. */
 	languageFocus: string;
 	learnerQuestions?: string[];
 	recapResults: StoryRecapExerciseResult[];
 	/** How hard the story felt, on the 5-point scale the completion form offers. */
 	difficulty?: StoryDifficulty;
-	/** Durable story taste: what the learner wants more or less of. */
-	taste?: string;
 	/** The learner's own words about what felt hard or what to practice next. */
 	practiceRequest?: string;
 }
@@ -319,12 +319,11 @@ export async function generateReadingStory(
 	genre: Genre,
 	model: TextModelId = DEFAULT_TEXT_MODEL,
 ): Promise<ReadingStory> {
-	const learnerContext = await fetchLearnerContext();
-	return generateReadingStoryText(
-		structuredHttpCompleter(model),
-		genre,
-		learnerContext,
-	);
+	const { preferences } = await fetchLearnerContext();
+	return generateReadingStoryText(structuredHttpCompleter(model), genre, {
+		prefer: preferences.prefer,
+		avoid: preferences.avoid,
+	});
 }
 
 interface GenerateStoryRecapLessonInput {
@@ -344,7 +343,6 @@ export async function generateStoryRecapLesson(
 	input: GenerateStoryRecapLessonInput,
 	model: TextModelId = EXERCISE_MODEL,
 ): Promise<StoryRecapLesson> {
-	const learnerProfile = await fetchLearnerProfile();
 	const text = await complete(
 		[
 			{
@@ -364,9 +362,6 @@ export async function generateStoryRecapLesson(
 					"",
 					"Available word translations:",
 					JSON.stringify(input.wordTranslations, null, 2),
-					"",
-					"Learner profile:",
-					learnerProfile || "(none)",
 				].join("\n"),
 			},
 		],
