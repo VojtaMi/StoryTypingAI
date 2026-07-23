@@ -311,9 +311,9 @@ export async function finalizeReadingStoryEvidence(
 }
 
 /**
- * Generates a whole reading story — metadata, title, and all six Esperanto
- * parts — in one request. This is the only text generation a reading story
- * makes: advancing through it reads `story.parts`, it does not call the AI.
+ * Prepares a reviewed plot, then generates the metadata, title, and all six
+ * Esperanto parts. Advancing through the finished story reads `story.parts`;
+ * it does not call the AI.
  */
 export async function generateReadingStory(
 	genre: Genre,

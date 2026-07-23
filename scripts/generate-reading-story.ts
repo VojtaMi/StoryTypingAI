@@ -49,6 +49,9 @@ Options:
   --default-learner        Use the built-in default learner state
   --reasoning <effort>     OpenAI only: ${TEXT_REASONING_EFFORTS.join("|")}
   --help                   Show this help
+
+OPENAI_API_KEY is always required for Luna plot preparation. The selected
+prose model may require an additional provider key.
 `;
 
 export function parseReadingStoryCliArgs(
@@ -187,8 +190,10 @@ function requireProviderKey(model: TextModelId): {
 	if (model.startsWith("gemini-") && !geminiKey) {
 		throw new Error("GEMINI_API_KEY is required for Gemini models.");
 	}
-	if (model.startsWith("gpt-") && !openaiKey) {
-		throw new Error("OPENAI_API_KEY is required for OpenAI models.");
+	if (!openaiKey) {
+		throw new Error(
+			"OPENAI_API_KEY is required for Luna reading-story plot preparation.",
+		);
 	}
 	return { anthropicKey, openaiKey };
 }

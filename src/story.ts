@@ -10,6 +10,7 @@ import {
 	type NextStoryBrief,
 	STARTER_NEXT_STORY_BRIEF,
 } from "./nextStoryBrief";
+import { prepareReadingStoryPlot } from "./readingStoryPlot";
 
 export type ChatMessage = {
 	role: "system" | "user" | "assistant";
@@ -22,9 +23,9 @@ export interface ReadingStoryPart {
 }
 
 /**
- * A complete reading story. Generated in a single call, so by the time a story
- * exists every part the learner will read already exists too: the session only
- * moves a cursor through `parts`, and never generates prose again.
+ * A complete reading story. Plot preparation and one structured authoring call
+ * finish before it exists, so the session only moves a cursor through `parts`
+ * and never generates prose again.
  */
 export interface ReadingStory {
 	title: string;
@@ -107,8 +108,9 @@ Language:
 - Prefer natural, clear Esperanto over inserting unrelated vocabulary or constructions. Avoid unrelated advanced grammar.
 
 Story:
-- If storySubject is non-empty, make it the subject. Explicit prefer and avoid settings constrain it but are not plot instructions. If storySubject is empty, choose freely within the preferences.
-- First plan one complete causal throughline in storySummary and exactly ${READING_STORY_TOTAL_PARTS} moments. Each moment states exactly what its corresponding part expands.
+- Treat storyPlot as the complete causal throughline. Preserve its characters, established causes, actions, resolution, and ending. Expand its language and scene detail, but do not replace its premise or invent another problem, mechanism, or solution.
+- storyPlot already reflects storySubject and the explicit preferences. Do not force those inputs into the prose again.
+- Summarize storyPlot in storySummary and partition it into exactly ${READING_STORY_TOTAL_PARTS} moments. Each moment states exactly what its corresponding part expands.
 - Keep locations, movements, time, and object ownership explicit and consistent. A character may change location only through a stated, plausible transition.
 - Establish every important object, clue, rule, and ability before it affects the solution. Do not introduce a convenient solution late in the story.
 - Every moment must change the story state or pay off an earlier setup. Part N expands only moment N and must not add a new plot event, named character, important object, problem, or solution.
@@ -154,6 +156,7 @@ export function readingStoryPromptMessages(
 	preferences?: Pick<LearnerPreferences, "prefer" | "avoid">,
 	nextTheme?: string,
 	nextStoryBrief: NextStoryBrief = STARTER_NEXT_STORY_BRIEF,
+	storyPlot = "",
 ): ChatMessage[] {
 	const explicitTheme = nextTheme?.trim().slice(0, NEXT_THEME_MAX_CHARS) ?? "";
 	const storySubject = explicitTheme || nextStoryBrief.themeSuggestion;
@@ -166,6 +169,7 @@ export function readingStoryPromptMessages(
 				JSON.stringify({
 					genre: { label: genre.label, guidance: genre.systemPrompt },
 					storySubject,
+					storyPlot,
 					language: nextStoryBrief.language,
 					preferences: {
 						...(preferences?.prefer.length
@@ -237,12 +241,21 @@ export async function generateReadingStory(
 		nextStoryBrief?: NextStoryBrief;
 	} = {},
 ): Promise<ReadingStory> {
+	const nextStoryBrief = options.nextStoryBrief ?? STARTER_NEXT_STORY_BRIEF;
+	const explicitTheme = nextTheme?.trim().slice(0, NEXT_THEME_MAX_CHARS) ?? "";
+	const storySubject = explicitTheme || nextStoryBrief.themeSuggestion;
+	const storyPlot = await prepareReadingStoryPlot(
+		complete,
+		storySubject || genre.label,
+		preferences,
+	);
 	const raw = await complete(
 		readingStoryPromptMessages(
 			genre,
 			preferences,
 			nextTheme,
-			options.nextStoryBrief,
+			nextStoryBrief,
+			storyPlot,
 		),
 		READING_STORY_MAX_TOKENS,
 		{ reasoningEffort: options.reasoningEffort ?? "low" },

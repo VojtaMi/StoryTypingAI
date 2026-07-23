@@ -99,11 +99,14 @@ Concretely:
    up: finishing a story finalizes its evidence, then prepares exactly the next
 	one, so the story generated always sees the self-contained brief the one
 	before it just produced. The first story uses a fixed absolute-beginner brief.
-	Either way, the server generates a **complete story** —
-	title, story summary, characters, setting, and all six parts of Esperanto
-	prose — in a single call against that brief, explicit non-empty preferences,
-	an optional one-shot theme, and genre guidance. It then prepares part 1's
-	narration and image alongside it.
+	Either way, the server first asks Luna Low for a compact English plot from the
+	resolved theme and explicit non-empty preferences, then runs one
+	example-guided Luna editorial pass. Calibration snippets and language focus
+	never enter those plot calls. The selected story model expands the resulting
+	fixed plot into a **complete story** — title, story summary, characters,
+	setting, and all six parts of Esperanto prose — against the pedagogical
+	brief and genre guidance. It then prepares part 1's narration and image
+	alongside it.
 2. Starting a reading story consumes that queued story whole — **this is the
    last prose generation the story ever makes**. If the queue is empty,
    `startReadingStory` refuses to start rather than generating one on the

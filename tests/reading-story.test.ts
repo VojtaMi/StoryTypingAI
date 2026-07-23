@@ -7,10 +7,17 @@ import {
 	parseNextStoryBrief,
 	STARTER_NEXT_STORY_BRIEF,
 } from "../src/nextStoryBrief.ts";
+import {
+	prepareReadingStoryPlot,
+	READING_STORY_PLOT_MODEL,
+	readingStoryPlotMessages,
+	readingStoryPlotReviewMessages,
+} from "../src/readingStoryPlot.ts";
 import { completeAi, completeStructuredAi } from "../src/server/aiService.ts";
 import { AiTraceError } from "../src/server/aiTrace.ts";
 import {
 	type ChatMessage,
+	type Complete,
 	generateReadingStory,
 	parseReadingStory,
 	READING_STORY_IMAGE_COUNT,
@@ -74,6 +81,19 @@ function storyJson(overrides: Record<string, unknown> = {}) {
 	});
 }
 
+function withPreparedPlot(complete: Complete): Complete {
+	return (messages, maxTokens, options) => {
+		const systemPrompt = messages[0]?.content ?? "";
+		if (systemPrompt.includes("Prepare the complete plot")) {
+			return Promise.resolve("A small, coherent English plot.");
+		}
+		if (systemPrompt.includes("reviewing a short story draft")) {
+			return Promise.resolve("OK");
+		}
+		return complete(messages, maxTokens, options);
+	};
+}
+
 // --- Prompt composition ------------------------------------------------------
 
 const preferences = {
@@ -95,6 +115,7 @@ const promptMessages = readingStoryPromptMessages(
 	preferences,
 	"gremlins",
 	nextStoryBrief,
+	"A gremlin moves a clock hand, then returns it.",
 );
 assert.equal(
 	promptMessages.length,
@@ -112,6 +133,10 @@ const promptContext = JSON.parse(
 	promptMessages[1].content.split("\n\n").at(-1) ?? "",
 );
 assert.deepEqual(promptContext.language, nextStoryBrief.language);
+assert.equal(
+	promptContext.storyPlot,
+	"A gremlin moves a clock hand, then returns it.",
+);
 assert.deepEqual(promptContext.preferences.prefer, [
 	"Adult-respectful practical stories.",
 ]);
@@ -132,6 +157,60 @@ const suggestedSubjectContext = JSON.parse(
 assert.equal(suggestedSubjectContext.storySubject, "seaside");
 console.log(
 	"checked reading story: prompt receives one self-contained handoff",
+);
+
+const plotMessages = readingStoryPlotMessages("gremlins", preferences);
+assert.match(plotMessages[0].content, /complete plot/i);
+assert.match(plotMessages[0].content, /absolute beginner/i);
+const plotContext = JSON.parse(plotMessages[1].content);
+assert.equal(plotContext.storySubject, "gremlins");
+assert.deepEqual(plotContext.preferences, preferences);
+assert.doesNotMatch(
+	plotMessages[1].content,
+	/Ivo pensas|Using pensi pri|seaside/,
+	"plot invention must not receive the pedagogical brief",
+);
+
+const reviewMessages = readingStoryPlotReviewMessages("A draft plot.");
+assert.match(reviewMessages[0].content, /Original draft:/);
+assert.match(reviewMessages[0].content, /Improved draft:/);
+assert.match(reviewMessages[0].content, /What changed and why:/);
+assert.deepEqual(JSON.parse(reviewMessages[1].content), {
+	draft: "A draft plot.",
+});
+
+const plotCalls: Array<{
+	messages: ChatMessage[];
+	maxTokens: number;
+	options?: Parameters<Complete>[2];
+}> = [];
+const preparedPlot = await prepareReadingStoryPlot(
+	async (messages, maxTokens, options) => {
+		plotCalls.push({ messages, maxTokens, options });
+		return plotCalls.length === 1 ? "  Draft plot.  " : "OK";
+	},
+	"gremlins",
+	preferences,
+);
+assert.equal(preparedPlot, "Draft plot.");
+assert.equal(plotCalls.length, 2);
+assert.deepEqual(
+	plotCalls.map(({ options }) => options),
+	[
+		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
+		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
+	],
+);
+let revisedPlotCall = 0;
+assert.equal(
+	await prepareReadingStoryPlot(async () => {
+		revisedPlotCall += 1;
+		return revisedPlotCall === 1 ? "Draft plot." : "Revised plot.";
+	}, "gremlins"),
+	"Revised plot.",
+);
+console.log(
+	"checked reading story: Luna drafts and example-guided review prepare one plot",
 );
 
 assert.deepEqual(
@@ -349,28 +428,39 @@ console.log(
 
 let storyReasoningEffort: string | undefined;
 let storyMaxTokens: number | undefined;
-await generateReadingStory(async (_messages, maxTokens, options) => {
-	storyReasoningEffort = options?.reasoningEffort;
-	storyMaxTokens = maxTokens;
-	return storyJson();
-}, genre);
+let authoredStoryPlot: string | undefined;
+await generateReadingStory(
+	withPreparedPlot(async (messages, maxTokens, options) => {
+		storyReasoningEffort = options?.reasoningEffort;
+		storyMaxTokens = maxTokens;
+		const context = JSON.parse(
+			messages.at(-1)?.content.split("\n\n").at(-1) ?? "",
+		);
+		authoredStoryPlot = context.storyPlot;
+		return storyJson();
+	}),
+	genre,
+);
 assert.equal(
 	storyMaxTokens,
 	READING_STORY_MAX_TOKENS,
 	"Whole-story generation should use the dedicated reading-story budget.",
 );
+assert.equal(authoredStoryPlot, "A small, coherent English plot.");
 assert.equal(
 	storyReasoningEffort,
 	"low",
-	"Whole-story planning and execution should use low reasoning.",
+	"Structured story authoring should use low reasoning.",
 );
-console.log("checked reading story: generation requests low reasoning");
+console.log(
+	"checked reading story: reviewed plot reaches the structured author",
+);
 
 await generateReadingStory(
-	async (_messages, _maxTokens, options) => {
+	withPreparedPlot(async (_messages, _maxTokens, options) => {
 		storyReasoningEffort = options?.reasoningEffort;
 		return storyJson();
-	},
+	}),
 	genre,
 	undefined,
 	undefined,
@@ -387,7 +477,7 @@ console.log("checked reading story: selected reasoning is forwarded");
 // the caller must see the failure rather than a partial story.
 await assert.rejects(
 	generateReadingStory(
-		async () => storyJson({ parts: [part(1), part(2)] }),
+		withPreparedPlot(async () => storyJson({ parts: [part(1), part(2)] })),
 		genre,
 	),
 	"An incomplete story that repair cannot fix must fail, not resolve.",
@@ -401,7 +491,7 @@ const repairOptions: Array<{
 	reasoningEffort?: string;
 }> = [];
 const repaired = await generateReadingStory(
-	async (messages, _maxTokens, options) => {
+	withPreparedPlot(async (messages, _maxTokens, options) => {
 		attempt += 1;
 		repairOptions.push(options ?? {});
 		if (attempt === 2) {
@@ -412,7 +502,7 @@ const repaired = await generateReadingStory(
 			);
 		}
 		return attempt === 1 ? "```\n{oops," : storyJson();
-	},
+	}),
 	genre,
 );
 assert.equal(attempt, 2);
@@ -421,10 +511,13 @@ assert.equal(repaired.parts.length, READING_STORY_TOTAL_PARTS);
 console.log("checked reading story: repair pass rescues malformed JSON");
 
 let deterministicAttempts = 0;
-await generateReadingStory(async () => {
-	deterministicAttempts += 1;
-	return `${storyJson()}}`;
-}, genre);
+await generateReadingStory(
+	withPreparedPlot(async () => {
+		deterministicAttempts += 1;
+		return `${storyJson()}}`;
+	}),
+	genre,
+);
 assert.equal(
 	deterministicAttempts,
 	1,
