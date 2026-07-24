@@ -175,6 +175,8 @@ const reviewMessages = readingStoryPlotReviewMessages("A draft plot.");
 assert.match(reviewMessages[0].content, /Original draft:/);
 assert.match(reviewMessages[0].content, /Improved draft:/);
 assert.match(reviewMessages[0].content, /What changed and why:/);
+assert.match(reviewMessages[0].content, /no information or consequence/i);
+assert.match(reviewMessages[0].content, /only at the ending/i);
 assert.deepEqual(JSON.parse(reviewMessages[1].content), {
 	draft: "A draft plot.",
 });
