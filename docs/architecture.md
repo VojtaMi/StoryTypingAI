@@ -100,13 +100,13 @@ Concretely:
 	one, so the story generated always sees the self-contained brief the one
 	before it just produced. The first story uses a fixed absolute-beginner brief.
 	Either way, the server first asks Luna Low for a compact English plot from the
-	resolved theme and explicit non-empty preferences, then runs one
-	example-guided Luna editorial pass. Calibration snippets and language focus
-	never enter those plot calls. The selected story model expands the resulting
-	fixed plot into a **complete story** — title, story summary, characters,
-	setting, and all six parts of Esperanto prose — against the pedagogical
-	brief and genre guidance. It then prepares part 1's narration and image
-	alongside it.
+	resolved theme, explicit non-empty preferences, and one mapped `minimal` or
+	`simple` narrative-scale instruction, then runs one example-guided Luna
+	editorial pass. Calibration snippets and language focus never enter those plot
+	calls. The selected story model expands the resulting fixed plot into a
+	**complete story** — title, story summary, characters, setting, and all six
+	parts of Esperanto prose — against the pedagogical brief and genre guidance.
+	It then prepares part 1's narration and image alongside it.
 2. Starting a reading story consumes that queued story whole — **this is the
    last prose generation the story ever makes**. If the queue is empty,
    `startReadingStory` refuses to start rather than generating one on the
@@ -136,9 +136,10 @@ Concretely:
    finished story without custom feedback, one finalization request sends the
    recap results, feedback, story-scoped word lookups, and buffered learner tutor
 	questions together with all six Esperanto parts. The server distills one broad
-	theme suggestion, one language focus, a progression/complexity direction, and
-	one or two grounded calibration snippets. That transient brief is stored once
-	per story in `finish-evidence.json`; repeated navigation is safe. See
+	theme suggestion, an absolute `minimal` or `simple` narrative scale, one
+	language focus, a progression/complexity direction, and one or two grounded
+	calibration snippets. That transient brief is stored once per story in
+	`finish-evidence.json`; repeated navigation is safe. See
    [ai-workflows.md](./ai-workflows.md#the-story-finish-evidence-manager).
 
 ### Why they stay separate

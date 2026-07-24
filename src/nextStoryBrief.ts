@@ -13,8 +13,12 @@ export const STORY_COMPLEXITIES = [
 ] as const;
 export type StoryComplexity = (typeof STORY_COMPLEXITIES)[number];
 
+export const NARRATIVE_SCALES = ["minimal", "simple"] as const;
+export type NarrativeScale = (typeof NARRATIVE_SCALES)[number];
+
 export interface NextStoryBrief {
 	themeSuggestion: string;
+	narrativeScale: NarrativeScale;
 	language: {
 		focus: string;
 		progression: StoryProgression;
@@ -25,6 +29,7 @@ export interface NextStoryBrief {
 
 export const STARTER_NEXT_STORY_BRIEF: NextStoryBrief = {
 	themeSuggestion: "",
+	narrativeScale: "minimal",
 	language: {
 		focus:
 			"Simple present-tense sentences with concrete beginner words; avoid plurals and direct objects.",
@@ -36,7 +41,7 @@ export const STARTER_NEXT_STORY_BRIEF: NextStoryBrief = {
 	},
 };
 
-const BRIEF_KEYS = ["themeSuggestion", "language"] as const;
+const BRIEF_KEYS = ["themeSuggestion", "narrativeScale", "language"] as const;
 const LANGUAGE_KEYS = [
 	"focus",
 	"progression",
@@ -53,6 +58,7 @@ export function parseNextStoryBrief(value: unknown): NextStoryBrief | null {
 	const snippets = value.language.calibrationSnippets;
 	if (
 		themeSuggestion === null ||
+		!NARRATIVE_SCALES.includes(value.narrativeScale as NarrativeScale) ||
 		focus === null ||
 		!STORY_PROGRESSIONS.includes(
 			value.language.progression as StoryProgression,
@@ -73,6 +79,7 @@ export function parseNextStoryBrief(value: unknown): NextStoryBrief | null {
 
 	return {
 		themeSuggestion,
+		narrativeScale: value.narrativeScale as NarrativeScale,
 		language: {
 			focus,
 			progression: value.language.progression as StoryProgression,

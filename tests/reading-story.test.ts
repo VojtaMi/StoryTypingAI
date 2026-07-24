@@ -81,10 +81,14 @@ function storyJson(overrides: Record<string, unknown> = {}) {
 	});
 }
 
-function withPreparedPlot(complete: Complete): Complete {
+function withPreparedPlot(
+	complete: Complete,
+	onPlotDraft?: (messages: ChatMessage[]) => void,
+): Complete {
 	return (messages, maxTokens, options) => {
 		const systemPrompt = messages[0]?.content ?? "";
-		if (systemPrompt.includes("Prepare the complete plot")) {
+		if (systemPrompt.includes("Prepare a short story plot")) {
+			onPlotDraft?.(messages);
 			return Promise.resolve("A small, coherent English plot.");
 		}
 		if (systemPrompt.includes("reviewing a short story draft")) {
@@ -102,6 +106,7 @@ const preferences = {
 };
 const nextStoryBrief: NextStoryBrief = {
 	themeSuggestion: "seaside",
+	narrativeScale: "simple",
 	language: {
 		focus: "Using pensi pri",
 		progression: "reinforce",
@@ -160,15 +165,27 @@ console.log(
 );
 
 const plotMessages = readingStoryPlotMessages("gremlins", preferences);
-assert.match(plotMessages[0].content, /complete plot/i);
-assert.match(plotMessages[0].content, /absolute beginner/i);
+assert.match(plotMessages[0].content, /short story plot/i);
+assert.match(plotMessages[0].content, /narrative guidance/i);
 const plotContext = JSON.parse(plotMessages[1].content);
 assert.equal(plotContext.storySubject, "gremlins");
 assert.deepEqual(plotContext.preferences, preferences);
+assert.match(plotContext.narrativeGuidance, /introducing a language/i);
 assert.doesNotMatch(
 	plotMessages[1].content,
 	/Ivo pensas|Using pensi pri|seaside/,
 	"plot invention must not receive the pedagogical brief",
+);
+const simplePlotContext = JSON.parse(
+	readingStoryPlotMessages("gremlins", preferences, "simple")[1].content,
+);
+assert.match(
+	simplePlotContext.narrativeGuidance,
+	/beginner language practice/i,
+);
+assert.doesNotMatch(
+	simplePlotContext.narrativeGuidance,
+	/introducing a language/i,
 );
 
 const reviewMessages = readingStoryPlotReviewMessages("A draft plot.");
@@ -224,6 +241,15 @@ assert.equal(
 	null,
 	"the handoff rejects extra history fields",
 );
+assert.equal(
+	parseNextStoryBrief({
+		...STARTER_NEXT_STORY_BRIEF,
+		narrativeScale: "advanced",
+	}),
+	null,
+	"the handoff accepts only the two tested narrative scales",
+);
+assert.equal(STARTER_NEXT_STORY_BRIEF.narrativeScale, "minimal");
 assert.match(
 	STARTER_NEXT_STORY_BRIEF.language.calibrationSnippets[0],
 	/ĝardeno/,
@@ -431,17 +457,28 @@ console.log(
 let storyReasoningEffort: string | undefined;
 let storyMaxTokens: number | undefined;
 let authoredStoryPlot: string | undefined;
+let preparedNarrativeGuidance: string | undefined;
 await generateReadingStory(
-	withPreparedPlot(async (messages, maxTokens, options) => {
-		storyReasoningEffort = options?.reasoningEffort;
-		storyMaxTokens = maxTokens;
-		const context = JSON.parse(
-			messages.at(-1)?.content.split("\n\n").at(-1) ?? "",
-		);
-		authoredStoryPlot = context.storyPlot;
-		return storyJson();
-	}),
+	withPreparedPlot(
+		async (messages, maxTokens, options) => {
+			storyReasoningEffort = options?.reasoningEffort;
+			storyMaxTokens = maxTokens;
+			const context = JSON.parse(
+				messages.at(-1)?.content.split("\n\n").at(-1) ?? "",
+			);
+			authoredStoryPlot = context.storyPlot;
+			return storyJson();
+		},
+		(messages) => {
+			preparedNarrativeGuidance = JSON.parse(
+				messages.at(-1)?.content ?? "",
+			).narrativeGuidance;
+		},
+	),
 	genre,
+	undefined,
+	undefined,
+	{ nextStoryBrief },
 );
 assert.equal(
 	storyMaxTokens,
@@ -449,6 +486,7 @@ assert.equal(
 	"Whole-story generation should use the dedicated reading-story budget.",
 );
 assert.equal(authoredStoryPlot, "A small, coherent English plot.");
+assert.match(preparedNarrativeGuidance ?? "", /beginner language practice/i);
 assert.equal(
 	storyReasoningEffort,
 	"low",

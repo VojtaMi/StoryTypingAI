@@ -248,6 +248,7 @@ export async function generateReadingStory(
 		complete,
 		storySubject || genre.label,
 		preferences,
+		nextStoryBrief.narrativeScale,
 	);
 	const raw = await complete(
 		readingStoryPromptMessages(

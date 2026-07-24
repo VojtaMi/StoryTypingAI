@@ -244,6 +244,7 @@ try {
 					refinementCalls += 1;
 					const output = {
 						themeSuggestion: "seaside",
+						narrativeScale: "simple",
 						language: {
 							focus: "Naming actions with the -ado suffix",
 							progression: "advance",
@@ -295,6 +296,7 @@ try {
 	// record, keyed by this story, for the next prepare to read via basedOnStoryId.
 	assert.deepEqual(firstRecord.nextStoryBrief, {
 		themeSuggestion: "seaside",
+		narrativeScale: "simple",
 		language: {
 			focus: "Naming actions with the -ado suffix",
 			progression: "advance",
