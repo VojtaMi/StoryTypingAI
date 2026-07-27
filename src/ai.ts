@@ -13,6 +13,7 @@ import type { Lesson, LessonLevel } from "./lessons/types";
 import {
 	DEFAULT_TEXT_MODEL,
 	EXERCISE_MODEL,
+	type InternalTextModelId,
 	STORY_SEGMENT_MAX_TOKENS,
 	type TextModelId,
 	type TextReasoningEffort,
@@ -111,7 +112,7 @@ async function postJson<T>(
 
 async function complete(
 	messages: ChatMessage[],
-	model: TextModelId,
+	model: InternalTextModelId,
 	maxTokens = STORY_SEGMENT_MAX_TOKENS,
 	responseFormat: "text" | "json" = "text",
 	reasoningEffort?: TextReasoningEffort,
@@ -311,9 +312,9 @@ export async function finalizeReadingStoryEvidence(
 }
 
 /**
- * Prepares a reviewed plot, then generates the metadata, title, and all six
- * Esperanto parts. Advancing through the finished story reads `story.parts`;
- * it does not call the AI.
+ * Prepares a reviewed plot, authors immutable prose, divides it at semantic
+ * sentence boundaries, and creates one shared visual plan. Advancing through
+ * the finished story reads `story.parts`; it does not call the AI.
  */
 export async function generateReadingStory(
 	genre: Genre,
@@ -352,7 +353,7 @@ export async function generateStoryRecapLesson(
 			{
 				role: "user",
 				content: [
-					"Finished six-part reading story:",
+					"Finished reading story:",
 					input.storyParts
 						.map((part, index) => `Part ${index + 1}: ${part}`)
 						.join("\n\n"),

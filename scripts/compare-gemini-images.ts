@@ -11,10 +11,7 @@ import type { ReadingStory } from "../src/story.ts";
 type StoryRecord = {
 	genreId?: string;
 	id?: string;
-	readingStory?: Pick<
-		ReadingStory,
-		"mainCharacter" | "mainCharacterVisual" | "setting"
-	>;
+	readingStory?: Pick<ReadingStory, "visualContext">;
 	segments?: Array<{
 		text?: string;
 	}>;
@@ -118,17 +115,7 @@ await writeFile(
 function readingVisualContext(story: StoryRecord) {
 	const readingStory = story.readingStory;
 	if (!readingStory) return undefined;
-	return [
-		readingStory.mainCharacter
-			? `Main character: ${readingStory.mainCharacter}.`
-			: "",
-		readingStory.mainCharacterVisual
-			? `Stable visual identity: ${readingStory.mainCharacterVisual}`
-			: "",
-		readingStory.setting ? `Setting: ${readingStory.setting}.` : "",
-	]
-		.filter(Boolean)
-		.join(" ");
+	return readingStory.visualContext;
 }
 
 function geminiImageModel(value: string): GeminiImageModel {

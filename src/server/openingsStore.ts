@@ -11,11 +11,11 @@ import {
 	pickRandomNarrationVoice,
 } from "../narrationVoice";
 import { STARTER_NEXT_STORY_BRIEF } from "../nextStoryBrief";
+import { READING_STORY_MAX_PARTS } from "../reading_story/split";
 import {
 	type ChatMessage,
 	generateReadingStory,
 	generateTitle,
-	READING_STORY_TOTAL_PARTS,
 	type ReadingStory,
 	readingImagePrompt,
 	readingStoryMessages,
@@ -452,7 +452,7 @@ async function prewarmReadingTranslations(
 ): Promise<Record<string, string>> {
 	try {
 		const partTexts = readingStory.parts.map((part) => part.text);
-		const words = storyWords(partTexts, readingStory.characterNames);
+		const words = storyWords(partTexts, readingStory.properNames);
 		if (words.length === 0) return {};
 		return await translateWords(openai, words, partTexts.join("\n"));
 	} catch (err) {
@@ -658,17 +658,25 @@ async function readPreparedReadingOpening(
 
 function isCompleteReadingStory(story: unknown): story is ReadingStory {
 	if (!story || typeof story !== "object") return false;
-	const parts = (story as ReadingStory).parts;
-	const moments = (story as ReadingStory).moments;
+	const readingStory = story as ReadingStory;
+	const parts = readingStory.parts;
 	return (
-		typeof (story as ReadingStory).languageFocus === "string" &&
-		Boolean((story as ReadingStory).languageFocus.trim()) &&
-		Array.isArray(moments) &&
-		moments.length === READING_STORY_TOTAL_PARTS &&
-		moments.every((moment) => Boolean(moment?.trim())) &&
+		typeof readingStory.title === "string" &&
+		Boolean(readingStory.title.trim()) &&
+		typeof readingStory.storySummary === "string" &&
+		Boolean(readingStory.storySummary.trim()) &&
+		typeof readingStory.languageFocus === "string" &&
+		Boolean(readingStory.languageFocus.trim()) &&
+		typeof readingStory.visualContext === "string" &&
+		Boolean(readingStory.visualContext.trim()) &&
 		Array.isArray(parts) &&
-		parts.length === READING_STORY_TOTAL_PARTS &&
-		parts.every((part) => Boolean(part?.text?.trim()))
+		parts.length >= 2 &&
+		parts.length <= READING_STORY_MAX_PARTS &&
+		parts.every((part) => Boolean(part?.text?.trim())) &&
+		Array.isArray(readingStory.properNames) &&
+		Array.isArray(readingStory.imagePrompts) &&
+		readingStory.imagePrompts.length === Math.ceil(parts.length / 2) &&
+		readingStory.imagePrompts.every((prompt) => Boolean(prompt?.trim()))
 	);
 }
 

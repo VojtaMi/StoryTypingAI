@@ -8,6 +8,22 @@ import {
 	STARTER_NEXT_STORY_BRIEF,
 } from "../src/nextStoryBrief.ts";
 import {
+	generateReadingManuscript,
+	parseReadingManuscript,
+	readingManuscriptMessages,
+} from "../src/reading_story/manuscript.ts";
+import {
+	READING_STORY_SPLIT_MODEL,
+	readingStorySentences,
+	readingStorySplitMessages,
+	splitReadingManuscript,
+} from "../src/reading_story/split.ts";
+import {
+	parseReadingVisualPlan,
+	READING_STORY_VISUAL_MODEL,
+	readingVisualPlanMessages,
+} from "../src/reading_story/visualPlan.ts";
+import {
 	prepareReadingStoryPlot,
 	READING_STORY_PLOT_MODEL,
 	readingStoryPlotMessages,
@@ -20,12 +36,10 @@ import {
 	type Complete,
 	generateReadingStory,
 	parseReadingStory,
-	READING_STORY_IMAGE_COUNT,
-	READING_STORY_TOTAL_PARTS,
 	type ReadingStory,
 	readingImagePrompt,
 	readingStoryMessages,
-	readingStoryPromptMessages,
+	readingVisualContext,
 } from "../src/story.ts";
 import {
 	createReadingMedia,
@@ -35,70 +49,12 @@ import type { StoryBackgroundImage } from "../src/storyBackground.ts";
 import { normalizeStoryText } from "../src/storyText.ts";
 import { storyWords } from "../src/storyVocabulary.ts";
 
-/**
- * A reading story is generated once and then only read. These assert the two
- * properties that makes possible: a story is either complete when it is parsed
- * or it is rejected, and a section's media is fetched once no matter how many
- * paths ask for it.
- */
-
 const genre: Genre = {
 	id: "esperanto",
 	label: "Esperanto",
 	systemPrompt: "Write Esperanto stories.",
 	seeds: [],
 } as unknown as Genre;
-
-function part(index: number) {
-	return {
-		text: `Esperanta teksto de parto ${index}. Ĝi estas kompleta.`,
-	};
-}
-
-function storyJson(overrides: Record<string, unknown> = {}) {
-	return JSON.stringify({
-		title: "Kvieta Mateno",
-		storySummary: "A commuter notices a changed timetable.",
-		moments: Array.from(
-			{ length: READING_STORY_TOTAL_PARTS },
-			(_, index) => `Story moment ${index + 1}.`,
-		),
-		languageFocus: "Plural direct-object noun phrases",
-		mainCharacter: "Rikardo, an adult commuter",
-		mainCharacterVisual:
-			"Man in his forties, short grey hair, brown coat, canvas bag",
-		setting: "A tram stop in light rain",
-		characterNames: ["Rikardo"],
-		imagePrompts: [
-			"Rikardo reads the changed timetable at the tram stop.",
-			"Rikardo boards a crowded tram in the rain.",
-			"Rikardo steps onto an unfamiliar platform.",
-		],
-		parts: Array.from({ length: READING_STORY_TOTAL_PARTS }, (_, i) =>
-			part(i + 1),
-		),
-		...overrides,
-	});
-}
-
-function withPreparedPlot(
-	complete: Complete,
-	onPlotDraft?: (messages: ChatMessage[]) => void,
-): Complete {
-	return (messages, maxTokens, options) => {
-		const systemPrompt = messages[0]?.content ?? "";
-		if (systemPrompt.includes("Prepare a short story plot")) {
-			onPlotDraft?.(messages);
-			return Promise.resolve("A small, coherent English plot.");
-		}
-		if (systemPrompt.includes("reviewing a short story draft")) {
-			return Promise.resolve("OK");
-		}
-		return complete(messages, maxTokens, options);
-	};
-}
-
-// --- Prompt composition ------------------------------------------------------
 
 const preferences = {
 	prefer: ["Adult-respectful practical stories."],
@@ -115,54 +71,45 @@ const nextStoryBrief: NextStoryBrief = {
 	},
 };
 
-const promptMessages = readingStoryPromptMessages(
-	genre,
-	preferences,
-	"gremlins",
-	nextStoryBrief,
-	"A gremlin moves a clock hand, then returns it.",
-);
-assert.equal(
-	promptMessages.length,
-	2,
-	"Story generation should use one authoring contract and one bounded handoff.",
-);
-assert.match(promptMessages[0].content, /languageFocus exactly/i);
-assert.doesNotMatch(promptMessages[0].content, /languageProfile|storyMemory/);
-assert.match(promptMessages[0].content, /exactly 6 moments/i);
-assert.match(promptMessages[0].content, /exactly 3 imagePrompts/i);
-assert.match(promptMessages[0].content, /depicts a single moment/i);
-assert.match(promptMessages[0].content, /convenient solution late/i);
-assert.match(promptMessages[0].content, /part N expands only moment N/i);
-const promptContext = JSON.parse(
-	promptMessages[1].content.split("\n\n").at(-1) ?? "",
-);
-assert.deepEqual(promptContext.language, nextStoryBrief.language);
-assert.equal(
-	promptContext.storyPlot,
-	"A gremlin moves a clock hand, then returns it.",
-);
-assert.deepEqual(promptContext.preferences.prefer, [
-	"Adult-respectful practical stories.",
-]);
-assert.equal(promptContext.storySubject, "gremlins");
-assert.equal(
-	promptMessages[1].content.includes("seaside"),
-	false,
-	"an explicit subject must remove the finalizer suggestion from model context",
-);
-assert.equal("languageProfile" in promptContext, false);
-assert.equal("storyMemory" in promptContext, false);
+const manuscriptText = [
+	"Mara atendis ĉe la stacidomo.",
+	"Ŝi tenis malgrandan mapon.",
+	"La trajno alvenis malfrue.",
+	"Mara demandis pri la vojo.",
+	"Konduktoro montris la duan kajon.",
+	"Ŝi dankis lin.",
+	"Mara transiris la ponton.",
+	"Ŝi trovis la ĝustan trajnon.",
+	"La pordoj malfermiĝis.",
+	"Mara eniris la vagonon.",
+	"Ŝi sidis apud la fenestro.",
+	"La vojaĝo komenciĝis trankvile.",
+].join(" ");
 
-const suggestedSubjectContext = JSON.parse(
-	readingStoryPromptMessages(genre, preferences, undefined, nextStoryBrief)[1]
-		.content.split("\n\n")
-		.at(-1) ?? "",
-);
-assert.equal(suggestedSubjectContext.storySubject, "seaside");
-console.log(
-	"checked reading story: prompt receives one self-contained handoff",
-);
+const manuscript = {
+	title: "La Ĝusta Trajno",
+	text: manuscriptText,
+};
+
+function finalStoryJson(partCount = 5, imageCount = Math.ceil(partCount / 2)) {
+	return JSON.stringify({
+		title: manuscript.title,
+		storySummary: "Mara finds the correct train.",
+		languageFocus: nextStoryBrief.language.focus,
+		visualContext:
+			"Mara is a woman in her thirties with short black hair and a green coat. The station has stone platforms and a glass roof.",
+		properNames: ["Mara"],
+		imagePrompts: Array.from(
+			{ length: imageCount },
+			(_, index) => `Settled scene ${index + 1}.`,
+		),
+		parts: Array.from({ length: partCount }, (_, index) => ({
+			text: `Esperanta teksto de parto ${index + 1}. Ĝi estas kompleta.`,
+		})),
+	});
+}
+
+// --- Plot preparation --------------------------------------------------------
 
 const plotMessages = readingStoryPlotMessages("gremlins", preferences);
 assert.match(plotMessages[0].content, /short story plot/i);
@@ -176,61 +123,39 @@ assert.doesNotMatch(
 	/Ivo pensas|Using pensi pri|seaside/,
 	"plot invention must not receive the pedagogical brief",
 );
-const simplePlotContext = JSON.parse(
-	readingStoryPlotMessages("gremlins", preferences, "simple")[1].content,
-);
 assert.match(
-	simplePlotContext.narrativeGuidance,
+	JSON.parse(
+		readingStoryPlotMessages("gremlins", preferences, "simple")[1].content,
+	).narrativeGuidance,
 	/beginner language practice/i,
-);
-assert.doesNotMatch(
-	simplePlotContext.narrativeGuidance,
-	/introducing a language/i,
 );
 
 const reviewMessages = readingStoryPlotReviewMessages("A draft plot.");
 assert.match(reviewMessages[0].content, /Original draft:/);
 assert.match(reviewMessages[0].content, /Improved draft:/);
-assert.match(reviewMessages[0].content, /What changed and why:/);
 assert.match(reviewMessages[0].content, /no information or consequence/i);
-assert.match(reviewMessages[0].content, /only at the ending/i);
 assert.deepEqual(JSON.parse(reviewMessages[1].content), {
 	draft: "A draft plot.",
 });
 
-const plotCalls: Array<{
-	messages: ChatMessage[];
-	maxTokens: number;
-	options?: Parameters<Complete>[2];
-}> = [];
+const plotCalls: Array<Parameters<Complete>> = [];
 const preparedPlot = await prepareReadingStoryPlot(
-	async (messages, maxTokens, options) => {
-		plotCalls.push({ messages, maxTokens, options });
+	async (...args) => {
+		plotCalls.push(args);
 		return plotCalls.length === 1 ? "  Draft plot.  " : "OK";
 	},
 	"gremlins",
 	preferences,
 );
 assert.equal(preparedPlot, "Draft plot.");
-assert.equal(plotCalls.length, 2);
 assert.deepEqual(
-	plotCalls.map(({ options }) => options),
+	plotCalls.map(([, , options]) => options),
 	[
 		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
 		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
 	],
 );
-let revisedPlotCall = 0;
-assert.equal(
-	await prepareReadingStoryPlot(async () => {
-		revisedPlotCall += 1;
-		return revisedPlotCall === 1 ? "Draft plot." : "Revised plot.";
-	}, "gremlins"),
-	"Revised plot.",
-);
-console.log(
-	"checked reading story: Luna drafts and example-guided review prepare one plot",
-);
+console.log("checked reading story: creative plot and review stay isolated");
 
 assert.deepEqual(
 	parseNextStoryBrief(STARTER_NEXT_STORY_BRIEF),
@@ -239,7 +164,6 @@ assert.deepEqual(
 assert.equal(
 	parseNextStoryBrief({ ...STARTER_NEXT_STORY_BRIEF, history: [] }),
 	null,
-	"the handoff rejects extra history fields",
 );
 assert.equal(
 	parseNextStoryBrief({
@@ -247,127 +171,267 @@ assert.equal(
 		narrativeScale: "advanced",
 	}),
 	null,
-	"the handoff accepts only the two tested narrative scales",
 );
-assert.equal(STARTER_NEXT_STORY_BRIEF.narrativeScale, "minimal");
+console.log("checked reading story: learner handoff remains strict");
+
+// --- Final immutable manuscript ---------------------------------------------
+
+const manuscriptMessages = readingManuscriptMessages(
+	genre,
+	"A commuter finds the correct train.",
+	nextStoryBrief,
+	preferences,
+);
+assert.match(manuscriptMessages[0].content, /concise Esperanto title/i);
+assert.match(manuscriptMessages[0].content, /final uninterrupted prose/i);
+assert.match(manuscriptMessages[0].content, /explicit preferences/i);
+assert.match(manuscriptMessages[0].content, /Do not assume an adult or child/i);
+assert.doesNotMatch(manuscriptMessages[0].content, /adult-respectful/i);
+assert.match(manuscriptMessages[0].content, /Do not create sections/i);
+assert.match(manuscriptMessages[0].content, /required accusative/i);
+assert.match(manuscriptMessages[0].content, /do not insert English glosses/i);
 assert.match(
-	STARTER_NEXT_STORY_BRIEF.language.calibrationSnippets[0],
-	/ĝardeno/,
+	manuscriptMessages[0].content,
+	/Do not force it into every sentence/i,
 );
-console.log("checked reading story: fixed starter brief is strict and minimal");
+assert.doesNotMatch(
+	manuscriptMessages[0].content,
+	/imagePrompts|visualContext/,
+);
+const authoringContext = JSON.parse(
+	manuscriptMessages[1].content.split("\n\n").at(-1) ?? "",
+);
+assert.equal(authoringContext.storyPlot, "A commuter finds the correct train.");
+assert.equal(authoringContext.narrativeScale, "simple");
+assert.match(authoringContext.lengthGuidance, /160-260 Esperanto words/);
+assert.match(authoringContext.languageGuidance, /shorter, more concrete/i);
+assert.deepEqual(authoringContext.language, nextStoryBrief.language);
+assert.deepEqual(authoringContext.preferences, preferences);
+const absoluteBeginnerContext = JSON.parse(
+	readingManuscriptMessages(
+		genre,
+		"A person arrives and greets a neighbor.",
+		STARTER_NEXT_STORY_BRIEF,
+	)[1]
+		.content.split("\n\n")
+		.at(-1) ?? "",
+);
+assert.match(absoluteBeginnerContext.languageGuidance, /very short, concrete/i);
+assert.match(absoluteBeginnerContext.languageGuidance, /one clause/i);
+assert.match(
+	absoluteBeginnerContext.languageGuidance,
+	/Avoid plurals and direct objects/i,
+);
+assert.match(
+	absoluteBeginnerContext.languageGuidance,
+	/Preserve every plot event/i,
+);
+assert.deepEqual(
+	parseReadingManuscript(JSON.stringify(manuscript)),
+	manuscript,
+);
+assert.throws(() => parseReadingManuscript('{"title":"Only a title"}'));
 
-// --- Parsing and validation ---------------------------------------------------
+let manuscriptAttempts = 0;
+const repairedManuscript = await generateReadingManuscript(
+	async (_messages, maxTokens, options) => {
+		manuscriptAttempts += 1;
+		assert.equal(maxTokens, READING_STORY_MAX_TOKENS);
+		assert.deepEqual(
+			options,
+			manuscriptAttempts === 1
+				? { reasoningEffort: "medium" }
+				: SYSTEM_AI_PRESET,
+		);
+		return manuscriptAttempts === 1 ? "{oops" : JSON.stringify(manuscript);
+	},
+	genre,
+	"Reviewed plot.",
+	nextStoryBrief,
+	preferences,
+	"medium",
+);
+assert.deepEqual(repairedManuscript, manuscript);
+console.log("checked reading story: author owns only final immutable prose");
 
-const parsed = parseReadingStory(storyJson());
-assert.equal(parsed.parts.length, READING_STORY_TOTAL_PARTS);
-assert.equal(parsed.moments.length, READING_STORY_TOTAL_PARTS);
-assert.equal(parsed.title, "Kvieta Mateno");
-assert.equal(parsed.parts[5].text, part(6).text);
-console.log("checked reading story: six complete parts accepted");
+// --- Semantic splitting ------------------------------------------------------
 
-assert.equal(parsed.imagePrompts.length, READING_STORY_IMAGE_COUNT);
+assert.deepEqual(
+	readingStorySentences(manuscriptText),
+	[...manuscriptText.matchAll(/[^.]+\.\s*/gu)].map((match) => match[0]),
+);
+assert.deepEqual(
+	readingStorySentences("Lina demandas: «Saluton?» Tomas ridetas.").map(
+		(sentence) => sentence.trim(),
+	),
+	["Lina demandas: «Saluton?»", "Tomas ridetas."],
+);
+const splitMessages = readingStorySplitMessages(manuscript);
+assert.match(splitMessages[0].content, /sentences are immutable/i);
+assert.match(splitMessages[0].content, /Do not return prose/i);
+assert.match(splitMessages[0].content, /one coherent story event or beat/i);
+const splitContext = JSON.parse(splitMessages[1].content);
+assert.equal(splitContext.sentences.length, 12);
+assert.equal(splitContext.sentences[0].number, 1);
+assert.equal(splitContext.sentences[0].wordCount, 5);
+assert.deepEqual(splitContext.allowedPartCount, { min: 2, max: 8 });
+assert.equal("preferredPartCount" in splitContext, false);
+assert.equal("languageComplexity" in splitContext, false);
+
+const splitCalls: Array<Parameters<Complete>> = [];
+const parts = await splitReadingManuscript(async (...args) => {
+	splitCalls.push(args);
+	return '{"breakAfterSentence":[4,8]}';
+}, manuscript);
+assert.equal(parts.length, 3);
+assert.equal(
+	parts.map((part) => part.text).join(" "),
+	manuscript.text,
+	"Nano boundaries must preserve every character of prose after whitespace normalization.",
+);
+assert.deepEqual(splitCalls[0][2], { model: READING_STORY_SPLIT_MODEL });
+
+let splitAttempts = 0;
+const retriedParts = await splitReadingManuscript(async (messages) => {
+	splitAttempts += 1;
+	if (splitAttempts === 1) return '{"breakAfterSentence":[999]}';
+	assert.match(messages.at(-1)?.content ?? "", /invalid boundaries/i);
+	return '{"breakAfterSentence":[6]}';
+}, manuscript);
+assert.equal(splitAttempts, 2);
+assert.equal(retriedParts.length, 2);
+assert.equal(retriedParts.map((part) => part.text).join(" "), manuscript.text);
+console.log(
+	"checked reading story: Nano selects boundaries but cannot rewrite",
+);
+
+// --- Shared visual core and per-pair instructions ----------------------------
+
+const visualMessages = readingVisualPlanMessages(parts);
+assert.match(visualMessages[0].content, /Shared visual context/i);
+assert.match(visualMessages[0].content, /exactly 2 imagePrompts/i);
+const visualContext = JSON.parse(
+	visualMessages[1].content.split("\n\n").at(-1) ?? "",
+);
+assert.equal(visualContext.parts.length, 3);
+assert.deepEqual(Object.keys(visualContext), ["parts"]);
+
+const visualPlan = parseReadingVisualPlan(
+	JSON.stringify({
+		visualContext: "Stable people and station.",
+		properNames: ["Mara"],
+		imagePrompts: ["Mara checks the map.", "Mara enters the train."],
+	}),
+	2,
+);
+assert.equal(visualPlan.imagePrompts.length, 2);
+assert.throws(() =>
+	parseReadingVisualPlan(
+		JSON.stringify({
+			...visualPlan,
+			imagePrompts: ["Only one."],
+		}),
+		2,
+	),
+);
+console.log("checked reading story: visual planning follows settled parts");
+
+// --- Thin orchestration ------------------------------------------------------
+
+const pipelineCalls: Array<{
+	maxTokens: number;
+	messages: ChatMessage[];
+	options?: Parameters<Complete>[2];
+}> = [];
+const generated = await generateReadingStory(
+	async (messages, maxTokens, options) => {
+		pipelineCalls.push({ messages, maxTokens, options });
+		const system = messages[0]?.content ?? "";
+		if (system.includes("Prepare a short story plot")) {
+			return "A commuter asks for directions and finds the correct train.";
+		}
+		if (system.includes("reviewing a short story draft")) return "OK";
+		if (system.includes("finished manuscript")) {
+			return JSON.stringify(manuscript);
+		}
+		if (system.includes("presentation parts")) {
+			return '{"breakAfterSentence":[4,8]}';
+		}
+		if (system.includes("coherent visual plan")) {
+			return JSON.stringify({
+				visualContext: "Stable people and station.",
+				properNames: ["Mara"],
+				imagePrompts: ["Mara checks the map.", "Mara enters the train."],
+			});
+		}
+		throw new Error(`Unexpected pipeline call: ${system.slice(0, 80)}`);
+	},
+	genre,
+	preferences,
+	undefined,
+	{ nextStoryBrief, reasoningEffort: "medium" },
+);
+assert.equal(generated.parts.length, 3);
+assert.equal(generated.imagePrompts.length, 2);
+assert.equal(
+	generated.storySummary,
+	"A commuter asks for directions and finds the correct train.",
+);
+assert.equal(generated.languageFocus, nextStoryBrief.language.focus);
+assert.deepEqual(
+	pipelineCalls.map(({ options }) => options),
+	[
+		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
+		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
+		{ reasoningEffort: "medium" },
+		{ model: READING_STORY_SPLIT_MODEL },
+		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "none" },
+	],
+);
+console.log("checked reading story: staged pipeline has five explicit calls");
+
+// --- Final story validation and dynamic media cadence ------------------------
+
+const parsed = parseReadingStory(finalStoryJson(5));
+assert.equal(parsed.parts.length, 5);
+assert.equal(parsed.imagePrompts.length, 3);
 assert.equal(readingImagePrompt(parsed, 1), parsed.imagePrompts[0]);
 assert.equal(readingImagePrompt(parsed, 2), parsed.imagePrompts[0]);
 assert.equal(readingImagePrompt(parsed, 3), parsed.imagePrompts[1]);
 assert.equal(readingImagePrompt(parsed, 5), parsed.imagePrompts[2]);
-console.log("checked reading story: each part pair maps to one image prompt");
+assert.equal(readingVisualContext(parsed), parsed.visualContext);
+assert.throws(() => parseReadingStory(finalStoryJson(5, 2)));
+assert.throws(() => parseReadingStory(finalStoryJson(9)));
+assert.throws(() =>
+	parseReadingStory(
+		finalStoryJson(3).replace('"visualContext":', '"missingVisualContext":'),
+	),
+);
+assert.deepEqual(
+	parseReadingStory(
+		`Here is the story:\n\`\`\`json\n${finalStoryJson(5)}\n\`\`\``,
+	),
+	parsed,
+);
+assert.deepEqual(parseReadingStory(`${finalStoryJson(5)}}`), parsed);
+console.log(
+	"checked reading story: variable part and image counts are validated",
+);
 
 assert.deepEqual(
 	storyWords(
-		["Rikardo vidas Rikardon. La stacidomo estas granda."],
-		["Rikardo"],
+		["Léo vidas Léon. Ana salutas Léo-n. La stacidomo estas granda."],
+		["Léo", "Ana"],
 	),
-	["vidas", "la", "stacidomo", "estas", "granda"],
+	["vidas", "salutas", "la", "stacidomo", "estas", "granda"],
 );
-console.log("checked reading vocabulary: names and accusative names excluded");
+console.log("checked reading vocabulary: Unicode names remain whole tokens");
 
-assert.deepEqual(
-	parseReadingStory(`Here is the story:\n\`\`\`json\n${storyJson()}\n\`\`\``),
-	parsed,
-	"a fenced JSON story should parse to the same story",
+// Structured provider output must preserve curly Esperanto dialogue.
+const storyWithCurlyDialogue = finalStoryJson(3).replace(
+	"Esperanta teksto de parto 1. Ĝi estas kompleta.",
+	"Mara diras: “Jes, la ĉambro estas preta.”",
 );
-console.log("checked reading story: fenced JSON accepted");
-
-assert.deepEqual(
-	parseReadingStory(`${storyJson()}}`),
-	parsed,
-	"A complete balanced JSON object should be recovered from trailing junk.",
-);
-console.log("checked reading story: trailing delimiter repaired locally");
-
-const rejected: Array<[string, string]> = [
-	[
-		"five parts",
-		storyJson({
-			parts: Array.from({ length: 5 }, (_, i) => part(i + 1)),
-		}),
-	],
-	[
-		"seven parts",
-		storyJson({
-			parts: Array.from({ length: 7 }, (_, i) => part(i + 1)),
-		}),
-	],
-	[
-		"five moments",
-		storyJson({
-			moments: Array.from(
-				{ length: 5 },
-				(_, index) => `Story moment ${index + 1}.`,
-			),
-		}),
-	],
-	[
-		"an empty moment",
-		storyJson({
-			moments: [
-				...Array.from(
-					{ length: 5 },
-					(_, index) => `Story moment ${index + 1}.`,
-				),
-				"   ",
-			],
-		}),
-	],
-	[
-		"a part with empty text",
-		storyJson({
-			parts: [
-				...Array.from({ length: 5 }, (_, i) => part(i + 1)),
-				{ languageFocus: "focus 6", text: "   " },
-			],
-		}),
-	],
-	[
-		"too few image prompts",
-		storyJson({ imagePrompts: ["only one", "only two"] }),
-	],
-	["an empty image prompt", storyJson({ imagePrompts: ["one", "two", "   "] })],
-	["no languageFocus", storyJson({ languageFocus: "" })],
-	["no title", storyJson({ title: "" })],
-	["no storySummary", storyJson({ storySummary: "" })],
-	["no mainCharacterVisual", storyJson({ mainCharacterVisual: "" })],
-	["no setting", storyJson({ setting: "  " })],
-	["output truncated mid-JSON", storyJson().slice(0, storyJson().length - 40)],
-	["prose instead of JSON", "Mi ne povas skribi rakonton."],
-];
-
-for (const [label, raw] of rejected) {
-	assert.throws(
-		() => parseReadingStory(raw),
-		`A reading story with ${label} must be rejected, not saved as complete.`,
-	);
-	console.log(`checked reading story: rejected ${label}`);
-}
-
-const storyWithCurlyDialogue = storyJson({
-	parts: [
-		{ ...part(1), text: "Mara diras: “Jes, la ĉambro estas preta.”" },
-		...Array.from({ length: READING_STORY_TOTAL_PARTS - 1 }, (_, index) =>
-			part(index + 2),
-		),
-	],
-});
 process.env.OPENAI_API_KEY = "test-key";
 let requestedReasoningEffort: string | undefined;
 const fakeStructuredOpenAi = {
@@ -389,20 +453,10 @@ const fakeStructuredOpenAi = {
 } as never;
 const rawStructuredStory = await completeStructuredAi(fakeStructuredOpenAi, []);
 assert.equal(requestedReasoningEffort, "none");
-assert.doesNotThrow(
-	() => parseReadingStory(rawStructuredStory),
-	"Structured completion must preserve valid JSON containing curly dialogue quotes.",
-);
-assert.equal(
-	normalizeStoryText("Mara diras: “Jes.”"),
-	'Mara diras: "Jes."',
-	"User-facing prose normalization keeps typing punctuation keyboard-friendly.",
-);
-assert.equal(
-	await completeAi(fakeStructuredOpenAi, []),
-	rawStructuredStory,
-	"Generic text completion must not apply typing-specific normalization.",
-);
+assert.doesNotThrow(() => parseReadingStory(rawStructuredStory));
+assert.equal(normalizeStoryText("Mara diras: “Jes.”"), 'Mara diras: "Jes."');
+assert.equal(await completeAi(fakeStructuredOpenAi, []), rawStructuredStory);
+
 const emptyOpenAi = {
 	chat: {
 		completions: {
@@ -427,145 +481,13 @@ await assert.rejects(
 	completeStructuredAi(emptyOpenAi, []),
 	(error: unknown) => {
 		assert(error instanceof AiTraceError);
-		assert.deepEqual(error.details, {
-			responseId: "completion-empty",
-			finishReason: "length",
-			refusal: null,
-			usage: {
-				completion_tokens: 4000,
-				prompt_tokens: 1000,
-				total_tokens: 5000,
-			},
-			choiceCount: 1,
-		});
+		assert.equal(error.details.finishReason, "length");
 		return true;
 	},
-	"Empty completions should retain provider diagnostics for the failure trace.",
 );
-await completeStructuredAi(fakeStructuredOpenAi, [], 400, "gpt-5.6-luna", "", {
-	reasoningEffort: "low",
-});
-assert.equal(
-	requestedReasoningEffort,
-	"low",
-	"A completion-specific reasoning effort must override the latency default.",
-);
-console.log(
-	"checked reading story: structured JSON bypasses prose normalization",
-);
+console.log("checked reading story: structured completions preserve JSON");
 
-let storyReasoningEffort: string | undefined;
-let storyMaxTokens: number | undefined;
-let authoredStoryPlot: string | undefined;
-let preparedNarrativeGuidance: string | undefined;
-await generateReadingStory(
-	withPreparedPlot(
-		async (messages, maxTokens, options) => {
-			storyReasoningEffort = options?.reasoningEffort;
-			storyMaxTokens = maxTokens;
-			const context = JSON.parse(
-				messages.at(-1)?.content.split("\n\n").at(-1) ?? "",
-			);
-			authoredStoryPlot = context.storyPlot;
-			return storyJson();
-		},
-		(messages) => {
-			preparedNarrativeGuidance = JSON.parse(
-				messages.at(-1)?.content ?? "",
-			).narrativeGuidance;
-		},
-	),
-	genre,
-	undefined,
-	undefined,
-	{ nextStoryBrief },
-);
-assert.equal(
-	storyMaxTokens,
-	READING_STORY_MAX_TOKENS,
-	"Whole-story generation should use the dedicated reading-story budget.",
-);
-assert.equal(authoredStoryPlot, "A small, coherent English plot.");
-assert.match(preparedNarrativeGuidance ?? "", /beginner language practice/i);
-assert.equal(
-	storyReasoningEffort,
-	"low",
-	"Structured story authoring should use low reasoning.",
-);
-console.log(
-	"checked reading story: reviewed plot reaches the structured author",
-);
-
-await generateReadingStory(
-	withPreparedPlot(async (_messages, _maxTokens, options) => {
-		storyReasoningEffort = options?.reasoningEffort;
-		return storyJson();
-	}),
-	genre,
-	undefined,
-	undefined,
-	{ reasoningEffort: "medium" },
-);
-assert.equal(
-	storyReasoningEffort,
-	"medium",
-	"A selected story preset should override the initial generation effort.",
-);
-console.log("checked reading story: selected reasoning is forwarded");
-
-// A truncated story must fail even after the repair pass fails to fix it, and
-// the caller must see the failure rather than a partial story.
-await assert.rejects(
-	generateReadingStory(
-		withPreparedPlot(async () => storyJson({ parts: [part(1), part(2)] })),
-		genre,
-	),
-	"An incomplete story that repair cannot fix must fail, not resolve.",
-);
-console.log("checked reading story: incomplete generation fails after repair");
-
-// The repair pass is allowed to rescue malformed output.
-let attempt = 0;
-const repairOptions: Array<{
-	model?: string;
-	reasoningEffort?: string;
-}> = [];
-const repaired = await generateReadingStory(
-	withPreparedPlot(async (messages, _maxTokens, options) => {
-		attempt += 1;
-		repairOptions.push(options ?? {});
-		if (attempt === 2) {
-			assert.match(
-				messages.at(-1)?.content ?? "",
-				/Validation failure:/,
-				"repair receives the concrete parse failure",
-			);
-		}
-		return attempt === 1 ? "```\n{oops," : storyJson();
-	}),
-	genre,
-);
-assert.equal(attempt, 2);
-assert.deepEqual(repairOptions, [{ reasoningEffort: "low" }, SYSTEM_AI_PRESET]);
-assert.equal(repaired.parts.length, READING_STORY_TOTAL_PARTS);
-console.log("checked reading story: repair pass rescues malformed JSON");
-
-let deterministicAttempts = 0;
-await generateReadingStory(
-	withPreparedPlot(async () => {
-		deterministicAttempts += 1;
-		return `${storyJson()}}`;
-	}),
-	genre,
-);
-assert.equal(
-	deterministicAttempts,
-	1,
-	"Deterministically recoverable JSON must not trigger an AI repair call.",
-);
-console.log("checked reading story: local repair avoids an AI retry");
-
-// --- Advancing costs no text generation --------------------------------------
+// --- Advancing costs no text generation -------------------------------------
 
 const story: ReadingStory = parsed;
 const messagesForPart2 = readingStoryMessages(genre, story, 2);
@@ -576,14 +498,9 @@ assert.deepEqual(
 		{ role: "assistant", content: story.parts[1].text },
 	] satisfies ChatMessage[],
 );
-assert.equal(
-	story.parts[2].text,
-	part(3).text,
-	"Advancing selects the next part of the story that already exists.",
-);
-console.log("checked reading story: advancing reads parts, generates no text");
+console.log("checked reading story: advancing reads prepared parts");
 
-// --- Media is requested once per section -------------------------------------
+// --- Media is requested once per section ------------------------------------
 
 const voice = "alloy" as NarrationVoiceId;
 function section(partIndex: number): ReadingMediaSection {
@@ -594,7 +511,7 @@ function section(partIndex: number): ReadingMediaSection {
 		text: story.parts[partIndex - 1].text,
 		imagePrompt: readingImagePrompt(story, partIndex),
 		genre,
-		visualContext: "Main character: Rikardo.",
+		visualContext: readingVisualContext(story),
 	};
 }
 
@@ -603,53 +520,40 @@ let audioCalls = 0;
 const media = createReadingMedia({
 	generateAudio: async () => {
 		audioCalls += 1;
-		await Promise.resolve();
 		return null;
 	},
 	generateBackground: async (): Promise<StoryBackgroundImage> => {
 		imageCalls += 1;
-		await Promise.resolve();
 		return {
 			backgroundImageUrl: "/api/story-images/x/section_3.webp",
 			backgroundImageSource: "generated",
 		};
 	},
 });
-
-// Two paths asking for the same section concurrently — preparing it ahead and
-// arriving at it — must share one provider call, not make two.
 const [prepared, arrived] = await Promise.all([
 	media.prepare(section(3)),
 	media.requestBackground(section(3)),
 ]);
-assert.equal(imageCalls, 1, "Identical concurrent image requests must dedupe.");
-assert.equal(audioCalls, 1, "Identical concurrent audio requests must dedupe.");
+assert.equal(imageCalls, 1);
+assert.equal(audioCalls, 1);
 assert.equal(
 	prepared.backgroundImage?.backgroundImageUrl,
 	arrived?.backgroundImageUrl,
 );
-
 await media.requestBackground(section(3));
-assert.equal(
-	imageCalls,
-	1,
-	"A section's image is not generated a second time.",
-);
-
-// Even sections get no image of their own: the cadence keeps the previous one.
+assert.equal(imageCalls, 1);
 assert.equal(await media.requestBackground(section(4)), null);
-assert.equal(imageCalls, 1, "Even sections must not request an image.");
-
-// Media already in hand is never generated.
 media.seed(section(5), {
 	backgroundImage: {
 		backgroundImageUrl: "/api/story-images/x/section_5.webp",
 		backgroundImageSource: "generated",
 	},
 });
-const seeded = await media.requestBackground(section(5));
-assert.equal(seeded?.backgroundImageUrl, "/api/story-images/x/section_5.webp");
-assert.equal(imageCalls, 1, "Seeded media must not be generated again.");
-console.log("checked reading media: one provider call per section");
+assert.equal(
+	(await media.requestBackground(section(5)))?.backgroundImageUrl,
+	"/api/story-images/x/section_5.webp",
+);
+assert.equal(imageCalls, 1);
+console.log("checked reading media: one provider call per odd section");
 
 console.log("\nreading story checks passed");

@@ -14,6 +14,8 @@ export const TEXT_MODELS = [
 ] as const;
 
 export type TextModelId = (typeof TEXT_MODELS)[number]["id"];
+/** Models used by bounded internal operations but not offered as user-selectable prose models. */
+export type InternalTextModelId = TextModelId | "gpt-5.4-nano";
 export const DEFAULT_TEXT_MODEL: TextModelId = "gpt-5.6-luna";
 
 export const TEXT_REASONING_EFFORTS = [
@@ -97,11 +99,10 @@ export const DEFAULT_CHAT_MODEL: TextModelId = "gpt-5.6-luna";
 export const STORY_SEGMENT_MAX_TOKENS = 400;
 
 /**
- * Token ceiling for the structured authoring call of one complete six-part
- * reading story. This has to cover all six parts of prose plus the story
- * metadata at once — and, on reasoning models, the reasoning tokens spent on
- * the way there. Sized well above a well-formed story, because a story
- * truncated at the ceiling is thrown away, not shown.
+ * Token ceiling for the structured manuscript-authoring call of one complete
+ * reading story. On reasoning models this also covers reasoning tokens. It is
+ * deliberately a ceiling rather than a length target; narrative scale in the
+ * authoring data controls the finished prose length.
  */
 export const READING_STORY_MAX_TOKENS = 8000;
 
@@ -110,12 +111,12 @@ export const READING_STORY_MAX_TOKENS = 8000;
  * user-selectable. Exercises are small structured tasks, not prose, so they are
  * deliberately decoupled from the user-selected story-generation preset: a
  * beginner recap needs neither the prose-tier model nor the reasoning effort a
- * full six-part story does. Tune this independently of the story preset.
+ * full reading manuscript does. Tune this independently of the story preset.
  */
 export const EXERCISE_MODEL: TextModelId = "gpt-5.6-luna";
 
 /** Default model used for batch word translations — not user-selectable. */
-export const TRANSLATION_MODEL = "gpt-5.4-nano";
+export const TRANSLATION_MODEL: InternalTextModelId = "gpt-5.4-nano";
 
 /**
  * Preset for bounded internal structured tasks such as learner-state

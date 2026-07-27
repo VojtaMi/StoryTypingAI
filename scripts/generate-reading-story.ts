@@ -11,6 +11,7 @@ import {
 } from "../src/learnerState.ts";
 import {
 	DEFAULT_TEXT_MODEL,
+	type InternalTextModelId,
 	TEXT_MODELS,
 	TEXT_REASONING_EFFORTS,
 	type TextModelId,
@@ -35,13 +36,13 @@ export type ReadingStoryCliOptions = {
 type StructuredCompletion = (request: {
 	messages: ChatMessage[];
 	maxTokens: number;
-	model?: TextModelId;
+	model?: InternalTextModelId;
 	reasoningEffort?: TextReasoningEffort;
 }) => Promise<string>;
 
 const HELP = `Usage: npm run story:generate -- [options]
 
-Generate one complete six-part reading story and print its JSON to stdout.
+Generate one complete adaptively-sectioned reading story and print its JSON to stdout.
 
 Options:
   --model <id>             Text model (default: ${DEFAULT_TEXT_MODEL})
@@ -173,7 +174,9 @@ export function createReadingStoryComplete(
 			messages,
 			maxTokens,
 			model: options?.model,
-			reasoningEffort: reasoningOverride ?? options?.reasoningEffort,
+			reasoningEffort: options?.model
+				? options.reasoningEffort
+				: (reasoningOverride ?? options?.reasoningEffort),
 		});
 }
 

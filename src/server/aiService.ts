@@ -3,6 +3,7 @@ import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
 import {
 	DEFAULT_TEXT_MODEL,
+	type InternalTextModelId,
 	STORY_SEGMENT_MAX_TOKENS,
 	type TextReasoningEffort,
 	TRANSLATION_MODEL,
@@ -39,7 +40,7 @@ export async function completeAi(
 	openai: OpenAI,
 	messages: ChatMessage[],
 	maxTokens = STORY_SEGMENT_MAX_TOKENS,
-	model = DEFAULT_TEXT_MODEL,
+	model: InternalTextModelId = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 	options: CompletionOptions = {},
 ): Promise<string> {
@@ -59,7 +60,7 @@ export async function completeStructuredAi(
 	openai: OpenAI,
 	messages: ChatMessage[],
 	maxTokens = STORY_SEGMENT_MAX_TOKENS,
-	model = DEFAULT_TEXT_MODEL,
+	model: InternalTextModelId = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 	options: CompletionOptions = {},
 ): Promise<string> {

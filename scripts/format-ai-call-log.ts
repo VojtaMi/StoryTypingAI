@@ -15,7 +15,9 @@ type AiCallRecord = {
 	[key: string]: unknown;
 };
 
-const sourcePath = join(process.cwd(), "logs", "ai-calls.ndjson");
+const sourcePath = process.argv[3]
+	? join(process.cwd(), process.argv[3])
+	: join(process.cwd(), "logs", "ai-calls.ndjson");
 const prettyPath = join(process.cwd(), ".artifacts", "ai-calls.pretty.json");
 
 async function readRecords(): Promise<AiCallRecord[]> {
@@ -121,7 +123,9 @@ async function writePrettyLog(records: AiCallRecord[]) {
 async function main() {
 	const command = process.argv[2];
 	if (command !== "summary" && command !== "pretty") {
-		throw new Error("Usage: format-ai-call-log.ts <summary|pretty>");
+		throw new Error(
+			"Usage: format-ai-call-log.ts <summary|pretty> [source.ndjson]",
+		);
 	}
 
 	const records = await readRecords();

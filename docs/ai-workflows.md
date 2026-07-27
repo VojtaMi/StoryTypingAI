@@ -27,7 +27,7 @@ a provider.
 
 | Operation | Owner | Notes |
 | --- | --- | --- |
-| **Story planning / generation** (reading) | [`src/server/openingsStore.ts`](../src/server/openingsStore.ts) when queued; [`src/story_session/`](../src/story_session/) when generated on demand. Plot prompts live in [`src/readingStoryPlot.ts`](../src/readingStoryPlot.ts); structured authoring and parsing live in [`src/story.ts`](../src/story.ts). | Luna Low first drafts one compact English plot and reviews it against one poor→improved editorial example. The selected story model then expands that fixed plot into the existing six-part Esperanto story plus metadata. Plot preparation receives the resolved subject, explicit non-empty preferences, and one mapped `minimal` or `simple` narrative instruction—never language calibration, focus, or raw learner history. The structured story is validated as complete; repaired once, then rejected. |
+| **Story planning / generation** (reading) | [`src/server/openingsStore.ts`](../src/server/openingsStore.ts) queues it; staged contracts live in [`src/reading_story/`](../src/reading_story/) and orchestration/final validation in [`src/story.ts`](../src/story.ts). | Luna Low drafts and reviews one compact English plot. The selected story model expands the reviewed plot and pedagogical brief into uninterrupted Esperanto prose. GPT Nano chooses the natural count and semantic sentence boundaries for 2-8 similarly sized event-based parts, without rewriting. Luna then produces the shared visual core and exactly `ceil(parts / 2)` scene instructions. Plot preparation receives the resolved subject, explicit non-empty preferences, and mapped narrative scale—never language calibration, focus, or raw learner history. |
 | **Story opening** (typing) | [`src/server/openingsStore.ts`](../src/server/openingsStore.ts), or `startStory` in [`src/ai.ts`](../src/ai.ts) as fallback. | Includes a title and a second-person intro. |
 | **Story continuation** (typing) | [`src/story_session/`](../src/story_session/), streamed. | The only streaming operation. Reading stories never use it. |
 | **Story memory (rolling summary)** | [`src/story_memory/`](../src/story_memory/) | Compacts a long typing history so the prompt stays bounded. Fires only once the unsummarized buffer crosses its threshold — not on every turn. |
@@ -56,7 +56,7 @@ the next story:
 
 - **Finalization** (`finalize-story`) runs when the learner completes the recap and
   submits feedback, or leaves the finished story without custom feedback. It sends
-  story summary, all six Esperanto parts, recap results, difficulty/practice
+  story summary, all Esperanto parts, recap results, difficulty/practice
   feedback, buffered learner questions, and story-scoped word evidence together.
   The server produces one `NextStoryBrief` and stamps `finalizedAt`; repeating
   the trigger is a no-op.
@@ -131,5 +131,7 @@ npm run ai-log:pretty   # writes .artifacts/ai-calls.pretty.json — the same re
 ```
 
 Both read `logs/ai-calls.ndjson` and fail loudly if a line is not valid JSON.
-Neither one calls a provider.
+Pass an archived trace as a second argument to compare a pipeline run, for
+example `npm run ai-log:summary -- logs/archive/ai-calls-13.ndjson`. Neither
+command calls a provider.
 </content>

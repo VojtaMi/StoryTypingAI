@@ -1,4 +1,4 @@
-const STORY_WORD_PATTERN = /[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+/g;
+const STORY_WORD_PATTERN = /\p{L}+(?:-\p{L}+)*/gu;
 
 /** Returns unique normalized words, excluding known proper names. */
 export function storyWords(
@@ -10,7 +10,7 @@ export function storyWords(
 			const normalized = word.toLowerCase();
 			return normalized.endsWith("n")
 				? [normalized]
-				: [normalized, `${normalized}n`];
+				: [normalized, `${normalized}n`, `${normalized}-n`];
 		}),
 	);
 	return [
@@ -27,6 +27,10 @@ export function isStoryName(word: string, names: string[]): boolean {
 	const normalized = word.toLowerCase();
 	return names.some((name) => {
 		const normalizedName = name.toLowerCase();
-		return normalized === normalizedName || normalized === `${normalizedName}n`;
+		return (
+			normalized === normalizedName ||
+			normalized === `${normalizedName}n` ||
+			normalized === `${normalizedName}-n`
+		);
 	});
 }

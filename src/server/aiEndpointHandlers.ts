@@ -8,6 +8,7 @@ import {
 	type TextReasoningEffort,
 } from "../models";
 import { isNarrationVoiceId } from "../narrationVoice";
+import { READING_STORY_MAX_PARTS } from "../reading_story/split";
 import { isStoryDifficulty } from "../storyFeedback";
 import { DEFAULT_TTS_MODEL, isTtsModelId } from "../ttsModel";
 import {
@@ -353,13 +354,14 @@ export async function handleFinalizeStoryEvidenceRequest(
 	}
 	if (
 		!Array.isArray(body.storyParts) ||
-		body.storyParts.length !== 6 ||
+		body.storyParts.length < 2 ||
+		body.storyParts.length > READING_STORY_MAX_PARTS ||
 		body.storyParts.some(
 			(part) => typeof part !== "string" || !part.trim() || part.length > 5000,
 		)
 	) {
 		sendJson(res, 400, {
-			error: "storyParts must contain exactly six non-empty strings.",
+			error: `storyParts must contain 2-${READING_STORY_MAX_PARTS} non-empty strings.`,
 		});
 		return;
 	}

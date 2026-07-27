@@ -1812,7 +1812,7 @@ export function useStorySession({
 		openingAudioError,
 		retryOpeningAudio,
 		narrationVoice,
-		nonTranslatableWords: readingStory?.characterNames ?? [],
+		nonTranslatableWords: readingStory?.properNames ?? [],
 		regenerateWordTranslation: handleRegenerateWord,
 		resumeStory,
 		readingPartIndex,

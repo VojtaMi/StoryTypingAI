@@ -50,7 +50,7 @@ lifecycle**, and conflating them is the mistake this section exists to prevent.
 
 | | Typing story | Reading story |
 | --- | --- | --- |
-| Length | Indefinite | Finite: six sections |
+| Length | Indefinite | Finite: adaptively divided into 2-8 sections |
 | Who writes the next passage | The AI, from conversation history | Nobody — it already exists |
 | Learner's job | Type the passage, then author a continuation | Read the section, look up words |
 | Text generation per step | One streamed continuation | **None** |
@@ -103,19 +103,25 @@ Concretely:
 	resolved theme, explicit non-empty preferences, and one mapped `minimal` or
 	`simple` narrative-scale instruction, then runs one example-guided Luna
 	editorial pass. Calibration snippets and language focus never enter those plot
-	calls. The selected story model expands the resulting fixed plot into a
-	**complete story** — title, story summary, characters, setting, and all six
-	parts of Esperanto prose — against the pedagogical brief and genre guidance.
-	It then prepares part 1's narration and image alongside it.
+	calls. The selected story model expands the resulting fixed plot and
+	pedagogical brief into one **complete, uninterrupted Esperanto manuscript**.
+	GPT Nano chooses semantic sentence boundaries without receiving permission to
+	rewrite the prose, and Luna produces one shared visual-continuity core plus one
+	settled-scene instruction per pair of resulting parts. The server then
+	assembles and validates the complete reading story and prepares part 1's
+	narration and image alongside it.
 2. Starting a reading story consumes that queued story whole — **this is the
    last prose generation the story ever makes**. If the queue is empty,
    `startReadingStory` refuses to start rather than generating one on the
    spot: doing so would bypass the finalize-then-prepare ordering above.
    Instead it (re)triggers preparation and leaves the learner on the menu,
    where the button is disabled until a story is ready.
-3. A story is only accepted if it parses as a complete six-part story with
-   non-empty prose in every part. A truncated or short story is repaired once,
-   and then rejected — a partial story is never saved as if it were complete.
+3. A story is only accepted when its manuscript is complete, all 2-8 derived
+	parts contain prose, and it has exactly `ceil(parts / 2)` image instructions.
+	A malformed manuscript or visual plan is repaired once and then rejected.
+	Nano chooses both the part count and event-based boundaries without a preferred
+	count; invalid boundaries receive one constrained retry and are then rejected.
+	A partial story is never saved as if it were complete.
 4. Advancing moves a cursor: `readingPartIndex` increments and the next part is
    read out of the story already in hand. No AI call is made to reveal a section.
 5. **Media coordination.** Narration and background images are the only things a
@@ -135,7 +141,7 @@ Concretely:
 8. When the learner completes the recap and submits feedback, or leaves the
    finished story without custom feedback, one finalization request sends the
    recap results, feedback, story-scoped word lookups, and buffered learner tutor
-	questions together with all six Esperanto parts. The server distills one broad
+	questions together with all Esperanto parts. The server distills one broad
 	theme suggestion, an absolute `minimal` or `simple` narrative scale, one
 	language focus, a progression/complexity direction, and one or two grounded
 	calibration snippets. That transient brief is stored once per story in
