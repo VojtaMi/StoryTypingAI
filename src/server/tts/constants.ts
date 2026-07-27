@@ -9,7 +9,7 @@ export type GeminiTtsModel = (typeof GEMINI_TTS_MODELS)[number];
 
 /** Cheaper of the two Gemini TTS models; switch a request to the newer one via `geminiModel`. */
 export const DEFAULT_GEMINI_TTS_MODEL: GeminiTtsModel =
-	"gemini-2.5-flash-preview-tts";
+	"gemini-3.1-flash-tts-preview";
 
 /**
  * Hard character ceiling for a single speech request. The OpenAI speech endpoint
