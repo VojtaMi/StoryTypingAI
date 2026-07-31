@@ -3,10 +3,9 @@ import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
 import {
 	DEFAULT_TEXT_MODEL,
-	type InternalTextModelId,
 	STORY_SEGMENT_MAX_TOKENS,
+	type TextModelId,
 	type TextReasoningEffort,
-	TRANSLATION_MODEL,
 } from "../models";
 import { normalizeStoryText } from "../storyText";
 import { AiTraceError, traceAiCall } from "./aiTrace";
@@ -40,7 +39,7 @@ export async function completeAi(
 	openai: OpenAI,
 	messages: ChatMessage[],
 	maxTokens = STORY_SEGMENT_MAX_TOKENS,
-	model: InternalTextModelId = DEFAULT_TEXT_MODEL,
+	model: TextModelId = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 	options: CompletionOptions = {},
 ): Promise<string> {
@@ -60,7 +59,7 @@ export async function completeStructuredAi(
 	openai: OpenAI,
 	messages: ChatMessage[],
 	maxTokens = STORY_SEGMENT_MAX_TOKENS,
-	model: InternalTextModelId = DEFAULT_TEXT_MODEL,
+	model: TextModelId = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 	options: CompletionOptions = {},
 ): Promise<string> {
@@ -130,18 +129,20 @@ export async function translateWords(
 		{
 			kind: "text.translation",
 			provider: "openai",
-			model: TRANSLATION_MODEL,
+			model: DEFAULT_TEXT_MODEL,
 			input: messages,
 			metadata: {
 				maxTokens: 4000,
+				reasoningEffort: "none",
 				words: words.length,
 			},
 		},
 		() =>
 			openai.chat.completions.create({
-				model: TRANSLATION_MODEL,
+				model: DEFAULT_TEXT_MODEL,
 				max_completion_tokens: 4000,
 				messages,
+				reasoning_effort: "none",
 			}),
 		(value) => value.choices[0]?.message?.content ?? "",
 	);

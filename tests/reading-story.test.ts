@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import type { Genre } from "../src/genres.ts";
-import { READING_STORY_MAX_TOKENS, SYSTEM_AI_PRESET } from "../src/models.ts";
+import {
+	DEFAULT_TEXT_MODEL,
+	READING_STORY_MAX_TOKENS,
+	SYSTEM_AI_PRESET,
+} from "../src/models.ts";
 import type { NarrationVoiceId } from "../src/narrationVoice.ts";
 import {
 	type NextStoryBrief,
@@ -13,7 +17,6 @@ import {
 	readingManuscriptMessages,
 } from "../src/reading_story/manuscript.ts";
 import {
-	READING_STORY_SPLIT_MODEL,
 	readingStorySentences,
 	readingStorySplitMessages,
 	splitReadingManuscript,
@@ -29,7 +32,11 @@ import {
 	readingStoryPlotMessages,
 	readingStoryPlotReviewMessages,
 } from "../src/readingStoryPlot.ts";
-import { completeAi, completeStructuredAi } from "../src/server/aiService.ts";
+import {
+	completeAi,
+	completeStructuredAi,
+	translateWords,
+} from "../src/server/aiService.ts";
 import { AiTraceError } from "../src/server/aiTrace.ts";
 import {
 	type ChatMessage,
@@ -287,9 +294,9 @@ assert.equal(parts.length, 3);
 assert.equal(
 	parts.map((part) => part.text).join(" "),
 	manuscript.text,
-	"Nano boundaries must preserve every character of prose after whitespace normalization.",
+	"Luna boundaries must preserve every character of prose after whitespace normalization.",
 );
-assert.deepEqual(splitCalls[0][2], { model: READING_STORY_SPLIT_MODEL });
+assert.deepEqual(splitCalls[0][2], { model: DEFAULT_TEXT_MODEL });
 
 let trailingFinalAttempts = 0;
 const trailingFinalParts = await splitReadingManuscript(async () => {
@@ -314,7 +321,7 @@ assert.equal(splitAttempts, 2);
 assert.equal(retriedParts.length, 2);
 assert.equal(retriedParts.map((part) => part.text).join(" "), manuscript.text);
 console.log(
-	"checked reading story: Nano selects boundaries but cannot rewrite",
+	"checked reading story: Luna selects boundaries but cannot rewrite",
 );
 
 // --- Shared visual core and per-pair instructions ----------------------------
@@ -396,7 +403,7 @@ assert.deepEqual(
 		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
 		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
 		{ reasoningEffort: "medium" },
-		{ model: READING_STORY_SPLIT_MODEL },
+		{ model: DEFAULT_TEXT_MODEL },
 		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "none" },
 	],
 );
@@ -469,6 +476,40 @@ assert.doesNotThrow(() => parseReadingStory(rawStructuredStory));
 assert.equal(normalizeStoryText("Mara diras: “Jes.”"), 'Mara diras: "Jes."');
 assert.equal(await completeAi(fakeStructuredOpenAi, []), rawStructuredStory);
 
+let translationRequest:
+	| {
+			model?: string;
+			reasoning_effort?: string;
+			messages?: ChatMessage[];
+	  }
+	| undefined;
+const fakeTranslationOpenAi = {
+	chat: {
+		completions: {
+			create: async (request: typeof translationRequest) => {
+				translationRequest = request;
+				return {
+					choices: [{ message: { content: '{"vergon":"wand"}' } }],
+				};
+			},
+		},
+	},
+} as never;
+assert.deepEqual(
+	await translateWords(
+		fakeTranslationOpenAi,
+		["vergon"],
+		"La sorĉisto uzas vergon por lumsorĉo.",
+	),
+	{ vergon: "wand" },
+);
+assert.equal(translationRequest?.model, DEFAULT_TEXT_MODEL);
+assert.equal(translationRequest?.reasoning_effort, "none");
+assert.match(
+	translationRequest?.messages?.[0]?.content ?? "",
+	/La sorĉisto uzas vergon por lumsorĉo\./,
+);
+
 const emptyOpenAi = {
 	chat: {
 		completions: {
@@ -493,7 +534,13 @@ await assert.rejects(
 	completeStructuredAi(emptyOpenAi, []),
 	(error: unknown) => {
 		assert(error instanceof AiTraceError);
-		assert.equal(error.details.finishReason, "length");
+		const details = error.details;
+		assert(
+			details !== null &&
+				typeof details === "object" &&
+				"finishReason" in details,
+		);
+		assert.equal(details.finishReason, "length");
 		return true;
 	},
 );

@@ -1,11 +1,10 @@
 import { parseJsonResponse } from "../learnerState";
-import type { InternalTextModelId } from "../models";
+import { DEFAULT_TEXT_MODEL } from "../models";
 import type { ChatMessage, Complete, ReadingStoryPart } from "../story";
 import { countWords } from "../structuredGeneration";
 import type { ReadingStoryManuscript } from "./manuscript";
 
 const SPLIT_MAX_TOKENS = 600;
-export const READING_STORY_SPLIT_MODEL: InternalTextModelId = "gpt-5.4-nano";
 export const READING_STORY_MAX_PARTS = 8;
 
 const SPLIT_PROMPT = `Divide an already finished Esperanto reading story into presentation parts.
@@ -86,7 +85,7 @@ export async function splitReadingManuscript(
 	const range = allowedSplitRange(sentences.length);
 	const messages = readingStorySplitMessages(manuscript);
 	const raw = await complete(messages, SPLIT_MAX_TOKENS, {
-		model: READING_STORY_SPLIT_MODEL,
+		model: DEFAULT_TEXT_MODEL,
 	});
 	let breaks: number[];
 	try {
@@ -102,7 +101,7 @@ export async function splitReadingManuscript(
 				},
 			],
 			SPLIT_MAX_TOKENS,
-			{ model: READING_STORY_SPLIT_MODEL },
+			{ model: DEFAULT_TEXT_MODEL },
 		);
 		breaks = parseBreaks(retry, sentences.length, range);
 	}

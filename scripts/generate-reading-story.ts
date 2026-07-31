@@ -11,7 +11,6 @@ import {
 } from "../src/learnerState.ts";
 import {
 	DEFAULT_TEXT_MODEL,
-	type InternalTextModelId,
 	TEXT_MODELS,
 	TEXT_REASONING_EFFORTS,
 	type TextModelId,
@@ -36,7 +35,7 @@ export type ReadingStoryCliOptions = {
 type StructuredCompletion = (request: {
 	messages: ChatMessage[];
 	maxTokens: number;
-	model?: InternalTextModelId;
+	model?: TextModelId;
 	reasoningEffort?: TextReasoningEffort;
 }) => Promise<string>;
 

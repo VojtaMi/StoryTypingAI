@@ -105,7 +105,7 @@ Concretely:
 	editorial pass. Calibration snippets and language focus never enter those plot
 	calls. The selected story model expands the resulting fixed plot and
 	pedagogical brief into one **complete, uninterrupted Esperanto manuscript**.
-	GPT Nano chooses semantic sentence boundaries without receiving permission to
+	Luna None chooses semantic sentence boundaries without receiving permission to
 	rewrite the prose, and Luna produces one shared visual-continuity core plus one
 	settled-scene instruction per pair of resulting parts. The server then
 	assembles and validates the complete reading story and prepares part 1's
@@ -119,7 +119,7 @@ Concretely:
 3. A story is only accepted when its manuscript is complete, all 2-8 derived
 	parts contain prose, and it has exactly `ceil(parts / 2)` image instructions.
 	A malformed manuscript or visual plan is repaired once and then rejected.
-	Nano chooses both the part count and event-based boundaries without a preferred
+	Luna None chooses both the part count and event-based boundaries without a preferred
 	count; invalid boundaries receive one constrained retry and are then rejected.
 	A partial story is never saved as if it were complete.
 4. Advancing moves a cursor: `readingPartIndex` increments and the next part is

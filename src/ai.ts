@@ -13,7 +13,6 @@ import type { Lesson, LessonLevel } from "./lessons/types";
 import {
 	DEFAULT_TEXT_MODEL,
 	EXERCISE_MODEL,
-	type InternalTextModelId,
 	STORY_SEGMENT_MAX_TOKENS,
 	type TextModelId,
 	type TextReasoningEffort,
@@ -112,7 +111,7 @@ async function postJson<T>(
 
 async function complete(
 	messages: ChatMessage[],
-	model: InternalTextModelId,
+	model: TextModelId,
 	maxTokens = STORY_SEGMENT_MAX_TOKENS,
 	responseFormat: "text" | "json" = "text",
 	reasoningEffort?: TextReasoningEffort,

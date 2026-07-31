@@ -14,8 +14,6 @@ export const TEXT_MODELS = [
 ] as const;
 
 export type TextModelId = (typeof TEXT_MODELS)[number]["id"];
-/** Models used by bounded internal operations but not offered as user-selectable prose models. */
-export type InternalTextModelId = TextModelId | "gpt-5.4-nano";
 export const DEFAULT_TEXT_MODEL: TextModelId = "gpt-5.6-luna";
 
 export const TEXT_REASONING_EFFORTS = [
@@ -114,9 +112,6 @@ export const READING_STORY_MAX_TOKENS = 8000;
  * full reading manuscript does. Tune this independently of the story preset.
  */
 export const EXERCISE_MODEL: TextModelId = "gpt-5.6-luna";
-
-/** Default model used for batch word translations — not user-selectable. */
-export const TRANSLATION_MODEL: InternalTextModelId = "gpt-5.4-nano";
 
 /**
  * Preset for bounded internal structured tasks such as learner-state

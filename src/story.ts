@@ -1,6 +1,6 @@
 import type { Genre } from "./genres";
 import type { LearnerPreferences } from "./learnerState";
-import type { InternalTextModelId, TextReasoningEffort } from "./models";
+import type { TextModelId, TextReasoningEffort } from "./models";
 import {
 	type NextStoryBrief,
 	STARTER_NEXT_STORY_BRIEF,
@@ -50,7 +50,7 @@ export type Complete = (
 	maxTokens: number,
 	options?: {
 		reasoningEffort?: TextReasoningEffort;
-		model?: InternalTextModelId;
+		model?: TextModelId;
 	},
 ) => Promise<string>;
 
