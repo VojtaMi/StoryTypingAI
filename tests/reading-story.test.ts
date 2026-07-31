@@ -291,6 +291,18 @@ assert.equal(
 );
 assert.deepEqual(splitCalls[0][2], { model: READING_STORY_SPLIT_MODEL });
 
+let trailingFinalAttempts = 0;
+const trailingFinalParts = await splitReadingManuscript(async () => {
+	trailingFinalAttempts += 1;
+	return '{"breakAfterSentence":[4,8,12]}';
+}, manuscript);
+assert.equal(trailingFinalAttempts, 1);
+assert.equal(trailingFinalParts.length, 3);
+assert.equal(
+	trailingFinalParts.map((part) => part.text).join(" "),
+	manuscript.text,
+);
+
 let splitAttempts = 0;
 const retriedParts = await splitReadingManuscript(async (messages) => {
 	splitAttempts += 1;

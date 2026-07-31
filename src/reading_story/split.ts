@@ -125,14 +125,18 @@ function parseBreaks(
 			(item) =>
 				!Number.isInteger(item) ||
 				(item as number) < 1 ||
-				(item as number) >= sentenceCount,
+				(item as number) > sentenceCount,
 		)
 	) {
 		throw new Error("The AI returned invalid reading story boundaries.");
 	}
-	const numbers = breaks as number[];
+	const numbers = [...(breaks as number[])];
+	if (numbers[numbers.length - 1] === sentenceCount) numbers.pop();
 	if (
-		numbers.some((item, index) => index > 0 && item <= numbers[index - 1]) ||
+		numbers.some(
+			(item, index) =>
+				item >= sentenceCount || (index > 0 && item <= numbers[index - 1]),
+		) ||
 		numbers.length + 1 < range.min ||
 		numbers.length + 1 > range.max
 	) {
