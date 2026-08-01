@@ -29,7 +29,8 @@ Shared visual context:
 Scene instructions:
 - Return exactly ${imageCount} imagePrompts in narrative order. Prompt 1 covers parts 1-2, prompt 2 covers parts 3-4, and so on; an odd final part is covered alone.
 - For each pair, select one visually clear action that actually occurs in those parts, in one location at one time.
-- State the people and objects present, their positions, the action, time of day, and lighting. Never combine sequential events or show one character more than once.
+- State every visible person or creature individually, briefly describing unnamed ones; never use a collective such as "her family," "a group," or "a crowd" as the cast. End the cast with "No other people or creatures are visible."
+- State the cast's positions, the objects present, the action, time of day, and lighting. Never combine sequential events or show one character more than once.
 - Match chronology, location, weather, objects, and actions in the prose exactly. Do not add visible writing unless essential.
 - Do not repeat fixed appearances from visualContext.
 

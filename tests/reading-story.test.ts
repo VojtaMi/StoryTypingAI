@@ -329,6 +329,12 @@ console.log(
 const visualMessages = readingVisualPlanMessages(parts);
 assert.match(visualMessages[0].content, /Shared visual context/i);
 assert.match(visualMessages[0].content, /exactly 2 imagePrompts/i);
+assert.match(visualMessages[0].content, /every visible person.*individually/i);
+assert.match(visualMessages[0].content, /never use a collective/i);
+assert.match(
+	visualMessages[0].content,
+	/No other people or creatures are visible/,
+);
 const visualContext = JSON.parse(
 	visualMessages[1].content.split("\n\n").at(-1) ?? "",
 );
