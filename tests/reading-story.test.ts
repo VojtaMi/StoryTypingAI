@@ -149,12 +149,17 @@ const plotCalls: Array<Parameters<Complete>> = [];
 const preparedPlot = await prepareReadingStoryPlot(
 	async (...args) => {
 		plotCalls.push(args);
-		return plotCalls.length === 1 ? "  Draft plot.  " : "OK";
+		return plotCalls.length === 1
+			? "  Mia meets Amelia and finds Mia's key.  "
+			: "OK";
 	},
 	"gremlins",
 	preferences,
 );
-assert.equal(preparedPlot, "Draft plot.");
+assert.equal(preparedPlot, "Anjo meets Amelia and finds Anjo's key.");
+assert.deepEqual(JSON.parse(plotCalls[1]?.[0][1]?.content ?? ""), {
+	draft: "Anjo meets Amelia and finds Anjo's key.",
+});
 assert.deepEqual(
 	plotCalls.map(([, , options]) => options),
 	[
@@ -162,7 +167,9 @@ assert.deepEqual(
 		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
 	],
 );
-console.log("checked reading story: creative plot and review stay isolated");
+console.log(
+	"checked reading story: creative plot and review stay isolated and names normalize at their boundary",
+);
 
 assert.deepEqual(
 	parseNextStoryBrief(STARTER_NEXT_STORY_BRIEF),

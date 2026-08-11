@@ -88,6 +88,11 @@ export function readingStoryPlotReviewMessages(draft: string): ChatMessage[] {
 	];
 }
 
+/** Keep the English plot draft from carrying beginner-confusing names onward. */
+function normalizePlotDraftNames(draft: string): string {
+	return draft.replace(/\bMia\b/g, "Anjo");
+}
+
 export async function prepareReadingStoryPlot(
 	complete: Complete,
 	storySubject: string,
@@ -101,12 +106,13 @@ export async function prepareReadingStoryPlot(
 			{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
 		)
 	).trim();
+	const normalizedDraft = normalizePlotDraftNames(draft);
 	const review = (
 		await complete(
-			readingStoryPlotReviewMessages(draft),
+			readingStoryPlotReviewMessages(normalizedDraft),
 			PLOT_REVIEW_MAX_TOKENS,
 			{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
 		)
 	).trim();
-	return review === "OK" ? draft : review;
+	return review === "OK" ? normalizedDraft : review;
 }
