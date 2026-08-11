@@ -24,7 +24,7 @@ Return only valid JSON with exactly this shape:
 {"themeSuggestion":"broad English theme, 1-5 words, or empty string","narrativeScale":"minimal|simple","language":{"focus":"one concise English language objective","progression":"reinforce|advance","complexity":"simpler|similar|harder","calibrationSnippets":["exact Esperanto excerpt from the completed story"]}}
 
 Rules:
-- themeSuggestion is only a broad creative direction such as "seaside", "night train", or "forest festival". Make it meaningfully different from the completed story's theme and problem pattern. Do not provide a premise, protagonist, plot, goal, or obstacle.
+- themeSuggestion is only a broad creative direction. Make it different from the completed story's theme and plot. Do not provide a premise, protagonist, plot, goal, or obstacle.
 - narrativeScale is the absolute narrative scale for the next story. Use minimal for a very short language-introduction situation with basic words and directly observable actions. Use simple for a straightforward beginner story with a few directly connected actions. Preserve the completed story's apparent scale when its difficulty was right or not rated, use minimal when it was tooHard or bitHard, and use simple when it was tooEasy or bitEasy. Do not express advancement through more characters, denser events, or specialized roles.
 - Choose exactly one language focus from all evidence. An explicit practiceRequest is strong evidence. The completed story's focus is only one input.
 - Use reinforce when the learner still needs the chosen focus. Use advance only when the evidence supports moving to a genuinely new next step.

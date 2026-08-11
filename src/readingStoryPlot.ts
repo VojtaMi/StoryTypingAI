@@ -27,10 +27,10 @@ Apply the supplied narrative guidance when present.
 Return only one compact English paragraph.`;
 
 const REVIEW_EXAMPLE_ORIGINAL =
-	"Every night, Mia hears a strange clicking from the old clock in her living room. One evening, she opens the clock and finds three tiny gremlins inside, using its gears to make a machine that stops time. The gremlins freeze the whole house, but Mia keeps moving because she is holding the clock’s key. She follows them, takes the key from their machine, and winds the clock backward. Time starts again, and the gremlins become harmless, sleepy creatures. Mia gives them a box beside the clock to live in, and from then on, they help keep the clock running.";
+	"Every night, Anjo hears a strange clicking from the old clock in her living room. One evening, she opens the clock and finds three tiny gremlins inside, using its gears to make a machine that stops time. The gremlins freeze the whole house, but Anjo keeps moving because she is holding the clock’s key. She follows them, takes the key from their machine, and winds the clock backward. Time starts again, and the gremlins become harmless, sleepy creatures. Anjo gives them a box beside the clock to live in, and from then on, they help keep the clock running.";
 
 const REVIEW_EXAMPLE_IMPROVED =
-	"Every night, Mia hears strange clicking from the old clock in her living room. One evening, she opens it and finds three tiny gremlins moving the hands backward. They believe that keeping the clock early will give them more time to play. Mia explains that moving the hands does not stop the night. She gives them a small cardboard clock whose hands they can move whenever they like. The gremlins set the real clock to the correct time and promise to leave it alone. From then on, they play with their toy clock in a box beside the real one.";
+	"Every night, Anjo hears strange clicking from the old clock in her living room. One evening, she opens it and finds three tiny gremlins moving the hands backward. They believe that keeping the clock early will give them more time to play. Anjo explains that moving the hands does not stop the night. She gives them a small cardboard clock whose hands they can move whenever they like. The gremlins set the real clock to the correct time and promise to leave it alone. From then on, they play with their toy clock in a box beside the real one.";
 
 const PLOT_REVIEW_PROMPT = `You are reviewing a short story draft.
 
@@ -44,7 +44,7 @@ ${REVIEW_EXAMPLE_IMPROVED}
 
 What changed and why:
 - It removes the time machine because its rules were never established and were too complex for the short plot.
-- It removes the contradiction in which Mia both holds the key and takes it from the machine.
+- It removes the contradiction in which Anjo both holds the key and takes it from the machine.
 - It replaces key immunity, backward winding, and the gremlins' unexplained transformation with one simple mistaken belief.
 - The toy clock answers the gremlins' established desire to play, so the solution follows naturally from their motivation.
 - It preserves the characters, clock theme, approximate scale, and playful ending while making the causal chain easier to follow.

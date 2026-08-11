@@ -9,6 +9,11 @@ import {
 	loadCliLearnerContext,
 	parseReadingStoryCliArgs,
 } from "../scripts/generate-reading-story.ts";
+import {
+	evidenceFor,
+	loadChainFeedback,
+	parseStoryChainCliArgs,
+} from "../scripts/simulate-reading-story-chain.ts";
 import { DEFAULT_LEARNER_CONTEXT } from "../src/learnerState.ts";
 import { DEFAULT_TEXT_MODEL } from "../src/models.ts";
 
@@ -118,5 +123,57 @@ const { stdout, stderr } = await execFileAsync(
 assert.match(stdout, /Usage: npm run story:generate/);
 assert.equal(stderr, "");
 console.log("checked story CLI: help needs no provider credentials");
+
+const chainDefaults = parseStoryChainCliArgs([]);
+assert.equal(chainDefaults.length, 5);
+assert.equal(chainDefaults.model, DEFAULT_TEXT_MODEL);
+assert.equal(chainDefaults.retries, 2);
+assert.equal(parseStoryChainCliArgs(["-n", "3", "--json"]).length, 3);
+assert.throws(
+	() => parseStoryChainCliArgs(["--length", "0"]),
+	/positive integer/,
+);
+assert.throws(
+	() => parseStoryChainCliArgs(["--retries", "-1"]),
+	/non-negative integer/,
+);
+assert.deepEqual(await loadChainFeedback(undefined, 2), [
+	{ difficulty: "right" },
+	{ difficulty: "right" },
+]);
+const story = {
+	title: "Testo",
+	storySummary: "A simple test.",
+	languageFocus: "estas",
+	visualContext: "",
+	properNames: [],
+	imagePrompts: [],
+	parts: [{ text: "Jen unu." }, { text: "Jen du." }],
+};
+assert.deepEqual(
+	evidenceFor(story, {
+		difficulty: "bitHard",
+		practiceRequest: "  accusative  ",
+		wordLookups: ["jen"],
+	}),
+	{
+		storySummary: "A simple test.",
+		storyParts: ["Jen unu.", "Jen du."],
+		languageFocus: "estas",
+		wordLookups: ["jen"],
+		learnerQuestions: [],
+		recapResults: [],
+		difficulty: "bitHard",
+		practiceRequest: "accusative",
+	},
+);
+const chainHelp = await execFileAsync(
+	process.execPath,
+	["--import", "tsx", "scripts/simulate-reading-story-chain.ts", "--help"],
+	{ cwd: process.cwd() },
+);
+assert.match(chainHelp.stdout, /Usage: npm run story:chain/);
+assert.equal(chainHelp.stderr, "");
+console.log("checked story chain CLI: arguments, evidence, defaults, and help");
 
 console.log("\nstory CLI checks passed");

@@ -179,7 +179,7 @@ export function createReadingStoryComplete(
 		});
 }
 
-function requireProviderKey(model: TextModelId): {
+export function requireProviderKeys(model: TextModelId): {
 	anthropicKey: string;
 	openaiKey: string;
 } {
@@ -208,7 +208,7 @@ export async function runReadingStoryCli(rawArgs: string[]): Promise<void> {
 	}
 
 	const learnerContext = await loadCliLearnerContext(options);
-	const { anthropicKey, openaiKey } = requireProviderKey(options.model);
+	const { anthropicKey, openaiKey } = requireProviderKeys(options.model);
 	const openai = new OpenAI({ apiKey: openaiKey || "unused-by-provider" });
 	const complete = createReadingStoryComplete(
 		({ messages, maxTokens, model, reasoningEffort }) =>
