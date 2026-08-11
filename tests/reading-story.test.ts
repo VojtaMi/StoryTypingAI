@@ -156,10 +156,13 @@ const preparedPlot = await prepareReadingStoryPlot(
 	"gremlins",
 	preferences,
 );
-assert.equal(preparedPlot, "Anjo meets Amelia and finds Anjo's key.");
-assert.deepEqual(JSON.parse(plotCalls[1]?.[0][1]?.content ?? ""), {
-	draft: "Anjo meets Amelia and finds Anjo's key.",
-});
+assert.doesNotMatch(preparedPlot, /\bMia\b/);
+assert.match(preparedPlot, /\b(Anjo|Jozefino|Viktorino|Paŭlino|Sofio)\b/);
+assert.match(preparedPlot, /\bAmelia\b/);
+assert.equal(
+	JSON.parse(plotCalls[1]?.[0][1]?.content ?? "").draft,
+	preparedPlot,
+);
 assert.deepEqual(
 	plotCalls.map(([, , options]) => options),
 	[

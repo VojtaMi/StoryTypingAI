@@ -88,9 +88,37 @@ export function readingStoryPlotReviewMessages(draft: string): ChatMessage[] {
 	];
 }
 
+const MIA_REPLACEMENT_NAMES = [
+	"Anjo",
+	"Jozefino",
+	"Viktorino",
+	"Paŭlino",
+	"Sofio",
+] as const;
+
 /** Keep the English plot draft from carrying beginner-confusing names onward. */
 function normalizePlotDraftNames(draft: string): string {
-	return draft.replace(/\bMia\b/g, "Anjo");
+	if (!/\bMia\b/.test(draft)) return draft;
+	const start = stableNameIndex(draft);
+	let replacement: (typeof MIA_REPLACEMENT_NAMES)[number] | undefined;
+	for (let offset = 0; offset < MIA_REPLACEMENT_NAMES.length; offset += 1) {
+		const candidate =
+			MIA_REPLACEMENT_NAMES[(start + offset) % MIA_REPLACEMENT_NAMES.length];
+		if (!draft.includes(candidate)) {
+			replacement = candidate;
+			break;
+		}
+	}
+	return draft.replace(/\bMia\b/g, replacement ?? MIA_REPLACEMENT_NAMES[start]);
+}
+
+function stableNameIndex(value: string): number {
+	let hash = 2166136261;
+	for (let index = 0; index < value.length; index += 1) {
+		hash ^= value.charCodeAt(index);
+		hash = Math.imul(hash, 16777619);
+	}
+	return (hash >>> 0) % MIA_REPLACEMENT_NAMES.length;
 }
 
 export async function prepareReadingStoryPlot(
