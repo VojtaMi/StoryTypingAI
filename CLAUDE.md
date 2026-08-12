@@ -61,7 +61,9 @@ Clean up what you start, don't disturb what you found: if a server was already r
 
 ## Delegating Implementation to Codex
 
-Use the `delegate-to-codex` skill, and run it via `scripts/delegate-to-codex.sh`. Codex's sandbox flags are load-bearing: without them it cannot render the page it just changed, and will report the work as done anyway.
+Use the `delegate-to-codex` skill, and delegate through the `codex` plugin's `codex:codex-rescue` subagent. `scripts/delegate-to-codex.sh` is deprecated and currently broken against codex-cli 0.147.0.
+
+Codex's sandbox settings are load-bearing: without network access it cannot render the page it just changed, and will report the work as done anyway. The plugin cannot request that per-invocation — see the skill.
 
 ## Deployment
 

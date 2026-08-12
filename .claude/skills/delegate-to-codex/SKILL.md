@@ -1,6 +1,6 @@
 ---
 name: delegate-to-codex
-description: Hand a scoped implementation task to the Codex CLI as an implementer, then verify its work. Use when asked to delegate to codex, have codex implement or write something, act as orchestrator over codex, or run codex exec. Covers writing the brief, the sandbox limits that make Codex silently unable to verify UI, and what to check before trusting its report.
+description: Hand a scoped implementation task to Codex as an implementer, then verify its work. Use when asked to delegate to codex, have codex implement or write something, act as orchestrator over codex, or generate images with codex. Covers writing the brief, the environment limits that make Codex silently unable to verify UI, and what to check before trusting its report.
 ---
 
 # Delegating Implementation to Codex
@@ -9,13 +9,42 @@ Codex is a capable implementer for scoped, well-specified work. It is not a veri
 
 ## Run it
 
-```bash
-scripts/delegate-to-codex.sh brief.md
+Delegate through the `codex` Claude Code plugin, not a shell script:
+
+```
+Agent(subagent_type: "codex:codex-rescue", prompt: "<the brief>")
 ```
 
-Do **not** invoke `codex exec` directly. The script exists because the flags are load-bearing — see *Sandbox limits* below. Codex runs in the repo root with no approval prompts, so treat every delegation as "this will edit my working tree."
+The user's equivalent is `/codex:rescue <request>`. Note the plugin's slash commands may not appear in the VS Code autocomplete picker — typing the full name still works.
+
+What the rescue agent does with your prompt:
+
+- **Defaults to `--write`** (sandbox `workspace-write`), so treat every delegation as "this will edit my working tree." Say "read-only", "review", or "diagnose" if you don't want edits.
+- **Chooses foreground or background itself** — background for open-ended or multi-step work. Pass `--wait` or `--background` to force it.
+- **Model passthrough**: `--model gpt-5.6-luna` (also `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.4-mini`). Left unset unless asked.
+- **Can generate images** via Codex's built-in `image_gen` tool. Ask for the image and where to save it; generated files land in `~/.codex/generated_images/<session-id>/`.
+- **Resumes prior work** with `--resume`; `--fresh` forces a new thread.
+
+For a long brief, write it to a file and tell Codex to read that path — the agent forwards prompt text verbatim, so inline briefs get unwieldy.
 
 Commit or stash first. Codex's changes land unstaged, and `git checkout -- <file>` will silently discard them.
+
+`scripts/delegate-to-codex.sh` is deprecated. It passes `--full-auto`, which `codex exec` removed in codex-cli 0.147.0, so it fails immediately.
+
+## Check network access before delegating UI work
+
+The plugin only ever passes `sandbox: read-only` or `workspace-write` (`codex-companion.mjs:414,491`). It has **no way to request network access.** Without it Codex cannot bind a port, so `npm run dev:vite` dies with `listen EPERM` and Codex cannot render the page it just changed — and it will report the work as done anyway.
+
+The old wrapper script passed this per-invocation. Under the plugin it must be in `~/.codex/config.toml`:
+
+```toml
+[sandbox_workspace_write]
+network_access = true
+```
+
+The trade: this grants outbound network to every workspace-write Codex session on the machine, not just this one. If it isn't set, don't ask Codex to verify a page — verify it yourself instead.
+
+A fresh git worktree also won't be in that file's `projects` trust map. Add a `trust_level = "trusted"` entry for the worktree path before delegating into it.
 
 ## Write the brief as invariants, not checks
 
@@ -49,15 +78,29 @@ npm run verify:page -- http://localhost:5207/bricks.html --expect-text "Lesson b
 
 For non-UI invariants, ask for mutation proof: *"Corrupt X, confirm the test fails, restore it, and report that you did."*
 
-## Sandbox limits (verified — do not re-derive)
+## Orchestration is yours, not the agent's
 
-Against `codex-cli 0.125.0`:
+`codex:codex-rescue` is a thin forwarder. Its own instructions forbid it from inspecting the repo, monitoring progress, polling status, fetching results, or doing any follow-up. It makes one call and returns Codex's stdout.
 
-- **MCP tools do not work.** Every MCP tool call in `codex exec` is auto-cancelled (`user cancelled MCP tool call`) because the `exec_permission_approvals` feature is under development. No flag changes this. So Codex cannot drive Playwright through MCP, and the enabled `browser_use` / `computer_use` flags surface no tool in `exec`.
-- **It can still drive a real browser** — from the shell, via the `playwright` devDependency. That is what `scripts/verify-page.mjs` does.
-- **It cannot bind a port** without `-c sandbox_workspace_write.network_access=true`; `npm run dev:vite` fails with `listen EPERM`. The wrapper script passes this. The trade is that model-run shell commands also get outbound network.
-- **It can only write to the workdir, `/tmp`, and `$TMPDIR`.** An `npx` that must populate `~/.npm/_cacache` fails with `EROFS`. Anything Codex needs must resolve from `node_modules` or be pre-installed on the host. Chromium lives in `~/.cache/ms-playwright`, readable but not writable — if `playwright` is upgraded, run `npx playwright install chromium-headless-shell` from a normal shell first. This is why `playwright` is pinned exactly.
-- **`git mv` may fail** (`.git` can be read-only in its sandbox). Renames then land as delete + add; `git add -A` still detects them.
+So when you delegate:
+
+- **Backgrounded jobs are yours to collect.** The agent will not poll. Retrieve them with `node "$CLAUDE_PLUGIN_ROOT/scripts/codex-companion.mjs" status` / `result`, or have the user run `/codex:status`. The agent is explicitly barred from calling those.
+- **Every check in *Verify before you trust* is yours to run.** Nothing in the chain verifies on your behalf.
+- **Split work into scoped subtasks yourself.** The agent does no decomposition.
+
+## Environment limits
+
+Re-verified 2026-08-12 against codex-cli 0.147.0 and codex plugin 1.0.6:
+
+- **The plugin routes through `codex app-server`, not `codex exec`.** Flags documented for `exec` do not necessarily apply.
+- **No network access unless `config.toml` grants it** — see above.
+- **`codex exec` outside a git repo** needs `--skip-git-repo-check`.
+
+Carried over from codex-cli 0.125.0 and **not** re-verified against the app-server path — confirm before relying on any of these:
+
+- MCP tool calls were auto-cancelled under `codex exec` (`exec_permission_approvals` under development), so Codex could not drive Playwright through MCP. It could still drive a real browser from the shell via the `playwright` devDependency, which is what `scripts/verify-page.mjs` does.
+- Writes were limited to the workdir, `/tmp`, and `$TMPDIR`. An `npx` needing `~/.npm/_cacache` failed with `EROFS`. Chromium in `~/.cache/ms-playwright` was readable but not writable — after a `playwright` upgrade, run `npx playwright install chromium-headless-shell` from a normal shell first. This is why `playwright` is pinned exactly.
+- `git mv` could fail with a read-only `.git`; renames then landed as delete + add, which `git add -A` still detects.
 
 ## Verify before you trust
 
