@@ -5,7 +5,7 @@ import { storyWords } from "../src/storyVocabulary.ts";
 /**
  * A word the learner looks up passes through several validators before it
  * becomes audio or a learning signal. Any one of them rejecting ordinary
- * Spanish breaks the reading flow, so they are all checked against the same
+ * German breaks the reading flow, so they are all checked against the same
  * source of truth: whatever `storyWords` can actually emit.
  *
  * `learnerWordPattern` is duplicated here rather than imported because
@@ -14,20 +14,26 @@ import { storyWords } from "../src/storyVocabulary.ts";
  */
 const learnerWordPattern = /^\p{L}+(?:-\p{L}+)*$/u;
 
-const spanishProse = [
-	"María está en un café pequeño de España. El café es tranquilo.",
-	"Hay una manzana roja en la mesa. La niña sonríe con vergüenza.",
-	"El camarero pregunta cuántos años tienes. Es un buen-día.",
+const germanProse = [
+	"Marie ist in einem kleinen Café in Deutschland. Das Café ist ruhig.",
+	"Ein roter Apfel liegt auf dem Tisch. Das Mädchen lächelt schüchtern.",
+	"Die Straße ist weiß. Der Kellner fragt, wie alt du bist.",
 ];
 
-const words = storyWords(spanishProse, ["María"]);
+const words = storyWords(germanProse, ["Marie"]);
 
 assert.ok(words.length > 0, "expected storyWords to emit words");
+// `storyWords` lowercases what it emits, so German nouns arrive uncapitalized
+// even though German spells them with a capital.
 assert.ok(
-	words.includes("niña"),
-	"expected accented words to survive tokenizing",
+	words.includes("mädchen"),
+	"expected umlauted words to survive tokenizing",
 );
-assert.ok(!words.includes("maría"), "expected declared names to be excluded");
+assert.ok(
+	words.includes("straße") && words.includes("weiß"),
+	"expected eszett to tokenize as part of a single word",
+);
+assert.ok(!words.includes("marie"), "expected declared names to be excluded");
 
 for (const word of words) {
 	assert.equal(
@@ -44,12 +50,12 @@ for (const word of words) {
 
 // Shapes the Esperanto-era ASCII patterns used to reject outright.
 for (const word of [
-	"niño",
-	"también",
-	"vergüenza",
-	"día",
-	"años",
-	"buen-día",
+	"Mädchen",
+	"weiß",
+	"müller",
+	"frühstück",
+	"zwölf",
+	"guten-Tag",
 ]) {
 	assert.equal(wordFilePattern.test(`${word}.mp3`), true, word);
 	assert.equal(learnerWordPattern.test(word), true, word);
@@ -64,5 +70,5 @@ for (const word of ["../secret", "a/b", "..\\x", "", "a b"]) {
 }
 
 console.log(
-	`checked ${words.length} Spanish story words against the word-audio and learner-word validators, plus traversal rejection`,
+	`checked ${words.length} German story words against the word-audio and learner-word validators, plus traversal rejection`,
 );

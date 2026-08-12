@@ -7,7 +7,7 @@ import type { ReadingStoryManuscript } from "./manuscript";
 const SPLIT_MAX_TOKENS = 600;
 export const READING_STORY_MAX_PARTS = 8;
 
-const SPLIT_PROMPT = `Divide an already finished Spanish reading story into presentation parts.
+const SPLIT_PROMPT = `Divide an already finished German reading story into presentation parts.
 
 The numbered sentences are immutable. Return only sentence numbers after which the app should break the story. Do not include the final sentence number, because the story ends there. Do not return prose and do not rewrite, omit, duplicate, or reorder anything.
 

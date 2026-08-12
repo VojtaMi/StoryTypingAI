@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy the Spanish reading experiment to the Rosti *app* (not a stack).
+# Deploy the German reading experiment to the Rosti *app* (not a stack).
 #
 # Rosti runs `npm start` under supervisor with cwd /srv/app, and nginx proxies
 # to 127.0.0.1:8080 — so package.json's `start` script pins PORT=8080.
@@ -11,7 +11,11 @@
 # four build paths individually keeps --delete scoped to those paths.
 set -euo pipefail
 
-APP_ID="${ROSTI_APP_ID:-9220}"
+if [[ -z "${ROSTI_APP_ID:-}" ]]; then
+	echo "Deployment stopped: ROSTI_APP_ID must be set explicitly; no German Rosti app id is configured." >&2
+	exit 1
+fi
+APP_ID="$ROSTI_APP_ID"
 REMOTE_APP_DIR=/srv/app
 
 connection_json="$(rosticli apps info --app-id "$APP_ID" --json | sed -n '/^{/,/^}/p')"
@@ -40,7 +44,7 @@ Deployment stopped: /srv/app/.env is missing on the server.
 
 Create it once, with the three provider keys (no PORT — the start script sets it):
 
-  rosticli apps ssh --app-id 9220 -- sh -lc 'cat > /srv/app/.env' <<'EOF'
+  rosticli apps ssh --app-id <id> -- sh -lc 'cat > /srv/app/.env' <<'EOF'
   OPENAI_API_KEY=...
   GEMINI_API_KEY=...
   ANTHROPIC_API_KEY=...

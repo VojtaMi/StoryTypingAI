@@ -38,7 +38,7 @@ export function buildReadingImageSections(
 }
 
 function visualPlanPrompt(imageCount: number) {
-	return `Design a coherent visual plan for a finished Spanish reading story.
+	return `Design a coherent visual plan for a finished German reading story.
 
 The prose is supplied as ${imageCount} immutable imageSections. The app has already grouped consecutive story parts into the sections that share an image. Do not regroup them.
 
@@ -56,7 +56,7 @@ Scene instructions:
 - Match chronology, location, weather, objects, and actions in the prose exactly. Do not add visible writing unless essential.
 - Do not repeat fixed appearances from visualContext.
 
-properNames must list every character and place name exactly as written in the Spanish prose. Do not include common nouns.
+properNames must list every character and place name exactly as written in the German prose. Do not include common nouns.
 
 Return only valid JSON matching exactly:
 {"visualContext":"shared English visual-continuity instructions","properNames":["exact name"],"imagePrompts":["English scene instruction"]}`;

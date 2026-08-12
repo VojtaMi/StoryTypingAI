@@ -39,9 +39,9 @@ export async function synthesizeGeminiSpeech({
 	const selectedModel = geminiModel ?? DEFAULT_GEMINI_TTS_MODEL;
 	const selectedVoice = geminiVoice(voice);
 	const prompt = [
-		"Synthesize speech for a Spanish learning app.",
+		"Synthesize speech for a German learning app.",
 		instructions,
-		"Read only the transcript. Keep Spanish pronunciation clear, natural, and learner-friendly.",
+		"Read only the transcript. Keep German pronunciation clear, natural, and learner-friendly.",
 		"",
 		"Transcript:",
 		input,

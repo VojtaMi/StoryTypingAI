@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { SpanishChatModal } from "../../exercise_screen/chatbot/SpanishChatModal";
+import { GermanChatModal } from "../../exercise_screen/chatbot/GermanChatModal";
 import {
 	type LessonBodyBlock,
 	lessonBodyBlocks,
@@ -134,7 +134,7 @@ export default function LessonIntro({
 				</div>
 			</article>
 
-			<SpanishChatModal
+			<GermanChatModal
 				isOpen={chatOpen}
 				onOpen={() => setChatOpen(true)}
 				segments={[]}

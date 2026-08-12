@@ -6,9 +6,9 @@ import {
 	useState,
 } from "react";
 import {
-	askSpanishTutor,
+	askGermanTutor,
+	type GermanTutorChatMessage,
 	refineLearnerProfileFromChat,
-	type SpanishTutorChatMessage,
 } from "../../ai";
 import {
 	readSelectedChatModel,
@@ -17,7 +17,7 @@ import {
 import { TEXT_MODELS, type TextModelId } from "../../models";
 import type { StorySegment } from "../types";
 
-interface SpanishChatModalProps {
+interface GermanChatModalProps {
 	isOpen: boolean;
 	onOpen: () => void;
 	segments: StorySegment[];
@@ -32,10 +32,10 @@ interface SpanishChatModalProps {
 	onCaptureQuestions?: (questions: string[]) => void;
 }
 
-const BOT_IMAGE_URL = "/images/spanish-bot.png";
-type ChatEntry = SpanishTutorChatMessage & { id: string };
+const BOT_IMAGE_URL = "/images/german-bot.png";
+type ChatEntry = GermanTutorChatMessage & { id: string };
 
-export function SpanishChatModal({
+export function GermanChatModal({
 	isOpen,
 	onOpen,
 	segments,
@@ -43,7 +43,7 @@ export function SpanishChatModal({
 	backgroundIntro,
 	onClose,
 	onCaptureQuestions,
-}: SpanishChatModalProps) {
+}: GermanChatModalProps) {
 	const [messages, setMessages] = useState<ChatEntry[]>([]);
 	const [input, setInput] = useState("");
 	const [model, setModel] = useState<TextModelId>(readSelectedChatModel);
@@ -82,12 +82,12 @@ export function SpanishChatModal({
 	}, [messages, onClose, onCaptureQuestions]);
 
 	function createMessage(
-		role: SpanishTutorChatMessage["role"],
+		role: GermanTutorChatMessage["role"],
 		content: string,
 	): ChatEntry {
 		const id = nextMessageIdRef.current;
 		nextMessageIdRef.current += 1;
-		return { id: `spanish-chat-${id}`, role, content };
+		return { id: `german-chat-${id}`, role, content };
 	}
 
 	useEffect(() => {
@@ -123,7 +123,7 @@ export function SpanishChatModal({
 		const sessionId = sessionIdRef.current;
 
 		try {
-			const answer = await askSpanishTutor({
+			const answer = await askGermanTutor({
 				segments,
 				currentTarget,
 				backgroundIntro,
@@ -136,7 +136,7 @@ export function SpanishChatModal({
 		} catch (err) {
 			if (sessionId !== sessionIdRef.current) return;
 			const message = err instanceof Error ? err.message : String(err);
-			setError(`Spanish Bot could not answer: ${message}`);
+			setError(`German Bot could not answer: ${message}`);
 		} finally {
 			if (sessionId === sessionIdRef.current) {
 				setIsSending(false);
@@ -162,8 +162,8 @@ export function SpanishChatModal({
 				type="button"
 				className="esperanto-bot-character"
 				onClick={isOpen ? closeChat : onOpen}
-				aria-label={isOpen ? "Close Spanish Bot" : "Ask Spanish Bot"}
-				title={isOpen ? "Close Spanish Bot" : "Ask Spanish Bot"}
+				aria-label={isOpen ? "Close German Bot" : "Ask German Bot"}
+				title={isOpen ? "Close German Bot" : "Ask German Bot"}
 			>
 				<img src={BOT_IMAGE_URL} alt="" draggable={false} />
 			</button>
@@ -172,7 +172,7 @@ export function SpanishChatModal({
 				<section
 					className="esperanto-chat-panel"
 					role="dialog"
-					aria-label="Spanish Bot"
+					aria-label="German Bot"
 				>
 					<header className="esperanto-chat-header">
 						<div className="esperanto-chat-title">
@@ -180,7 +180,7 @@ export function SpanishChatModal({
 								<img src={BOT_IMAGE_URL} alt="" draggable={false} />
 							</span>
 							<div>
-								<h2>Spanish Bot</h2>
+								<h2>German Bot</h2>
 								<p>Ask about the story, grammar, or vocabulary.</p>
 							</div>
 						</div>
@@ -188,7 +188,7 @@ export function SpanishChatModal({
 							type="button"
 							className="esperanto-chat-close"
 							onClick={closeChat}
-							aria-label="Close Spanish Bot"
+							aria-label="Close German Bot"
 						>
 							✕
 						</button>

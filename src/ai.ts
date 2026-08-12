@@ -47,16 +47,16 @@ export type { ChatMessage, ReadingStory, ReadingStoryPart, StoryMemory };
 const STORY_RECAP_MAX_TOKENS = 900;
 const LESSON_GENERATION_MAX_TOKENS = 1600;
 
-export type SpanishTutorChatMessage = {
+export type GermanTutorChatMessage = {
 	role: "user" | "assistant";
 	content: string;
 };
 
-interface SpanishTutorRequest {
+interface GermanTutorRequest {
 	segments: Array<{ author: "ai" | "user"; text: string }>;
 	currentTarget: string | null;
 	backgroundIntro?: string;
-	conversation: SpanishTutorChatMessage[];
+	conversation: GermanTutorChatMessage[];
 	question: string;
 	model?: TextModelId;
 }
@@ -277,7 +277,7 @@ async function refineLearnerProfile(
 
 /** Folds a tutor-chat transcript into the learner handout. */
 export async function refineLearnerProfileFromChat(
-	messages: SpanishTutorChatMessage[],
+	messages: GermanTutorChatMessage[],
 ): Promise<void> {
 	if (messages.length === 0) return;
 	return refineLearnerProfile("refine", { messages });
@@ -557,14 +557,14 @@ export async function regenerateWordTranslation(
 	return body.translation;
 }
 
-export async function askSpanishTutor({
+export async function askGermanTutor({
 	segments,
 	currentTarget,
 	backgroundIntro,
 	conversation,
 	question,
 	model = DEFAULT_TEXT_MODEL,
-}: SpanishTutorRequest): Promise<string> {
+}: GermanTutorRequest): Promise<string> {
 	const storyContext = [
 		backgroundIntro ? `Player context: ${backgroundIntro}` : "",
 		segments.length > 0
@@ -586,12 +586,12 @@ export async function askSpanishTutor({
 		{
 			role: "system",
 			content:
-				"You are Spanish Bot, a friendly tutor inside a Spanish reading story. " +
-				"Explain Spanish clearly and practically: vocabulary, gender and agreement, verb conjugation and tense, ser and estar, pronunciation, and why sentences mean what they mean. " +
+				"You are German Bot, a friendly tutor inside a German reading story. " +
+				"Explain German clearly and practically: vocabulary, cases, gender and articles, verb person and tense, word order, separable verbs, and pronunciation. " +
 				"Use the provided story context when it helps. Do not continue or rewrite the story unless the learner asks for that. " +
 				"If the learner asks for an exercise answer, prefer a helpful hint and explanation before giving the full answer. " +
 				"Reply in the language the learner uses for their latest message. If their message is mixed or ambiguous, reply in English. " +
-				"Use simple Spanish when replying in Spanish. Keep answers concise, warm, and easy for a beginner to act on. " +
+				"Use simple German when replying in German. Keep answers concise, warm, and easy for a beginner to act on. " +
 				"Default to 2-5 short sentences. Use plain text suitable for a small chat panel. " +
 				"Do not use Markdown tables, headings, horizontal rules, or long lists. If the learner explicitly asks for more detail, you may give a longer answer, but keep the formatting simple.",
 		},

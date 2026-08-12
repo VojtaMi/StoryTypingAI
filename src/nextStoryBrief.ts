@@ -32,11 +32,11 @@ export const STARTER_NEXT_STORY_BRIEF: NextStoryBrief = {
 	narrativeScale: "minimal",
 	language: {
 		focus:
-			"Simple present-tense Spanish sentences with concrete beginner words; practise basic gender and number agreement and the verbs `ser` and `estar`.",
+			"Simple present-tense German sentences with concrete beginner words; practise the three genders and articles (`der`, `die`, `das`) with basic nominative and accusative forms.",
 		progression: "establish",
 		complexity: "absolute beginner",
 		calibrationSnippets: [
-			"Pedro es un hombre. Pedro está en un jardín. Sol es un perro. Sol duerme junto a Pedro.",
+			"Peter ist ein Mann. Peter ist in einem Garten. Bello ist ein Hund. Bello schläft neben Peter.",
 		],
 	},
 };

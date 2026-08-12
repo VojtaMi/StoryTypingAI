@@ -1,4 +1,4 @@
-export type GenreId = "spanish";
+export type GenreId = "german";
 
 export interface Genre {
 	id: GenreId;
@@ -14,11 +14,12 @@ export interface Genre {
 
 export const genres: Genre[] = [
 	{
-		id: "spanish",
-		label: "Spanish",
+		id: "german",
+		label: "German",
 		emoji: "★",
 		color: "#38b26d",
-		systemPrompt: "Create an engaging Spanish story of your choice.",
+		systemPrompt:
+			"Create an engaging German story of your choice. Write the story prose in clear, natural German for a true beginner; keep explanations and metadata in English.",
 		seeds: [],
 	},
 ];

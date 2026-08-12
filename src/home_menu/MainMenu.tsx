@@ -36,7 +36,7 @@ export default function MainMenu({
 }: MainMenuProps) {
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	const lessonSaves = savedStories.filter(
-		(story) => story.genreId === "spanish",
+		(story) => story.genreId === "german",
 	);
 	const makingReadingStory = isReadingPreparationBusy(readingStoryStatus);
 	const readingStoryFailed = readingStoryStatus === "error";
@@ -53,7 +53,7 @@ export default function MainMenu({
 			</button>
 			<section className="lesson-hero" aria-labelledby="lesson-hero-title">
 				<div className="lesson-hero__content">
-					<h1 id="lesson-hero-title">Spanish through tiny stories</h1>
+					<h1 id="lesson-hero-title">German through tiny stories</h1>
 					<div className="lesson-hero__actions">
 						<button
 							type="button"

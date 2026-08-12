@@ -20,7 +20,7 @@ export function SavedStories({
 			{savesError && <p className="story__error">{savesError}</p>}
 			{savedStories.length === 0 ? (
 				<p className="saved-stories__empty">
-					Your Spanish story saves will appear here.
+					Your German story saves will appear here.
 				</p>
 			) : (
 				<div className="saved-stories__list">

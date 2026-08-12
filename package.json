@@ -13,7 +13,7 @@
 		"build:server": "vite build --config vite.server.config.ts && node -e \"require('node:fs').copyFileSync('dist-server/production.js','server.mjs')\"",
 		"check": "npm run build && npm run lint && npm run bricks:test && npm run lessons:test && npm run reading:test && npm run story-cli:test && npm run model-selection:test && npm run reading:preparation:test && npm run finish-evidence:test && npm run story-recap:test && npm run word-audio:test",
 		"dev": "concurrently \"npm:dev:api\" \"npm:dev:vite\"",
-		"dev:api": "PORT=3002 tsx watch --env-file-if-exists=.env.local src/server/production.ts",
+		"dev:api": "PORT=3003 tsx watch --env-file-if-exists=.env.local src/server/production.ts",
 		"dev:vite": "vite",
 		"gemini:images": "tsx --env-file-if-exists=.env.local scripts/compare-gemini-images.ts",
 		"gemini:tts": "tsx --env-file-if-exists=.env.local scripts/test-gemini-tts.ts",

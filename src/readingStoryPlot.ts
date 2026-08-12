@@ -89,11 +89,11 @@ export function readingStoryPlotReviewMessages(draft: string): ChatMessage[] {
 }
 
 const MIA_REPLACEMENT_NAMES = [
-	"Ana",
-	"Josefina",
+	"Anna",
+	"Johanna",
 	"Victoria",
-	"Paulina",
-	"Sofía",
+	"Pauline",
+	"Sophie",
 ] as const;
 
 /** Keep the English plot draft from carrying beginner-confusing names onward. */

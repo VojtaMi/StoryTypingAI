@@ -51,7 +51,7 @@ async function synthesizeWordAudio(
 		text: word,
 		provider: "gemini",
 		instructions:
-			"Pronounce this single Spanish word clearly, slowly, and in isolation — as if teaching a language learner.",
+			"Pronounce this single German word clearly, slowly, and in isolation — as if teaching a language learner.",
 	});
 	await mkdir(wordAudioDir, { recursive: true });
 	await writeFile(

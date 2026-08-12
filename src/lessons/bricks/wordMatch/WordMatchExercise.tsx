@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SpanishChatModal } from "../../../exercise_screen/chatbot/SpanishChatModal";
+import { GermanChatModal } from "../../../exercise_screen/chatbot/GermanChatModal";
 import "../../lesson.css";
 import { useWordAudioPlayer } from "../../lessonAudio";
 import type { IntroducedWord } from "../../types";
@@ -131,7 +131,7 @@ export default function WordMatchExercise({
 			</div>
 
 			{backgroundIntro && (
-				<SpanishChatModal
+				<GermanChatModal
 					isOpen={chatOpen}
 					onOpen={() => setChatOpen(true)}
 					segments={[]}

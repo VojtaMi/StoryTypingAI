@@ -41,10 +41,12 @@ export const DEFAULT_LEARNER_PROFILE: LearnerLanguageProfile = {
 	version: LEARNER_STATE_VERSION,
 	updated: "never",
 	confident: [],
-	learning: ["The first Spanish words and the verbs `ser` and `estar`."],
+	learning: [
+		"The first German words, the three genders, and the articles `der`, `die`, and `das`.",
+	],
 	shaky: ["New vocabulary needs gradual introduction and meaningful reuse."],
 	recentlyPracticed: [],
-	notes: ["New to Spanish; use short, concrete sentences with clear context."],
+	notes: ["New to German; use short, concrete sentences with clear context."],
 };
 
 export const DEFAULT_LEARNER_PREFERENCES: LearnerPreferences = {

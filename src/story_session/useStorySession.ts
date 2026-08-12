@@ -713,7 +713,7 @@ export function useStorySession({
 	);
 
 	const startReadingStory = useCallback(async () => {
-		const selected = genres.find((g) => g.id === "spanish") ?? genres[0];
+		const selected = genres.find((g) => g.id === "german") ?? genres[0];
 
 		let preparedOpening: Awaited<
 			ReturnType<typeof consumePreparedReadingOpening>
@@ -863,7 +863,7 @@ export function useStorySession({
 	const startLessonStory = useCallback(
 		({ title, storyText }: { title: string; storyText: string }) => {
 			const selected =
-				genres.find((candidate) => candidate.id === "spanish") ?? genres[0];
+				genres.find((candidate) => candidate.id === "german") ?? genres[0];
 			const saveId = createSaveId(title);
 			const nextNarrationVoice = pickRandomNarrationVoice();
 			// Seed the history as if the AI had opened with the lesson sentence, so

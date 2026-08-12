@@ -80,7 +80,7 @@ export function getStoryGenerationPreset(
 }
 
 /**
- * Default model for the Spanish Bot chat. The bot answers short, interactive
+ * Default model for the German Bot chat. The bot answers short, interactive
  * follow-up questions where latency is felt directly, so it defaults
  * independently of the story-generation model. Users can switch it in
  * the chat UI; the choice persists separately from the story model.

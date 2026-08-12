@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SpanishChatModal } from "../../../exercise_screen/chatbot/SpanishChatModal";
+import { GermanChatModal } from "../../../exercise_screen/chatbot/GermanChatModal";
 import "../../lesson.css";
 import {
 	TypingPracticeCard,
@@ -39,7 +39,7 @@ export default function ShortTypingExercise({
 			/>
 
 			{backgroundIntro && (
-				<SpanishChatModal
+				<GermanChatModal
 					isOpen={chatOpen}
 					onOpen={() => setChatOpen(true)}
 					segments={[]}
