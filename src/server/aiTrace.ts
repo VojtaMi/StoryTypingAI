@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 
 type AiTraceContext = {
 	requestId: string;
@@ -59,8 +59,8 @@ export class AiTraceError extends Error {
 }
 
 const traceContext = new AsyncLocalStorage<AiTraceContext>();
-const traceFilePath = join(process.cwd(), "logs", "ai-calls.ndjson");
 let traceLogInit: Promise<void> | null = null;
+const pendingTraceWrites = new Set<Promise<void>>();
 
 export function createAiTraceContext(method: string, pathname: string) {
 	return {
@@ -98,14 +98,14 @@ export async function traceAiCall<T>(
 	const start = performance.now();
 	try {
 		const value = await work();
-		void writeTraceRecord({
+		queueTraceRecord({
 			...baseRecord(call, start),
 			ok: true,
 			output: summarizePayload(output ? output(value) : call.output),
 		});
 		return value;
 	} catch (err) {
-		void writeTraceRecord({
+		queueTraceRecord({
 			...baseRecord(call, start),
 			ok: false,
 			error: errorSummary(err),
@@ -139,19 +139,38 @@ async function writeTraceRecord(record: AiTraceRecord) {
 	if (!aiTraceEnabled()) return;
 	try {
 		await initializeTraceLog();
-		await appendFile(traceFilePath, `${JSON.stringify(record)}\n`, "utf8");
+		await appendFile(traceFilePath(), `${JSON.stringify(record)}\n`, "utf8");
 	} catch (err) {
 		console.warn("Could not write AI trace log.", err);
 	}
 }
 
+function queueTraceRecord(record: AiTraceRecord) {
+	const write = writeTraceRecord(record).finally(() => {
+		pendingTraceWrites.delete(write);
+	});
+	pendingTraceWrites.add(write);
+}
+
+/** Wait until every provider call recorded so far is durable on disk. */
+export async function flushAiTraceLog(): Promise<void> {
+	await Promise.all([...pendingTraceWrites]);
+}
+
 function initializeTraceLog() {
 	traceLogInit ??= (async () => {
-		await mkdir(dirname(traceFilePath), { recursive: true });
+		const path = traceFilePath();
+		await mkdir(dirname(path), { recursive: true });
 		if (process.env.AI_CALL_LOG_APPEND === "1") return;
-		await writeFile(traceFilePath, "", "utf8");
+		await writeFile(path, "", "utf8");
 	})();
 	return traceLogInit;
+}
+
+function traceFilePath() {
+	const configured = process.env.AI_CALL_LOG_PATH?.trim();
+	if (!configured) return join(process.cwd(), "logs", "ai-calls.ndjson");
+	return isAbsolute(configured) ? configured : join(process.cwd(), configured);
 }
 
 function aiTraceEnabled() {

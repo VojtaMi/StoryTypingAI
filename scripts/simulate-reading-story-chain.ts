@@ -18,6 +18,12 @@ import {
 } from "../src/nextStoryBrief.ts";
 import { completeStructuredAi } from "../src/server/aiService.ts";
 import {
+	createAiTraceContext,
+	flushAiTraceLog,
+	withAiTraceContext,
+	withAiTraceMetadata,
+} from "../src/server/aiTrace.ts";
+import {
 	generateNextStoryBrief,
 	type NextStoryEvidence,
 } from "../src/server/nextStoryBriefService.ts";
@@ -42,6 +48,7 @@ export interface ChainFeedback {
 }
 
 export interface StoryChainCliOptions {
+	aiLogPath?: string;
 	defaultLearner: boolean;
 	feedbackPath?: string;
 	help: boolean;
@@ -70,6 +77,7 @@ brief pipeline. It does not synthesize narration or call an image-generation API
 Options:
   -n, --length <n>        Number of stories to generate (default: 5)
   --feedback <path>       JSON feedback object, or an array with one per story
+  --ai-log <path>         Write full provider calls to a separate NDJSON trace
   --model <id>            Prose model (default: ${DEFAULT_TEXT_MODEL})
   --reasoning <effort>    OpenAI prose only: ${TEXT_REASONING_EFFORTS.join("|")}
   --retries <n>           Retry a rejected story up to n times (default: 2)
@@ -119,6 +127,10 @@ export function parseStoryChainCliArgs(
 			}
 			case "--feedback":
 				options.feedbackPath = requiredFlagValue(rawArgs, index, argument);
+				index += 1;
+				break;
+			case "--ai-log":
+				options.aiLogPath = requiredFlagValue(rawArgs, index, argument);
 				index += 1;
 				break;
 			case "--retries": {
@@ -321,18 +333,26 @@ async function simulateChain(
 		);
 		const story = await generateStoryWithRetries(
 			() =>
-				generateReadingStory(complete, genre, preferences, explicitTheme, {
-					reasoningEffort: options.reasoningEffort,
-					nextStoryBrief: inputBrief,
-				}),
+				withAiTraceMetadata(
+					{ chainIndex: index + 1, chainPhase: "story" },
+					() =>
+						generateReadingStory(complete, genre, preferences, explicitTheme, {
+							reasoningEffort: options.reasoningEffort,
+							nextStoryBrief: inputBrief,
+						}),
+				),
 			options.retries,
 			index + 1,
 		);
 		const feedback = feedbackItems[index] ?? { difficulty: "right" };
-		const nextStoryBrief = await generateNextStoryBrief(
-			openai,
-			evidenceFor(story, feedback),
-			anthropicKey,
+		const nextStoryBrief = await withAiTraceMetadata(
+			{ chainIndex: index + 1, chainPhase: "handoff" },
+			() =>
+				generateNextStoryBrief(
+					openai,
+					evidenceFor(story, feedback),
+					anthropicKey,
+				),
 		);
 		const step = {
 			index: index + 1,
@@ -396,20 +416,34 @@ export async function runStoryChainCli(rawArgs: string[]): Promise<void> {
 		process.stdout.write(HELP);
 		return;
 	}
+	if (options.aiLogPath) {
+		process.env.AI_CALL_LOG = "1";
+		process.env.AI_CALL_LOG_PAYLOAD = "full";
+		process.env.AI_CALL_LOG_PATH = resolve(options.aiLogPath);
+	}
 	const learner = await loadCliLearnerContext(options);
 	const feedback = await loadChainFeedback(
 		options.feedbackPath,
 		options.length,
 	);
-	const steps = await simulateChain(
-		options,
-		learner,
-		feedback,
-		options.json
-			? undefined
-			: (step) => process.stdout.write(formatReadable([step])),
-	);
-	if (options.json) process.stdout.write(`${JSON.stringify(steps, null, 2)}\n`);
+	try {
+		const steps = await withAiTraceContext(
+			createAiTraceContext("CLI", "story:chain"),
+			() =>
+				simulateChain(
+					options,
+					learner,
+					feedback,
+					options.json
+						? undefined
+						: (step) => process.stdout.write(formatReadable([step])),
+				),
+		);
+		if (options.json)
+			process.stdout.write(`${JSON.stringify(steps, null, 2)}\n`);
+	} finally {
+		await flushAiTraceLog();
+	}
 }
 
 if (

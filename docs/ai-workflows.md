@@ -134,4 +134,10 @@ Both read `logs/ai-calls.ndjson` and fail loudly if a line is not valid JSON.
 Pass an archived trace as a second argument to compare a pipeline run, for
 example `npm run ai-log:summary -- logs/archive/ai-calls-13.ndjson`. Neither
 command calls a provider.
+
+The text-only story-chain CLI can write a separate full-payload trace with
+`--ai-log <path>`. Each call is labeled with its chain index and whether it
+belongs to story generation or the next-story handoff. Because full traces can
+contain learner state and story evidence, keep the output under a git-ignored
+location such as `.artifacts/`.
 </content>
