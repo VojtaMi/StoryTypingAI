@@ -38,7 +38,7 @@ See [`docs/architecture.md`](./docs/architecture.md) for the responsibility area
 
 When a single LLM call generates multiple distinct structured items (e.g. a lesson made of several exercise types), give each item type a self-contained spec — its own prompt-shape fragment, its own authoring instructions, and its own parser — instead of one hardcoded monolithic prompt string plus one big parser. The orchestrator should just compose specs and dispatch parsing per item. See `src/storyRecap.ts` (`RecapExerciseSpec`) for the pattern.
 
-When part of an LLM's output must satisfy a structural invariant (e.g. "this sentence must not contain this word" so the app can render a blank), don't rely on a prompt instruction the model might ignore, and don't just validate-and-reject after the fact either — shrink what you ask the LLM for and derive the invariant deterministically in code. Example: ask for one natural sentence containing the word, then split on it client-side, rather than asking the LLM to pre-split the sentence around the word itself.
+Before adding prompt rules, reasoning, retries, or repair logic, first decide which layer owns the behavior. Code owns deterministic transformations and structural invariants; learner-dependent choices belong in preferences or state; models own creative and qualitative judgment. Give models the smallest already-curated work units practical, and derive deterministic output structure in code instead of asking the model to construct it. For example, ask for one natural sentence containing a target word and split it client-side rather than asking the model to pre-split the sentence around that word.
 
 ## Development-Phase Compatibility
 

@@ -22,6 +22,8 @@ import {
 	splitReadingManuscript,
 } from "../src/reading_story/split.ts";
 import {
+	buildReadingImageSections,
+	generateReadingVisualPlan,
 	parseReadingVisualPlan,
 	READING_STORY_VISUAL_MODEL,
 	readingVisualPlanMessages,
@@ -339,6 +341,10 @@ console.log(
 const visualMessages = readingVisualPlanMessages(parts);
 assert.match(visualMessages[0].content, /Shared visual context/i);
 assert.match(visualMessages[0].content, /exactly 2 imagePrompts/i);
+assert.match(
+	visualMessages[0].content,
+	/one imagePrompt for each imageSection/i,
+);
 assert.match(visualMessages[0].content, /every visible person.*individually/i);
 assert.match(visualMessages[0].content, /never use a collective/i);
 assert.match(
@@ -348,8 +354,27 @@ assert.match(
 const visualContext = JSON.parse(
 	visualMessages[1].content.split("\n\n").at(-1) ?? "",
 );
-assert.equal(visualContext.parts.length, 3);
-assert.deepEqual(Object.keys(visualContext), ["parts"]);
+assert.equal(visualContext.imageSections.length, 2);
+assert.deepEqual(Object.keys(visualContext), ["imageSections"]);
+assert.deepEqual(
+	visualContext.imageSections.map(
+		(section: { number: number; sourceParts: number[] }) => ({
+			number: section.number,
+			sourceParts: section.sourceParts,
+		}),
+	),
+	[
+		{ number: 1, sourceParts: [1, 2] },
+		{ number: 2, sourceParts: [3] },
+	],
+);
+assert.equal(
+	visualContext.imageSections[0].text,
+	`${parts[0].text}\n\n${parts[1].text}`,
+);
+assert.deepEqual(buildReadingImageSections([parts[0]]), [
+	{ number: 1, sourceParts: [1], text: parts[0].text },
+]);
 
 const visualPlan = parseReadingVisualPlan(
 	JSON.stringify({
@@ -368,6 +393,40 @@ assert.throws(() =>
 		}),
 		2,
 	),
+);
+
+const visualRepairCalls: ChatMessage[][] = [];
+const repairedVisualPlan = await generateReadingVisualPlan(async (messages) => {
+	visualRepairCalls.push(messages);
+	if (visualRepairCalls.length === 1) {
+		return JSON.stringify({
+			visualContext: "Stable people and station.",
+			properNames: ["Mara"],
+			imagePrompts: ["One.", "Two.", "Three."],
+		});
+	}
+	return JSON.stringify({
+		visualContext: "Stable people and station.",
+		properNames: ["Mara"],
+		imagePrompts: ["Parts one and two.", "Part three."],
+	});
+}, parts);
+assert.deepEqual(repairedVisualPlan.imagePrompts, [
+	"Parts one and two.",
+	"Part three.",
+]);
+assert.equal(visualRepairCalls.length, 2);
+assert.match(
+	visualRepairCalls[1][0].content,
+	/do not obtain the required count by merely truncating/i,
+);
+const visualRepairContext = JSON.parse(
+	visualRepairCalls[1][1].content.split("\n\n").at(-1) ?? "",
+);
+assert.equal(visualRepairContext.imageSections.length, 2);
+assert.match(
+	visualRepairContext.validationFailure,
+	/returned 3.*expected exactly 2/i,
 );
 console.log("checked reading story: visual planning follows settled parts");
 
