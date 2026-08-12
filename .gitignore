@@ -53,3 +53,4 @@ rosti/.rostistate
 
 # Local AI/tool artifacts and scratch outputs
 .artifacts/
+server.mjs
