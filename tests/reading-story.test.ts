@@ -159,7 +159,7 @@ const preparedPlot = await prepareReadingStoryPlot(
 	preferences,
 );
 assert.doesNotMatch(preparedPlot, /\bMia\b/);
-assert.match(preparedPlot, /\b(Anjo|Jozefino|Viktorino|Paŭlino|Sofio)\b/);
+assert.match(preparedPlot, /\b(Ana|Josefina|Victoria|Paulina|Sofía)\b/);
 assert.match(preparedPlot, /\bAmelia\b/);
 assert.equal(
 	JSON.parse(plotCalls[1]?.[0][1]?.content ?? "").draft,

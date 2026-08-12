@@ -50,7 +50,9 @@ export const DEFAULT_LEARNER_PROFILE: LearnerLanguageProfile = {
 export const DEFAULT_LEARNER_PREFERENCES: LearnerPreferences = {
 	version: LEARNER_STATE_VERSION,
 	updated: "never",
-	prefer: [],
+	// Beginner-level language reads to the model as a cue to write for children.
+	// Editable in Settings like any other preference.
+	prefer: ["age target: neutral"],
 	avoid: [],
 	clarityGuidance: [],
 };
