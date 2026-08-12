@@ -47,16 +47,16 @@ export type { ChatMessage, ReadingStory, ReadingStoryPart, StoryMemory };
 const STORY_RECAP_MAX_TOKENS = 900;
 const LESSON_GENERATION_MAX_TOKENS = 1600;
 
-export type EsperantoTutorChatMessage = {
+export type SpanishTutorChatMessage = {
 	role: "user" | "assistant";
 	content: string;
 };
 
-interface EsperantoTutorRequest {
+interface SpanishTutorRequest {
 	segments: Array<{ author: "ai" | "user"; text: string }>;
 	currentTarget: string | null;
 	backgroundIntro?: string;
-	conversation: EsperantoTutorChatMessage[];
+	conversation: SpanishTutorChatMessage[];
 	question: string;
 	model?: TextModelId;
 }
@@ -277,7 +277,7 @@ async function refineLearnerProfile(
 
 /** Folds a tutor-chat transcript into the learner handout. */
 export async function refineLearnerProfileFromChat(
-	messages: EsperantoTutorChatMessage[],
+	messages: SpanishTutorChatMessage[],
 ): Promise<void> {
 	if (messages.length === 0) return;
 	return refineLearnerProfile("refine", { messages });
@@ -557,14 +557,14 @@ export async function regenerateWordTranslation(
 	return body.translation;
 }
 
-export async function askEsperantoTutor({
+export async function askSpanishTutor({
 	segments,
 	currentTarget,
 	backgroundIntro,
 	conversation,
 	question,
 	model = DEFAULT_TEXT_MODEL,
-}: EsperantoTutorRequest): Promise<string> {
+}: SpanishTutorRequest): Promise<string> {
 	const storyContext = [
 		backgroundIntro ? `Player context: ${backgroundIntro}` : "",
 		segments.length > 0
@@ -576,7 +576,7 @@ export async function askEsperantoTutor({
 					)
 					.join("\n\n")}`
 			: "",
-		currentTarget ? `Current typing passage:\n${currentTarget}` : "",
+		currentTarget ? `Current reading passage:\n${currentTarget}` : "",
 	]
 		.filter(Boolean)
 		.join("\n\n")
@@ -586,12 +586,12 @@ export async function askEsperantoTutor({
 		{
 			role: "system",
 			content:
-				"You are Esperanto Bot, a friendly tutor inside an Esperanto story typing exercise. " +
-				"Explain Esperanto clearly and practically: vocabulary, roots, affixes, grammar, pronunciation, and why sentences mean what they mean. " +
+				"You are Spanish Bot, a friendly tutor inside a Spanish reading story. " +
+				"Explain Spanish clearly and practically: vocabulary, gender and agreement, verb conjugation and tense, ser and estar, pronunciation, and why sentences mean what they mean. " +
 				"Use the provided story context when it helps. Do not continue or rewrite the story unless the learner asks for that. " +
 				"If the learner asks for an exercise answer, prefer a helpful hint and explanation before giving the full answer. " +
 				"Reply in the language the learner uses for their latest message. If their message is mixed or ambiguous, reply in English. " +
-				"Use simple Esperanto when replying in Esperanto. Keep answers concise, warm, and easy for a beginner to act on. " +
+				"Use simple Spanish when replying in Spanish. Keep answers concise, warm, and easy for a beginner to act on. " +
 				"Default to 2-5 short sentences. Use plain text suitable for a small chat panel. " +
 				"Do not use Markdown tables, headings, horizontal rules, or long lists. If the learner explicitly asks for more detail, you may give a longer answer, but keep the formatting simple.",
 		},

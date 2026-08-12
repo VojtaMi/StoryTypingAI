@@ -27,8 +27,12 @@ export default defineConfig({
 		},
 	],
 	server: {
+		// The Spanish experiment runs on its own ports so its localStorage origin
+		// never overlaps with the Esperanto app during side-by-side testing.
+		port: 5175,
+		strictPort: true,
 		proxy: {
-			"/api": "http://localhost:3001",
+			"/api": "http://localhost:3002",
 		},
 	},
 });

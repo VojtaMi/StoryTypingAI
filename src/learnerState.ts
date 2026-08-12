@@ -41,12 +41,10 @@ export const DEFAULT_LEARNER_PROFILE: LearnerLanguageProfile = {
 	version: LEARNER_STATE_VERSION,
 	updated: "never",
 	confident: [],
-	learning: ["The first Esperanto words and the copula `estas`."],
+	learning: ["The first Spanish words and the verbs `ser` and `estar`."],
 	shaky: ["New vocabulary needs gradual introduction and meaningful reuse."],
 	recentlyPracticed: [],
-	notes: [
-		"New to Esperanto; use short, concrete sentences with clear context.",
-	],
+	notes: ["New to Spanish; use short, concrete sentences with clear context."],
 };
 
 export const DEFAULT_LEARNER_PREFERENCES: LearnerPreferences = {

@@ -32,11 +32,11 @@ export const STARTER_NEXT_STORY_BRIEF: NextStoryBrief = {
 	narrativeScale: "minimal",
 	language: {
 		focus:
-			"Simple present-tense sentences with concrete beginner words; avoid plurals and direct objects.",
+			"Simple present-tense Spanish sentences with concrete beginner words; practise basic gender and number agreement and the verbs `ser` and `estar`.",
 		progression: "establish",
 		complexity: "absolute beginner",
 		calibrationSnippets: [
-			"Petro estas viro. Petro sidas en ĝardeno. Simo estas hundo. Simo dormas apud Petro.",
+			"Pedro es un hombre. Pedro está en un jardín. Sol es un perro. Sol duerme junto a Pedro.",
 		],
 	},
 };

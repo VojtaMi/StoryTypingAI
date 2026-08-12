@@ -8,9 +8,7 @@ export function storyWords(
 	const excluded = new Set(
 		excludedWords.flatMap((word) => {
 			const normalized = word.toLowerCase();
-			return normalized.endsWith("n")
-				? [normalized]
-				: [normalized, `${normalized}n`, `${normalized}-n`];
+			return [normalized];
 		}),
 	);
 	return [
@@ -27,10 +25,6 @@ export function isStoryName(word: string, names: string[]): boolean {
 	const normalized = word.toLowerCase();
 	return names.some((name) => {
 		const normalizedName = name.toLowerCase();
-		return (
-			normalized === normalizedName ||
-			normalized === `${normalizedName}n` ||
-			normalized === `${normalizedName}-n`
-		);
+		return normalized === normalizedName;
 	});
 }

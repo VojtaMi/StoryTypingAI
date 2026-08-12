@@ -1,6 +1,4 @@
 import { useState } from "react";
-import type { Genre } from "../genres";
-import { genres } from "../genres";
 import type { StoryGenerationPresetId } from "../models";
 import type { SavedStorySummary } from "../saves";
 import {
@@ -15,12 +13,9 @@ interface MainMenuProps {
 	savedStories: SavedStorySummary[];
 	savesError: string | null;
 	storyGenerationPreset: StoryGenerationPresetId;
-	hasLessonProgress: boolean;
 	readingStoryStatus: ReadingPreparationStatus;
 	hasUnfinishedReadingStory: boolean;
 	onStoryGenerationPresetChange: (id: StoryGenerationPresetId) => void;
-	onSelect: (genre: Genre) => void;
-	onStartLesson: () => void;
 	onStartReadingStory: () => void;
 	onRetryReadingStory: () => void;
 	onResume: (id: string) => void;
@@ -31,22 +26,17 @@ export default function MainMenu({
 	savedStories,
 	savesError,
 	storyGenerationPreset,
-	hasLessonProgress,
 	readingStoryStatus,
 	hasUnfinishedReadingStory,
 	onStoryGenerationPresetChange,
-	onSelect,
-	onStartLesson,
 	onStartReadingStory,
 	onRetryReadingStory,
 	onResume,
 	onDelete,
 }: MainMenuProps) {
 	const [settingsOpen, setSettingsOpen] = useState(false);
-	const lessonGenre =
-		genres.find((genre) => genre.id === "esperanto") ?? genres[0];
 	const lessonSaves = savedStories.filter(
-		(story) => story.genreId === "esperanto",
+		(story) => story.genreId === "spanish",
 	);
 	const makingReadingStory = isReadingPreparationBusy(readingStoryStatus);
 	const readingStoryFailed = readingStoryStatus === "error";
@@ -63,25 +53,11 @@ export default function MainMenu({
 			</button>
 			<section className="lesson-hero" aria-labelledby="lesson-hero-title">
 				<div className="lesson-hero__content">
-					<h1 id="lesson-hero-title">Esperanto through tiny stories</h1>
+					<h1 id="lesson-hero-title">Spanish through tiny stories</h1>
 					<div className="lesson-hero__actions">
 						<button
 							type="button"
-							className="lesson-hero__start"
-							onClick={onStartLesson}
-						>
-							{hasLessonProgress ? "Lessons" : "Start Lessons"}
-						</button>
-						<button
-							type="button"
-							className="lesson-hero__start lesson-hero__start--secondary"
-							onClick={() => onSelect(lessonGenre)}
-						>
-							Typing Story
-						</button>
-						<button
-							type="button"
-							className={`lesson-hero__start lesson-hero__start--secondary${
+							className={`lesson-hero__start${
 								makingReadingStory ? " lesson-hero__start--making" : ""
 							}`}
 							onClick={

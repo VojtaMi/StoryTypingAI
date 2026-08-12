@@ -11,9 +11,9 @@
 		"bricks:test": "node --import ./scripts/register-css-loader.mjs --import tsx tests/bricks.test.ts",
 		"build": "tsc -b && vite build && npm run build:server",
 		"build:server": "vite build --config vite.server.config.ts",
-		"check": "npm run build && npm run lint && npm run bricks:test && npm run lessons:test && npm run reading:test && npm run story-cli:test && npm run model-selection:test && npm run reading:preparation:test && npm run finish-evidence:test && npm run story-recap:test",
+		"check": "npm run build && npm run lint && npm run bricks:test && npm run lessons:test && npm run reading:test && npm run story-cli:test && npm run model-selection:test && npm run reading:preparation:test && npm run finish-evidence:test && npm run story-recap:test && npm run word-audio:test",
 		"dev": "concurrently \"npm:dev:api\" \"npm:dev:vite\"",
-		"dev:api": "PORT=3001 tsx watch --env-file-if-exists=.env.local src/server/production.ts",
+		"dev:api": "PORT=3002 tsx watch --env-file-if-exists=.env.local src/server/production.ts",
 		"dev:vite": "vite",
 		"gemini:images": "tsx --env-file-if-exists=.env.local scripts/compare-gemini-images.ts",
 		"gemini:tts": "tsx --env-file-if-exists=.env.local scripts/test-gemini-tts.ts",
@@ -36,7 +36,8 @@
 		"story:generate": "tsx --env-file-if-exists=.env.local scripts/generate-reading-story.ts",
 		"story:chain": "tsx --env-file-if-exists=.env.local scripts/simulate-reading-story-chain.ts",
 		"story:typing-opening": "tsx --env-file-if-exists=.env.local scripts/generate-typing-opening.ts",
-		"verify:page": "node scripts/verify-page.mjs"
+		"verify:page": "node scripts/verify-page.mjs",
+		"word-audio:test": "tsx tests/word-audio-store.test.ts"
 	},
 	"dependencies": {
 		"@anthropic-ai/sdk": "^0.104.2",

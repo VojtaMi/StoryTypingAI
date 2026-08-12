@@ -565,21 +565,16 @@ export function useStorySession({
 	}, [model]);
 
 	useEffect(() => {
-		void (async () => {
-			await onSavedStoriesChanged();
-			void prepareOpeningsInBackground();
-		})();
-	}, [onSavedStoriesChanged, prepareOpeningsInBackground]);
+		void onSavedStoriesChanged();
+	}, [onSavedStoriesChanged]);
 
-	// Typing openings are cheap to hold and are prefetched on menu entry. Reading
-	// stories are not: each one is prepared by `useReadingPreparation` as the
-	// consequence of finishing the previous story, so that it sees that story's
-	// evidence. Opening the menu must not start one.
-	useEffect(() => {
-		if (view === "menu") {
-			void prepareOpeningsInBackground();
-		}
-	}, [view, prepareOpeningsInBackground]);
+	// This build offers reading stories only, so nothing can ever consume a
+	// prepared typing opening. Warming that queue on mount or on menu entry would
+	// bill a title, intro, narration, and background image per visit for a
+	// feature with no entry point, so it is not warmed at all. Reading stories
+	// are prepared by `useReadingPreparation` as the consequence of finishing the
+	// previous story, so that each one sees that story's evidence; opening the
+	// menu must not start one either.
 
 	const selectGenre = useCallback(
 		async (selected: Genre) => {
@@ -718,7 +713,7 @@ export function useStorySession({
 	);
 
 	const startReadingStory = useCallback(async () => {
-		const selected = genres.find((g) => g.id === "esperanto") ?? genres[0];
+		const selected = genres.find((g) => g.id === "spanish") ?? genres[0];
 
 		let preparedOpening: Awaited<
 			ReturnType<typeof consumePreparedReadingOpening>
@@ -868,7 +863,7 @@ export function useStorySession({
 	const startLessonStory = useCallback(
 		({ title, storyText }: { title: string; storyText: string }) => {
 			const selected =
-				genres.find((candidate) => candidate.id === "esperanto") ?? genres[0];
+				genres.find((candidate) => candidate.id === "spanish") ?? genres[0];
 			const saveId = createSaveId(title);
 			const nextNarrationVoice = pickRandomNarrationVoice();
 			// Seed the history as if the AI had opened with the lesson sentence, so

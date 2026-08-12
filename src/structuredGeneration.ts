@@ -7,12 +7,12 @@ export interface GenerationSpec<T> {
 
 /**
  * Carves `word` out of `sentence`, returning the text around it and the surface
- * form actually matched (`Mi` for the term `mi`). Callers that render the word
- * back into the sentence need `match`, not a re-derivation from the offsets.
+ * form actually matched (`Ella` for the term `ella`). Callers that render the
+ * word back into the sentence need `match`, not a re-derivation from the offsets.
  *
- * `word` may be a single word or a multi-word phrase (`pensas pri`): it is
- * matched as a run of consecutive whole tokens, so `pri` never matches inside
- * `prizorgi` and the gap covers the phrase exactly as it appears in the
+ * `word` may be a single word or a multi-word phrase (`piensa en`): it is
+ * matched as a run of consecutive whole tokens, so `en` never matches inside
+ * `entra` and the gap covers the phrase exactly as it appears in the
  * sentence. Callers that need a length limit enforce it themselves.
  */
 export function splitOnWord(

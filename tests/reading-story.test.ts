@@ -59,9 +59,9 @@ import { normalizeStoryText } from "../src/storyText.ts";
 import { storyWords } from "../src/storyVocabulary.ts";
 
 const genre: Genre = {
-	id: "esperanto",
-	label: "Esperanto",
-	systemPrompt: "Write Esperanto stories.",
+	id: "spanish",
+	label: "Spanish",
+	systemPrompt: "Write Spanish stories.",
 	seeds: [],
 } as unknown as Genre;
 
@@ -201,13 +201,13 @@ const manuscriptMessages = readingManuscriptMessages(
 	nextStoryBrief,
 	preferences,
 );
-assert.match(manuscriptMessages[0].content, /concise Esperanto title/i);
+assert.match(manuscriptMessages[0].content, /concise Spanish title/i);
 assert.match(manuscriptMessages[0].content, /final uninterrupted prose/i);
 assert.match(manuscriptMessages[0].content, /explicit preferences/i);
 assert.match(manuscriptMessages[0].content, /Do not assume an adult or child/i);
 assert.doesNotMatch(manuscriptMessages[0].content, /adult-respectful/i);
 assert.match(manuscriptMessages[0].content, /Do not create sections/i);
-assert.match(manuscriptMessages[0].content, /required accusative/i);
+assert.match(manuscriptMessages[0].content, /gender and number agreement/i);
 assert.match(manuscriptMessages[0].content, /do not insert English glosses/i);
 assert.match(
 	manuscriptMessages[0].content,
@@ -222,7 +222,7 @@ const authoringContext = JSON.parse(
 );
 assert.equal(authoringContext.storyPlot, "A commuter finds the correct train.");
 assert.equal(authoringContext.narrativeScale, "simple");
-assert.match(authoringContext.lengthGuidance, /160-260 Esperanto words/);
+assert.match(authoringContext.lengthGuidance, /160-260 Spanish words/);
 assert.match(authoringContext.languageGuidance, /shorter, more concrete/i);
 assert.deepEqual(authoringContext.language, nextStoryBrief.language);
 assert.deepEqual(authoringContext.preferences, preferences);
@@ -239,7 +239,7 @@ assert.match(absoluteBeginnerContext.languageGuidance, /very short, concrete/i);
 assert.match(absoluteBeginnerContext.languageGuidance, /one clause/i);
 assert.match(
 	absoluteBeginnerContext.languageGuidance,
-	/Avoid plurals and direct objects/i,
+	/gender and number agreement/i,
 );
 assert.match(
 	absoluteBeginnerContext.languageGuidance,
@@ -517,11 +517,11 @@ assert.deepEqual(
 		["Léo vidas Léon. Ana salutas Léo-n. La stacidomo estas granda."],
 		["Léo", "Ana"],
 	),
-	["vidas", "salutas", "la", "stacidomo", "estas", "granda"],
+	["vidas", "léon", "salutas", "léo-n", "la", "stacidomo", "estas", "granda"],
 );
 console.log("checked reading vocabulary: Unicode names remain whole tokens");
 
-// Structured provider output must preserve curly Esperanto dialogue.
+// Structured provider output must preserve curly Spanish dialogue.
 const storyWithCurlyDialogue = finalStoryJson(3).replace(
 	"Esperanta teksto de parto 1. Ĝi estas kompleta.",
 	"Mara diras: “Jes, la ĉambro estas preta.”",

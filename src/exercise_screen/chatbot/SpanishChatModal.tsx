@@ -6,11 +6,10 @@ import {
 	useState,
 } from "react";
 import {
-	askEsperantoTutor,
-	type EsperantoTutorChatMessage,
+	askSpanishTutor,
 	refineLearnerProfileFromChat,
+	type SpanishTutorChatMessage,
 } from "../../ai";
-import { ESPERANTO_KEY_MAP } from "../../esperantoKeyboard";
 import {
 	readSelectedChatModel,
 	saveSelectedChatModel,
@@ -18,7 +17,7 @@ import {
 import { TEXT_MODELS, type TextModelId } from "../../models";
 import type { StorySegment } from "../types";
 
-interface EsperantoChatModalProps {
+interface SpanishChatModalProps {
 	isOpen: boolean;
 	onOpen: () => void;
 	segments: StorySegment[];
@@ -33,11 +32,10 @@ interface EsperantoChatModalProps {
 	onCaptureQuestions?: (questions: string[]) => void;
 }
 
-const BOT_IMAGE_URL = "/images/esperanto-bot-retro.png";
-type ChatEntry = EsperantoTutorChatMessage & { id: string };
-type InputMode = "english" | "esperanto";
+const BOT_IMAGE_URL = "/images/spanish-bot.png";
+type ChatEntry = SpanishTutorChatMessage & { id: string };
 
-export function EsperantoChatModal({
+export function SpanishChatModal({
 	isOpen,
 	onOpen,
 	segments,
@@ -45,10 +43,9 @@ export function EsperantoChatModal({
 	backgroundIntro,
 	onClose,
 	onCaptureQuestions,
-}: EsperantoChatModalProps) {
+}: SpanishChatModalProps) {
 	const [messages, setMessages] = useState<ChatEntry[]>([]);
 	const [input, setInput] = useState("");
-	const [inputMode, setInputMode] = useState<InputMode>("english");
 	const [model, setModel] = useState<TextModelId>(readSelectedChatModel);
 	const [isSending, setIsSending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -85,12 +82,12 @@ export function EsperantoChatModal({
 	}, [messages, onClose, onCaptureQuestions]);
 
 	function createMessage(
-		role: EsperantoTutorChatMessage["role"],
+		role: SpanishTutorChatMessage["role"],
 		content: string,
 	): ChatEntry {
 		const id = nextMessageIdRef.current;
 		nextMessageIdRef.current += 1;
-		return { id: `esperanto-chat-${id}`, role, content };
+		return { id: `spanish-chat-${id}`, role, content };
 	}
 
 	useEffect(() => {
@@ -126,7 +123,7 @@ export function EsperantoChatModal({
 		const sessionId = sessionIdRef.current;
 
 		try {
-			const answer = await askEsperantoTutor({
+			const answer = await askSpanishTutor({
 				segments,
 				currentTarget,
 				backgroundIntro,
@@ -139,7 +136,7 @@ export function EsperantoChatModal({
 		} catch (err) {
 			if (sessionId !== sessionIdRef.current) return;
 			const message = err instanceof Error ? err.message : String(err);
-			setError(`Esperanto Bot could not answer: ${message}`);
+			setError(`Spanish Bot could not answer: ${message}`);
 		} finally {
 			if (sessionId === sessionIdRef.current) {
 				setIsSending(false);
@@ -153,28 +150,6 @@ export function EsperantoChatModal({
 			void submitQuestion(input);
 			return;
 		}
-
-		if (
-			inputMode !== "esperanto" ||
-			event.metaKey ||
-			event.ctrlKey ||
-			event.altKey
-		) {
-			return;
-		}
-
-		const mapped = ESPERANTO_KEY_MAP[event.key];
-		if (!mapped) return;
-		event.preventDefault();
-		const inputEl = event.currentTarget;
-		const start = inputEl.selectionStart;
-		const end = inputEl.selectionEnd;
-		const next = `${input.slice(0, start)}${mapped}${input.slice(end)}`;
-		setInput(next);
-		window.requestAnimationFrame(() => {
-			inputEl.selectionStart = start + mapped.length;
-			inputEl.selectionEnd = start + mapped.length;
-		});
 	}
 
 	return (
@@ -187,8 +162,8 @@ export function EsperantoChatModal({
 				type="button"
 				className="esperanto-bot-character"
 				onClick={isOpen ? closeChat : onOpen}
-				aria-label={isOpen ? "Close Esperanto Bot" : "Ask Esperanto Bot"}
-				title={isOpen ? "Close Esperanto Bot" : "Ask Esperanto Bot"}
+				aria-label={isOpen ? "Close Spanish Bot" : "Ask Spanish Bot"}
+				title={isOpen ? "Close Spanish Bot" : "Ask Spanish Bot"}
 			>
 				<img src={BOT_IMAGE_URL} alt="" draggable={false} />
 			</button>
@@ -197,7 +172,7 @@ export function EsperantoChatModal({
 				<section
 					className="esperanto-chat-panel"
 					role="dialog"
-					aria-label="Esperanto Bot"
+					aria-label="Spanish Bot"
 				>
 					<header className="esperanto-chat-header">
 						<div className="esperanto-chat-title">
@@ -205,7 +180,7 @@ export function EsperantoChatModal({
 								<img src={BOT_IMAGE_URL} alt="" draggable={false} />
 							</span>
 							<div>
-								<h2>Esperanto Bot</h2>
+								<h2>Spanish Bot</h2>
 								<p>Ask about the story, grammar, or vocabulary.</p>
 							</div>
 						</div>
@@ -213,29 +188,13 @@ export function EsperantoChatModal({
 							type="button"
 							className="esperanto-chat-close"
 							onClick={closeChat}
-							aria-label="Close Esperanto Bot"
+							aria-label="Close Spanish Bot"
 						>
 							✕
 						</button>
 					</header>
 
 					<div className="esperanto-chat-toolbar">
-						<div className="esperanto-chat-toggle">
-							<button
-								type="button"
-								data-active={inputMode === "english"}
-								onClick={() => setInputMode("english")}
-							>
-								EN
-							</button>
-							<button
-								type="button"
-								data-active={inputMode === "esperanto"}
-								onClick={() => setInputMode("esperanto")}
-							>
-								EO
-							</button>
-						</div>
 						<label className="esperanto-chat-model">
 							<span className="esperanto-chat-model-label">Model</span>
 							<select
@@ -259,7 +218,7 @@ export function EsperantoChatModal({
 						{messages.length === 0 ? (
 							<div className="esperanto-chat-empty">
 								<p>
-									Saluton. I can explain the current passage or answer follow-up
+									Hello. I can explain the current passage or answer follow-up
 									questions.
 								</p>
 							</div>
@@ -295,14 +254,10 @@ export function EsperantoChatModal({
 							onChange={(event) => setInput(event.target.value)}
 							onKeyDown={handleKeyDown}
 							rows={3}
-							placeholder={
-								inputMode === "esperanto"
-									? "Demandu vian demandon..."
-									: "Ask your question..."
-							}
+							placeholder="Ask your question..."
 						/>
 						<button type="submit" disabled={!input.trim() || isSending}>
-							{inputMode === "esperanto" ? "Sendu" : "Send"}
+							Send
 						</button>
 					</form>
 				</section>

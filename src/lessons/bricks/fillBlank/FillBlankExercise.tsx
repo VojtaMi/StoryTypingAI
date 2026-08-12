@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { EsperantoChatModal } from "../../../exercise_screen/chatbot/EsperantoChatModal";
+import { SpanishChatModal } from "../../../exercise_screen/chatbot/SpanishChatModal";
 import "../../lesson.css";
 import { useChoicePrompt } from "../../useChoicePrompt";
 import type { FillBlankPrompt } from "./index";
@@ -126,7 +126,7 @@ export default function FillBlankExercise({
 			</div>
 
 			{backgroundIntro && (
-				<EsperantoChatModal
+				<SpanishChatModal
 					isOpen={chatOpen}
 					onOpen={() => setChatOpen(true)}
 					segments={[]}

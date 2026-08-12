@@ -69,7 +69,7 @@ export function StoryRecapView({
 	if (!lesson) {
 		return (
 			<div className="story-recap">
-				<p className="lesson-doc__eyebrow">Eta praktiko</p>
+				<p className="lesson-doc__eyebrow">Práctica breve</p>
 				<h2 className="lesson-doc__heading">Preparing your recap</h2>
 				<p className="lesson-doc__paragraph">
 					A few tiny questions are being made from the story you just read.
@@ -103,7 +103,7 @@ export function StoryRecapView({
 
 	return (
 		<div className="story-recap">
-			<p className="lesson-doc__eyebrow">Eta praktiko</p>
+			<p className="lesson-doc__eyebrow">Práctica breve</p>
 			<h2 className="lesson-doc__heading">{lesson.title}</h2>
 			<div className="story-recap__list">
 				{lesson.exercises.map((exercise) => (

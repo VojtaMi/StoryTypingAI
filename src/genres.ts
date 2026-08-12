@@ -1,4 +1,4 @@
-export type GenreId = "esperanto";
+export type GenreId = "spanish";
 
 export interface Genre {
 	id: GenreId;
@@ -14,11 +14,11 @@ export interface Genre {
 
 export const genres: Genre[] = [
 	{
-		id: "esperanto",
-		label: "Esperanto",
+		id: "spanish",
+		label: "Spanish",
 		emoji: "★",
 		color: "#38b26d",
-		systemPrompt: "Create an engaging Esperanto story of your choice.",
+		systemPrompt: "Create an engaging Spanish story of your choice.",
 		seeds: [],
 	},
 ];

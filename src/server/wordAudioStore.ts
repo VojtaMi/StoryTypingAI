@@ -6,7 +6,7 @@ import type { SynthesizedSpeech } from "./tts/types";
 
 const wordAudioDir = join(process.cwd(), "word-audio");
 
-export const wordFilePattern = /^[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+\.(mp3|wav)$/u;
+export const wordFilePattern = /^\p{L}+(?:-\p{L}+)*\.(mp3|wav)$/u;
 
 function wordAudioUrl(word: string, version: number): string {
 	return `/api/word-audio/${encodeURIComponent(word)}?v=${version}`;
@@ -51,7 +51,7 @@ async function synthesizeWordAudio(
 		text: word,
 		provider: "gemini",
 		instructions:
-			"Pronounce this single Esperanto word clearly, slowly, and in isolation — as if teaching a language learner.",
+			"Pronounce this single Spanish word clearly, slowly, and in isolation — as if teaching a language learner.",
 	});
 	await mkdir(wordAudioDir, { recursive: true });
 	await writeFile(

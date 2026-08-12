@@ -37,7 +37,8 @@ import {
 	wordFilePattern,
 } from "./wordAudioStore";
 
-const learnerWordPattern = /^[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+$/u;
+/** Accepts every word shape `storyWords` can emit, including accented Spanish. */
+export const learnerWordPattern = /^\p{L}+(?:-\p{L}+)*$/u;
 
 export async function handleBackgroundImageRequest(
 	req: IncomingMessage,

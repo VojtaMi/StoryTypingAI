@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { EsperantoChatModal } from "../../../exercise_screen/chatbot/EsperantoChatModal";
+import { SpanishChatModal } from "../../../exercise_screen/chatbot/SpanishChatModal";
 import "../../lesson.css";
 import { useWordAudioPlayer } from "../../lessonAudio";
 import { shuffle } from "../../shuffle";
@@ -160,7 +160,7 @@ export default function PhraseBuilderExercise({
 			</div>
 
 			{backgroundIntro && (
-				<EsperantoChatModal
+				<SpanishChatModal
 					isOpen={chatOpen}
 					onOpen={() => setChatOpen(true)}
 					segments={[]}

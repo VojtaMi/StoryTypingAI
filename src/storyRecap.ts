@@ -71,7 +71,7 @@ type RecapExerciseSpec<T> = GenerationSpec<T>;
 
 const wordConnectSpec: RecapExerciseSpec<StoryRecapWordConnectExercise> = {
 	shape: {
-		pairs: [{ term: "Esperanto word", meaning: "English meaning" }],
+		pairs: [{ term: "Spanish word", meaning: "English meaning" }],
 	},
 	instructions:
 		"Use exactly three word-connect pairs, using only words and facts from the story. Keep English meanings short.",
@@ -103,16 +103,16 @@ const fillMissingWordSpec: RecapExerciseSpec<StoryRecapFillMissingWordExercise> 
 	{
 		shape: {
 			sentence:
-				"A complete, natural Esperanto sentence that contains the answer word",
-			answer: "correct Esperanto word, exactly as it appears in sentence",
+				"A complete, natural Spanish sentence that contains the answer word",
+			answer: "correct Spanish word, exactly as it appears in sentence",
 			choices: ["correct", "wrong", "wrong"],
 		},
 		instructions:
 			"Use exactly three fill choices, using only words and facts from the story. " +
 			"This exercise is the story's focus test: it must exercise the story's primary language focus stated below. " +
-			"Choose the fill sentence so its blanked `answer` is the exact Esperanto word or short phrase that realizes that focus. " +
-			"The `answer` is a single word or at most a short two-word phrase (e.g. `pensas pri`). " +
-			"The fill sentence must be one complete, natural Esperanto sentence containing the answer written exactly as in `answer` — the app carves the blank out of it itself, so write a normal sentence and do not pre-split it or omit the answer.",
+			"Choose the fill sentence so its blanked `answer` is the exact Spanish word or short phrase that realizes that focus. " +
+			"The `answer` is a single word or at most a short two-word phrase (e.g. `piensa en`). " +
+			"The fill sentence must be one complete, natural Spanish sentence containing the answer written exactly as in `answer` — the app carves the blank out of it itself, so write a normal sentence and do not pre-split it or omit the answer.",
 		parse(value) {
 			if (!isObject(value)) throw new Error("Recap fill exercise is invalid.");
 			const answer = requiredString(value.answer, "fill answer", "Recap JSON");
@@ -208,7 +208,7 @@ export function buildStoryRecapPrompt(primaryFocus?: string): string {
 	).join(" ");
 	const focus = primaryFocus?.trim();
 	return (
-		"Create a tiny end-of-story Esperanto recap lesson for a beginner. " +
+		"Create a tiny end-of-story Spanish recap lesson for a beginner. " +
 		"Return only valid JSON with this exact shape: " +
 		`${shape} ` +
 		`${instructions} ` +
@@ -225,7 +225,7 @@ export function parseStoryRecapLesson(text: string): StoryRecapLesson {
 	}
 	return {
 		id: `story-recap-${Date.now()}`,
-		title: "Eta praktiko",
+		title: "Práctica breve",
 		exercises: [
 			wordConnectSpec.parse(parsed.exercises[0]),
 			fillMissingWordSpec.parse(parsed.exercises[1]),

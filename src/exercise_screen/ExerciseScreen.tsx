@@ -10,7 +10,7 @@ import type { StoryFeedbackRecord } from "../storyFeedback";
 import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
 import { isStoryName } from "../storyVocabulary";
 import { AuthoringInput } from "./authoring/AuthoringInput";
-import { EsperantoChatModal } from "./chatbot/EsperantoChatModal";
+import { SpanishChatModal } from "./chatbot/SpanishChatModal";
 import { ExerciseControls } from "./controls/ExerciseControls";
 import { OpeningAudioControl } from "./story/OpeningAudioControl";
 import { StoryCompletionView } from "./story/StoryCompletionView";
@@ -20,7 +20,7 @@ import { StoryRecapView } from "./story/StoryRecapView";
 import type { StoryPhase, StorySegment, TypingStats } from "./types";
 import { TypingExercise } from "./typing/TypingExercise";
 
-const WORD_PATTERN = /([a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+|[^a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+)/g;
+const WORD_PATTERN = /(\p{L}+(?:-\p{L}+)*|[^\p{L}]+)/gu;
 
 interface WordPopover {
 	word: string;
@@ -333,7 +333,7 @@ export default function ExerciseScreen({
 				onOpenGallery={() => setGalleryOpen(true)}
 			/>
 
-			<EsperantoChatModal
+			<SpanishChatModal
 				isOpen={chatOpen}
 				onOpen={() => setChatOpen(true)}
 				segments={segments}
