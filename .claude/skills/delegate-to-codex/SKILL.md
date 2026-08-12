@@ -22,7 +22,7 @@ What the rescue agent does with your prompt:
 - **Defaults to `--write`** (sandbox `workspace-write`), so treat every delegation as "this will edit my working tree." Say "read-only", "review", or "diagnose" if you don't want edits.
 - **Chooses foreground or background itself** — background for open-ended or multi-step work. Pass `--wait` or `--background` to force it.
 - **Model passthrough**: `--model gpt-5.6-luna` (also `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.4-mini`). Left unset unless asked.
-- **Can generate images** via Codex's built-in `image_gen` tool. Ask for the image and where to save it; generated files land in `~/.codex/generated_images/<session-id>/`.
+- **Can generate images** via Codex's built-in `image_gen` tool. Ask for the image and where to save it; generated files land in `~/.codex/generated_images/<session-id>/`. It returns **RGB with no alpha** — asked for a transparent background it paints a checkerboard instead, so key it out yourself (flood-fill from the corners; a global color key eats light interior tones). Have it generate only, and copy the file into the repo yourself, so image work can run concurrently with a task editing the tree.
 - **Resumes prior work** with `--resume`; `--fresh` forces a new thread.
 
 For a long brief, write it to a file and tell Codex to read that path — the agent forwards prompt text verbatim, so inline briefs get unwieldy.
@@ -44,7 +44,23 @@ network_access = true
 
 The trade: this grants outbound network to every workspace-write Codex session on the machine, not just this one. If it isn't set, don't ask Codex to verify a page — verify it yourself instead.
 
-A fresh git worktree also won't be in that file's `projects` trust map. Add a `trust_level = "trusted"` entry for the worktree path before delegating into it.
+## Delegating into a different worktree needs `--cwd`
+
+`codex:codex-rescue` roots Codex's `workspace-write` sandbox at the **Claude session's cwd**. It therefore cannot write a sibling worktree at all, and trusting the path does not change that. The delegation fails with:
+
+> The sandbox only permits writes under the separate `<session worktree>` worktree
+
+If the brief forbade touching the original worktree, Codex stops there without writing anything — which is the correct outcome, and a reason to always name the forbidden path explicitly.
+
+Drive the companion directly instead; its `task` command takes `--cwd` (and `--prompt-file`, which beats forwarding a long brief as prompt text):
+
+```bash
+node ~/.claude/plugins/cache/openai-codex/codex/<version>/scripts/codex-companion.mjs \
+  task --cwd /path/to/other-worktree --model gpt-5.6-luna --write --background \
+  --prompt-file /path/to/brief.md
+```
+
+Add a `trust_level = "trusted"` entry for the worktree path in `~/.codex/config.toml` as well. Verified 2026-08-12: the observed failure was write-scope, not trust, and both were applied before the successful run — so whether trust alone is also required is unconfirmed.
 
 ## Write the brief as invariants, not checks
 
@@ -55,6 +71,12 @@ This is the single highest-leverage thing in this document. **Every defect that 
 
 - ✗ "Assert `parse(example)` equals the brick example." → derived exercise bricks have no `parse`, so their fixture could drift from `create()` unnoticed.
 - ✓ "A brick's `example` must be exactly what the app renders; make drift fail a test."
+
+- ✗ "Prove it with a test in `tests/`." → the test was written and passed, but nothing added it to `package.json`, so no gate ever ran it.
+- ✓ "Breaking the pattern must make `npm run check` fail."
+
+- ✗ Naming one validator by file and line. → it was fixed; an identical character-class check in another file was not, and 400'd on every accented word at runtime.
+- ✓ Name the **class**: "every validator on the word-lookup path must accept whatever `storyWords` can emit."
 
 For every requirement, ask: *what breaks if this is satisfied literally but not in spirit?* Write **that** as the success criterion, as a command whose failure is observable.
 
@@ -84,7 +106,9 @@ For non-UI invariants, ask for mutation proof: *"Corrupt X, confirm the test fai
 
 So when you delegate:
 
-- **Backgrounded jobs are yours to collect.** The agent will not poll. Retrieve them with `node "$CLAUDE_PLUGIN_ROOT/scripts/codex-companion.mjs" status` / `result`, or have the user run `/codex:status`. The agent is explicitly barred from calling those.
+- **Backgrounded jobs are yours to collect.** The agent will not poll. Retrieve them with `node "$CLAUDE_PLUGIN_ROOT/scripts/codex-companion.mjs" status` / `result`, or have the user run `/codex:status`. The agent is explicitly barred from calling those. Two traps:
+  - Jobs are **keyed by workspace root**. If you launched with `--cwd`, pass the *same* `--cwd` to `status` and `result` — otherwise they answer "No job found", which reads exactly like the job never existed.
+  - `result` resolves **finished jobs only**, so it cannot be used to wait. Poll `status --all --cwd <root>` until the job leaves `running`, then fetch `result`.
 - **Every check in *Verify before you trust* is yours to run.** Nothing in the chain verifies on your behalf.
 - **Split work into scoped subtasks yourself.** The agent does no decomposition.
 
@@ -94,6 +118,7 @@ Re-verified 2026-08-12 against codex-cli 0.147.0 and codex plugin 1.0.6:
 
 - **The plugin routes through `codex app-server`, not `codex exec`.** Flags documented for `exec` do not necessarily apply.
 - **No network access unless `config.toml` grants it** — see above.
+- **`npm run check` cannot run inside a delegation at all.** `tsx` fails to create its IPC pipe (`listen EPERM`), which takes out every `tsx`-based test script and therefore the whole `check` chain. Codex reports the suites it did manage plus a trailing note, and still calls the work done. Do not put `npm run check` in a brief as the success criterion — state the invariant, and run the gate yourself.
 - **`codex exec` outside a git repo** needs `--skip-git-repo-check`.
 
 Carried over from codex-cli 0.125.0 and **not** re-verified against the app-server path — confirm before relying on any of these:
@@ -106,8 +131,9 @@ Carried over from codex-cli 0.125.0 and **not** re-verified against the app-serv
 
 Codex's self-reports have been accurate about *what it did*. They are not evidence that what it did is correct. Check, in this order:
 
-1. `npm run check` — yourself, not from its summary.
+1. `npm run check` — yourself. Not from its summary: Codex cannot run it (see *Environment limits*), so a report claiming it passed is describing something else.
 2. Grep for the thing it was told to delete. Suffixed shims and dead functions survive.
-3. Mutation-test any new assertion: break the thing, confirm the test fails, restore it.
-4. Open the page if the change has a UI surface.
-5. Read the trailing "Blocked" section of its report. That is where it admits what it could not do.
+3. Confirm any new test is actually wired into a gate. A passing test file that nothing runs is the most common surviving defect.
+4. Mutation-test any new assertion: break the thing, confirm the test fails, restore it.
+5. Open the page if the change has a UI surface.
+6. Read the trailing "Blocked" section of its report. That is where it admits what it could not do.
