@@ -31,6 +31,7 @@ import {
 import {
 	generateNextStoryBrief,
 	type NextStoryEvidence,
+	recoverNextStoryBrief,
 } from "../src/server/nextStoryBriefService.ts";
 import { generateReadingStory, type ReadingStory } from "../src/story.ts";
 import {
@@ -56,6 +57,7 @@ export interface StoryChainCliOptions {
 	aiLogPath?: string;
 	defaultLearner: boolean;
 	feedbackPath?: string;
+	failHandoffAt?: number;
 	help: boolean;
 	json: boolean;
 	learnerStatePath?: string;
@@ -78,6 +80,7 @@ export interface StoryChainStep {
 	feedback: ChainFeedback;
 	nextStoryBrief: NextStoryBrief;
 	recentStory: RecentStoryMemory | null;
+	handoffRecovered: boolean;
 }
 
 export interface StoryChainScenario {
@@ -103,6 +106,7 @@ Options:
   -n, --length <n>        Number of stories to generate (default: 5)
   --feedback <path>       JSON feedback object, or an array with one per story
   --scenario <path>       JSON timeline of before-story changes and after-story evidence
+  --fail-handoff-at <n>   Simulate a malformed handoff after story n
   --ai-log <path>         Write full provider calls to a separate NDJSON trace
   --model <id>            Prose model (default: ${DEFAULT_TEXT_MODEL})
   --reasoning <effort>    OpenAI prose only: ${TEXT_REASONING_EFFORTS.join("|")}
@@ -162,6 +166,18 @@ export function parseStoryChainCliArgs(
 				options.feedbackPath = requiredFlagValue(rawArgs, index, argument);
 				index += 1;
 				break;
+			case "--fail-handoff-at": {
+				const value = requiredFlagValue(rawArgs, index, argument);
+				options.failHandoffAt = Number(value);
+				if (
+					!Number.isSafeInteger(options.failHandoffAt) ||
+					options.failHandoffAt < 1
+				) {
+					throw new Error(`${argument} must be a positive integer.`);
+				}
+				index += 1;
+				break;
+			}
 			case "--scenario":
 				options.scenarioPath = requiredFlagValue(rawArgs, index, argument);
 				index += 1;
@@ -500,6 +516,9 @@ async function simulateChain(
 	let inputBrief = STARTER_NEXT_STORY_BRIEF;
 	let pendingExplicitTheme = "";
 	const length = scenario?.steps.length ?? options.length;
+	if (options.failHandoffAt && options.failHandoffAt > length) {
+		throw new Error("--fail-handoff-at must identify a story in the chain.");
+	}
 	for (let index = 0; index < length; index += 1) {
 		const scenarioStep = scenario?.steps[index];
 		if (scenarioStep?.beforeStory?.preferences) {
@@ -537,20 +556,33 @@ async function simulateChain(
 			scenarioStep?.afterStory ??
 			feedbackItems[index] ??
 			({ difficulty: "right" } satisfies ChainFeedback);
-		const handoff = await withAiTraceMetadata(
-			{
-				chainIndex: index + 1,
-				chainPhase: "handoff",
-				chainStage: "handoff",
-			},
-			() =>
-				generateNextStoryBrief(
-					openai,
-					evidenceFor(story, feedback, storyMemory.recentStories),
-					anthropicKey,
-				),
+		const handoffEvidence = evidenceFor(
+			story,
+			feedback,
+			storyMemory.recentStories,
 		);
-		const { nextStoryBrief, recentStory } = handoff;
+		const handoff =
+			options.failHandoffAt === index + 1
+				? {
+						nextStoryBrief: recoverNextStoryBrief(handoffEvidence, inputBrief),
+						recentStory: null,
+						recovered: true,
+					}
+				: await withAiTraceMetadata(
+						{
+							chainIndex: index + 1,
+							chainPhase: "handoff",
+							chainStage: "handoff",
+						},
+						() =>
+							generateNextStoryBrief(
+								openai,
+								handoffEvidence,
+								anthropicKey,
+								inputBrief,
+							),
+					);
+		const { nextStoryBrief, recentStory, recovered } = handoff;
 		if (recentStory) {
 			storyMemory = mergeStoryMemory(
 				storyMemory,
@@ -570,6 +602,7 @@ async function simulateChain(
 			feedback,
 			nextStoryBrief,
 			recentStory,
+			handoffRecovered: recovered,
 		};
 		steps.push(step);
 		onStep?.(step);
@@ -627,6 +660,7 @@ function formatReadable(steps: StoryChainStep[]): string {
 				parts,
 				`Simulated learner feedback:\n${JSON.stringify(step.feedback, null, 2)}`,
 				`Completed-story memory added to FIFO:\n${JSON.stringify(step.recentStory, null, 2)}`,
+				`Handoff recovery used: ${step.handoffRecovered ? "yes" : "no"}`,
 				`Generated handoff to story ${step.index + 1}:\n${JSON.stringify(step.nextStoryBrief, null, 2)}`,
 			].join("\n\n");
 		})

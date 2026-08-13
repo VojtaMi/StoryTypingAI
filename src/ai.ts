@@ -18,6 +18,7 @@ import {
 	type TextReasoningEffort,
 } from "./models";
 import type { NarrationVoiceId } from "./narrationVoice";
+import type { NextStoryBrief } from "./nextStoryBrief";
 import {
 	type ChatMessage,
 	type Complete,
@@ -290,6 +291,8 @@ export interface StoryFinishEvidence {
 	storyParts: string[];
 	/** The primary language focus this story targeted; the chain advance/reinforce signal depends on it. */
 	languageFocus: string;
+	/** Validated authoring state retained with the story for handoff recovery. */
+	generationBrief?: NextStoryBrief;
 	learnerQuestions?: string[];
 	recapResults: StoryRecapExerciseResult[];
 	/** How hard the story felt, on the 5-point scale the completion form offers. */

@@ -1427,6 +1427,9 @@ export function useStorySession({
 					storySummary: readingStorySummary(story),
 					storyParts: story.parts.map((part) => part.text),
 					languageFocus: story.languageFocus,
+					...(story.generationBrief
+						? { generationBrief: story.generationBrief }
+						: {}),
 					learnerQuestions: botQuestionsRef.current,
 					recapResults: storyRecapResultsRef.current,
 					...(resolved.difficulty ? { difficulty: resolved.difficulty } : {}),

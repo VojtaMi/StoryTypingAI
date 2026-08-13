@@ -129,7 +129,12 @@ const chainDefaults = parseStoryChainCliArgs([]);
 assert.equal(chainDefaults.length, 5);
 assert.equal(chainDefaults.model, DEFAULT_TEXT_MODEL);
 assert.equal(chainDefaults.retries, 2);
+assert.equal(chainDefaults.failHandoffAt, undefined);
 assert.equal(parseStoryChainCliArgs(["-n", "3", "--json"]).length, 3);
+assert.equal(
+	parseStoryChainCliArgs(["--fail-handoff-at", "2"]).failHandoffAt,
+	2,
+);
 assert.equal(
 	parseStoryChainCliArgs(["--ai-log", ".artifacts/chain.ndjson"]).aiLogPath,
 	".artifacts/chain.ndjson",
@@ -159,6 +164,10 @@ assert.throws(
 assert.throws(
 	() => parseStoryChainCliArgs(["--retries", "-1"]),
 	/non-negative integer/,
+);
+assert.throws(
+	() => parseStoryChainCliArgs(["--fail-handoff-at", "0"]),
+	/positive integer/,
 );
 assert.deepEqual(await loadChainFeedback(undefined, 2), [
 	{ difficulty: "right" },

@@ -486,6 +486,7 @@ assert.equal(
 	"A commuter asks for directions and finds the correct train.",
 );
 assert.equal(generated.languageFocus, nextStoryBrief.language.focus);
+assert.deepEqual(generated.generationBrief, nextStoryBrief);
 assert.deepEqual(
 	pipelineCalls.map(({ options }) => options),
 	[

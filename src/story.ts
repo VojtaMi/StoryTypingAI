@@ -32,6 +32,8 @@ export interface ReadingStory {
 	title: string;
 	storySummary: string;
 	languageFocus: string;
+	/** The validated handoff used to generate this story; recovery reuses it if the next handoff is malformed. */
+	generationBrief?: NextStoryBrief;
 	/** Shared identity, location, and recurring-object context for every image. */
 	visualContext: string;
 	/** Character and place names excluded from vocabulary translation. */
@@ -157,6 +159,7 @@ export async function generateReadingStory(
 		title: manuscript.title,
 		storySummary: storyPlot,
 		languageFocus: nextStoryBrief.language.focus,
+		generationBrief: nextStoryBrief,
 		...visualPlan,
 		parts,
 	};

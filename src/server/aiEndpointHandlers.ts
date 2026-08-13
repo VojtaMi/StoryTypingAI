@@ -8,6 +8,7 @@ import {
 	type TextReasoningEffort,
 } from "../models";
 import { isNarrationVoiceId } from "../narrationVoice";
+import { parseNextStoryBrief } from "../nextStoryBrief";
 import { READING_STORY_MAX_PARTS } from "../reading_story/split";
 import { isStoryDifficulty } from "../storyFeedback";
 import { DEFAULT_TTS_MODEL, isTtsModelId } from "../ttsModel";
@@ -369,6 +370,16 @@ export async function handleFinalizeStoryEvidenceRequest(
 		sendJson(res, 400, { error: "languageFocus must be a non-empty string." });
 		return;
 	}
+	const generationBrief =
+		body.generationBrief === undefined
+			? undefined
+			: parseNextStoryBrief(body.generationBrief);
+	if (body.generationBrief !== undefined && !generationBrief) {
+		sendJson(res, 400, {
+			error: "generationBrief must be a valid story brief.",
+		});
+		return;
+	}
 	if (
 		!Array.isArray(body.learnerQuestions) ||
 		body.learnerQuestions.some((question) => typeof question !== "string")
@@ -417,6 +428,7 @@ export async function handleFinalizeStoryEvidenceRequest(
 			storySummary: body.storySummary,
 			storyParts: body.storyParts,
 			languageFocus: body.languageFocus,
+			...(generationBrief ? { generationBrief } : {}),
 			learnerQuestions: body.learnerQuestions ?? [],
 			recapResults: body.recapResults ?? [],
 			difficulty: body.difficulty,

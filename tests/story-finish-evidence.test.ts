@@ -44,6 +44,7 @@ const { finalizeStoryEvidence } = await import(
 const storyA = "story-a--0001";
 const storyB = "story-b--0002";
 const storyC = "story-c--0003";
+const storyD = "story-d--0004";
 
 const profile = {
 	version: 1 as const,
@@ -352,6 +353,57 @@ try {
 		"the finalized record is not mutated by late evidence",
 	);
 	assert.equal(afterLate.difficulty, "right");
+
+	const contextBeforeRecovery = await readLearnerContext();
+	const malformedOpenai = {
+		chat: {
+			completions: {
+				create: async () => ({
+					choices: [{ message: { content: "{malformed" } }],
+				}),
+			},
+		},
+	} as never;
+	const generationBrief = {
+		themeSuggestion: "coastal journey",
+		narrativeScale: "simple" as const,
+		language: {
+			focus: "Past-tense travel actions",
+			progression: "advance" as const,
+			complexity: "harder" as const,
+			calibrationSnippets: ["La vojaĝanto atingis la havenon."],
+		},
+	};
+	await finalizeStoryEvidence(
+		malformedOpenai,
+		{
+			...evidence,
+			storyId: storyD,
+			languageFocus: generationBrief.language.focus,
+			generationBrief,
+			difficulty: "tooHard" as const,
+		},
+		"",
+	);
+	const recoveredRecord = await readFinishEvidence(storyD);
+	assert.deepEqual(recoveredRecord.nextStoryBrief, {
+		themeSuggestion: "",
+		narrativeScale: "simple",
+		language: {
+			focus: "Past-tense travel actions",
+			progression: "reinforce",
+			complexity: "simpler",
+			calibrationSnippets: [evidence.storyParts[0]],
+		},
+	});
+	assert.deepEqual(
+		(await readLearnerContext()).storyMemory,
+		contextBeforeRecovery.storyMemory,
+		"malformed handoff keeps the existing FIFO unchanged",
+	);
+	console.log(
+		"checked finalization recovery: prior scale survives malformed handoff",
+	);
 	console.log(
 		"checked finalization service: full evidence, idempotence, no late deltas",
 	);

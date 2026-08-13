@@ -24,6 +24,7 @@ export interface StoryFinalizationInput {
 	storySummary: string;
 	storyParts: string[];
 	languageFocus: string;
+	generationBrief?: NextStoryBrief;
 	learnerQuestions: string[];
 	recapResults: StoryRecapEvidenceItem[];
 	difficulty?: StoryDifficulty;
@@ -64,6 +65,7 @@ async function finalizeOnce(
 			practiceRequest,
 		},
 		anthropicKey,
+		evidence.generationBrief,
 	);
 	const { nextStoryBrief, recentStory } = handoff;
 	if (recentStory) {
