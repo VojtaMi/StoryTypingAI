@@ -137,7 +137,7 @@ export async function generateReadingStory(
 	const storySubject = explicitTheme || nextStoryBrief.themeSuggestion;
 	const storyPlot = await prepareReadingStoryPlot(
 		complete,
-		storySubject || genre.label,
+		storySubject || undefined,
 		preferences,
 		nextStoryBrief.narrativeScale,
 	);

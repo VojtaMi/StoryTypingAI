@@ -34,6 +34,31 @@ Typing stories and reading stories have different lifecycles. Typing stories are
 
 See [`docs/architecture.md`](./docs/architecture.md) for the responsibility areas and both lifecycles, and [`docs/ai-workflows.md`](./docs/ai-workflows.md) for who owns each AI operation.
 
+## Lightweight reading-story experiments
+
+Use the text-only chain runner to inspect several adaptive reading stories
+without TTS or image generation:
+
+```bash
+npm run story:chain -- \
+  --default-learner \
+  --scenario path/to/scenario.json \
+  --ai-log .artifacts/trace.ndjson
+```
+
+A scenario defines a timeline. `beforeStory` changes preferences or an explicit
+theme before generation; `afterStory` supplies simulated learner feedback for
+the next-story handoff. Omitted preferences carry forward. The report exposes
+the effective preferences, story subject, incoming brief, plot, manuscript,
+and outgoing handoff. The full scenario shape is documented in
+[`docs/ai-workflows.md`](./docs/ai-workflows.md).
+
+This exercises the real text-story and handoff pipeline, but does not simulate
+the UI, TTS, images, persistence timing, or actual recap interaction. Use
+`--feedback` for a fixed feedback sequence and `--scenario` for state changes
+between stories. They cannot be combined, and a scenario determines the chain
+length.
+
 ## LLM Generation Code
 
 When a single LLM call generates multiple distinct structured items (e.g. a lesson made of several exercise types), give each item type a self-contained spec — its own prompt-shape fragment, its own authoring instructions, and its own parser — instead of one hardcoded monolithic prompt string plus one big parser. The orchestrator should just compose specs and dispatch parsing per item. See `src/storyRecap.ts` (`RecapExerciseSpec`) for the pattern.
