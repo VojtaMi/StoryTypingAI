@@ -27,7 +27,7 @@ a provider.
 
 | Operation | Owner | Notes |
 | --- | --- | --- |
-| **Story planning / generation** (reading) | [`src/server/openingsStore.ts`](../src/server/openingsStore.ts) queues it; staged contracts live in [`src/reading_story/`](../src/reading_story/) and orchestration/final validation in [`src/story.ts`](../src/story.ts). | Luna Low drafts and reviews one compact English plot. The selected story model expands the reviewed plot and pedagogical brief into uninterrupted Esperanto prose. Luna None chooses the natural count and semantic sentence boundaries for 2-8 similarly sized event-based parts, without rewriting. Luna then produces the shared visual core and exactly `ceil(parts / 2)` scene instructions. Plot preparation receives the resolved subject, explicit non-empty preferences, and mapped narrative scale—never language calibration, focus, or raw learner history. |
+| **Story planning / generation** (reading) | [`src/server/openingsStore.ts`](../src/server/openingsStore.ts) queues it; staged contracts live in [`src/reading_story/`](../src/reading_story/) and orchestration/final validation in [`src/story.ts`](../src/story.ts). | Luna Low drafts and reviews one compact English plot. The selected story model expands the reviewed plot and pedagogical brief into uninterrupted Esperanto prose. Luna None chooses the natural count and semantic sentence boundaries for 2-8 similarly sized event-based parts, without rewriting. Luna then produces the shared visual core and exactly `ceil(parts / 2)` scene instructions. Plot preparation receives an explicit or handoff subject when one exists, otherwise it chooses freely from the preferences and narrative scale. It never receives language calibration, focus, raw learner history, or the Esperanto genre label as a creative subject. |
 | **Story opening** (typing) | [`src/server/openingsStore.ts`](../src/server/openingsStore.ts), or `startStory` in [`src/ai.ts`](../src/ai.ts) as fallback. | Includes a title and a second-person intro. |
 | **Story continuation** (typing) | [`src/story_session/`](../src/story_session/), streamed. | The only streaming operation. Reading stories never use it. |
 | **Story memory (rolling summary)** | [`src/story_memory/`](../src/story_memory/) | Compacts a long typing history so the prompt stays bounded. Fires only once the unsummarized buffer crosses its threshold — not on every turn. |
@@ -38,7 +38,7 @@ a provider.
 | **Translation** | [`src/server/aiEndpointHandlers.ts`](../src/server/aiEndpointHandlers.ts) over [`src/server/translationCacheStore.ts`](../src/server/translationCacheStore.ts). | Uses the default Luna model at `none` reasoning. Prepared reading stories warm the cache with all unique story words in one batch, excluding declared character names. The visible-section lookup remains a fallback; only words missing from the cache are sent. Ambiguous words may retain concise slash-separated alternatives. |
 | **Recap generation** | [`src/story_session/`](../src/story_session/), with the spec and parser in [`src/storyRecap.ts`](../src/storyRecap.ts). | Built only from the finished prose, its stated language focus, and available word translations. |
 | **Lesson generation** | [`src/lessons/lessonGeneration.ts`](../src/lessons/lessonGeneration.ts), invoked through [`src/ai.ts`](../src/ai.ts). | The model authors body bricks only; exercises are derived from the parsed body in code. |
-| **Next-story brief** | [`src/server/nextStoryBriefService.ts`](../src/server/nextStoryBriefService.ts) | Finalization distills the completed prose, recap, story-scoped lookups, learner questions, difficulty, and practice request into a broad theme suggestion, an absolute `minimal` or `simple` narrative scale, and one language plan. Calibration snippets must be exact excerpts. |
+| **Next-story brief** | [`src/server/nextStoryBriefService.ts`](../src/server/nextStoryBriefService.ts) | Finalization distills the completed prose, recap, story-scoped lookups, learner questions, difficulty, and practice request into a broad theme suggestion, an absolute `minimal` or `simple` narrative scale, and one language plan. Calibration snippets may quote or lightly paraphrase the completed story, but must remain representative of its language difficulty. |
 | **Learner-profile refinement** | [`src/server/learnerProfileService.ts`](../src/server/learnerProfileService.ts) | Standalone tutor chat may maintain the bounded language profile used by legacy generated lessons. It cannot mutate explicit story preferences or reading handoffs. |
 | **Esperanto tutor chat** | [`src/ai.ts`](../src/ai.ts) (`askEsperantoTutor`), rendered by [`src/exercise_screen/`](../src/exercise_screen/). | Story context is passed in. Outside a reading story, the transcript may refine only the legacy language profile. Inside a reading story, the learner's own questions are buffered as evidence for the next-story brief. |
 
@@ -140,4 +140,28 @@ The text-only story-chain CLI can write a separate full-payload trace with
 belongs to story generation or the next-story handoff. Because full traces can
 contain learner state and story evidence, keep the output under a git-ignored
 location such as `.artifacts/`.
+
+For preference and progression experiments, pass `--scenario <path>`. A
+scenario is an explicit timeline: `beforeStory` changes take effect before that
+step is generated, while `afterStory` becomes evidence for its handoff. Omitted
+preferences carry forward. For example:
+
+```json
+{
+  "steps": [
+    { "label": "baseline", "afterStory": { "difficulty": "tooEasy" } },
+    {
+      "label": "adventure preference",
+      "beforeStory": {
+        "preferences": {
+          "prefer": ["engaging adventurous stories"],
+          "avoid": ["school and household routines"]
+        },
+        "theme": "A cave expedition"
+      },
+      "afterStory": { "difficulty": "right" }
+    }
+  ]
+}
+```
 </content>
