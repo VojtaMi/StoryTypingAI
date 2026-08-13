@@ -1,5 +1,5 @@
 import type { Genre } from "./genres";
-import type { LearnerPreferences } from "./learnerState";
+import type { LearnerPreferences, RecentStoryMemory } from "./learnerState";
 import type { TextModelId, TextReasoningEffort } from "./models";
 import {
 	type NextStoryBrief,
@@ -130,6 +130,7 @@ export async function generateReadingStory(
 	options: {
 		reasoningEffort?: TextReasoningEffort;
 		nextStoryBrief?: NextStoryBrief;
+		recentStories?: RecentStoryMemory[];
 	} = {},
 ): Promise<ReadingStory> {
 	const nextStoryBrief = options.nextStoryBrief ?? STARTER_NEXT_STORY_BRIEF;
@@ -140,6 +141,7 @@ export async function generateReadingStory(
 		storySubject || undefined,
 		preferences,
 		nextStoryBrief.narrativeScale,
+		options.recentStories,
 	);
 	const manuscript = await generateReadingManuscript(
 		complete,
