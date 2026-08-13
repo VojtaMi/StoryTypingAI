@@ -70,14 +70,10 @@ export async function generateNextStoryBrief(
 				: null;
 		const { recentStory: recentStoryValue, ...briefValue } = record ?? {};
 		const parsed = parseNextStoryBrief(briefValue);
-		const storyText = evidence.storyParts.join("\n");
 		const nextStoryBrief =
 			parsed &&
 			parsed.language.progression !== "establish" &&
-			parsed.language.calibrationSnippets.length > 0 &&
-			parsed.language.calibrationSnippets.every((snippet) =>
-				storyText.includes(snippet),
-			)
+			parsed.language.calibrationSnippets.length > 0
 				? parsed
 				: fallback;
 		return {
