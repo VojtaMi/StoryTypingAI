@@ -1,11 +1,14 @@
 import type OpenAI from "openai";
+import { mergeStoryMemory } from "../learnerState";
 import {
 	type NextStoryBrief,
 	STARTER_NEXT_STORY_BRIEF,
 } from "../nextStoryBrief";
 import type { StoryDifficulty } from "../storyFeedback";
 import { withAiTraceMetadata } from "./aiTrace";
+import { enqueueLearnerProfileMutation } from "./learnerProfileMutationQueue";
 import type { StoryRecapEvidenceItem } from "./learnerProfileService";
+import { readLearnerContext, writeLearnerContext } from "./learnerProfileStore";
 import {
 	pruneWordLogForStory,
 	readWordLookupsForStory,
@@ -43,8 +46,11 @@ async function finalizeOnce(
 	}
 
 	const practiceRequest = evidence.practiceRequest?.trim() || undefined;
-	const scoped = await readWordLookupsForStory(evidence.storyId);
-	const nextStoryBrief = await generateNextStoryBrief(
+	const [scoped, learnerContext] = await Promise.all([
+		readWordLookupsForStory(evidence.storyId),
+		readLearnerContext(),
+	]);
+	const handoff = await generateNextStoryBrief(
 		openai,
 		{
 			storySummary: evidence.storySummary,
@@ -53,11 +59,24 @@ async function finalizeOnce(
 			wordLookups: scoped.lookups,
 			learnerQuestions: evidence.learnerQuestions,
 			recapResults: evidence.recapResults,
+			recentStories: learnerContext.storyMemory.recentStories,
 			difficulty: evidence.difficulty,
 			practiceRequest,
 		},
 		anthropicKey,
 	);
+	const { nextStoryBrief, recentStory } = handoff;
+	if (recentStory) {
+		await enqueueLearnerProfileMutation(async () => {
+			const current = await readLearnerContext();
+			const storyMemory = mergeStoryMemory(
+				current.storyMemory,
+				recentStory,
+				new Date().toISOString().slice(0, 10),
+			);
+			await writeLearnerContext({ ...current, storyMemory });
+		});
+	}
 
 	await pruneWordLogForStory(evidence.storyId);
 	await updateFinishEvidence(evidence.storyId, {

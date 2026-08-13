@@ -7,7 +7,9 @@ import { genres } from "../src/genres.ts";
 import type {
 	LearnerContext,
 	LearnerPreferences,
+	RecentStoryMemory,
 } from "../src/learnerState.ts";
+import { mergeStoryMemory } from "../src/learnerState.ts";
 import {
 	DEFAULT_TEXT_MODEL,
 	TEXT_MODELS,
@@ -75,6 +77,7 @@ export interface StoryChainStep {
 	story: ReadingStory;
 	feedback: ChainFeedback;
 	nextStoryBrief: NextStoryBrief;
+	recentStory: RecentStoryMemory | null;
 }
 
 export interface StoryChainScenario {
@@ -442,6 +445,7 @@ function validRecapResult(value: unknown): boolean {
 export function evidenceFor(
 	story: ReadingStory,
 	feedback: ChainFeedback,
+	recentStories: RecentStoryMemory[] = [],
 ): NextStoryEvidence {
 	return {
 		storySummary: story.storySummary,
@@ -450,6 +454,7 @@ export function evidenceFor(
 		wordLookups: feedback.wordLookups ?? [],
 		learnerQuestions: feedback.learnerQuestions ?? [],
 		recapResults: feedback.recapResults ?? [],
+		recentStories,
 		...(feedback.difficulty ? { difficulty: feedback.difficulty } : {}),
 		...(feedback.practiceRequest?.trim()
 			? { practiceRequest: feedback.practiceRequest.trim() }
@@ -490,6 +495,7 @@ async function simulateChain(
 			avoid: learner.preferences.avoid,
 		},
 	);
+	let storyMemory = structuredClone(learner.storyMemory);
 	const steps: StoryChainStep[] = [];
 	let inputBrief = STARTER_NEXT_STORY_BRIEF;
 	let pendingExplicitTheme = "";
@@ -521,6 +527,7 @@ async function simulateChain(
 						generateReadingStory(complete, genre, preferences, explicitTheme, {
 							reasoningEffort: options.reasoningEffort,
 							nextStoryBrief: inputBrief,
+							recentStories: storyMemory.recentStories,
 						}),
 				),
 			options.retries,
@@ -530,7 +537,7 @@ async function simulateChain(
 			scenarioStep?.afterStory ??
 			feedbackItems[index] ??
 			({ difficulty: "right" } satisfies ChainFeedback);
-		const nextStoryBrief = await withAiTraceMetadata(
+		const handoff = await withAiTraceMetadata(
 			{
 				chainIndex: index + 1,
 				chainPhase: "handoff",
@@ -539,10 +546,18 @@ async function simulateChain(
 			() =>
 				generateNextStoryBrief(
 					openai,
-					evidenceFor(story, feedback),
+					evidenceFor(story, feedback, storyMemory.recentStories),
 					anthropicKey,
 				),
 		);
+		const { nextStoryBrief, recentStory } = handoff;
+		if (recentStory) {
+			storyMemory = mergeStoryMemory(
+				storyMemory,
+				recentStory,
+				new Date().toISOString().slice(0, 10),
+			);
+		}
 		const step = {
 			index: index + 1,
 			...(scenarioStep?.label ? { label: scenarioStep.label } : {}),
@@ -554,6 +569,7 @@ async function simulateChain(
 			story,
 			feedback,
 			nextStoryBrief,
+			recentStory,
 		};
 		steps.push(step);
 		onStep?.(step);
@@ -610,6 +626,7 @@ function formatReadable(steps: StoryChainStep[]): string {
 				`Language focus:\n${step.story.languageFocus}`,
 				parts,
 				`Simulated learner feedback:\n${JSON.stringify(step.feedback, null, 2)}`,
+				`Completed-story memory added to FIFO:\n${JSON.stringify(step.recentStory, null, 2)}`,
 				`Generated handoff to story ${step.index + 1}:\n${JSON.stringify(step.nextStoryBrief, null, 2)}`,
 			].join("\n\n");
 		})

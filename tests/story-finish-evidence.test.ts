@@ -251,6 +251,12 @@ try {
 							complexity: "similar",
 							calibrationSnippets: ["La lernanto trankvile vizitas laborejon."],
 						},
+						recentStory: {
+							motif: "finding a missing workshop tool",
+							protagonist: "adult learner",
+							setting: "quiet workshop",
+							elements: ["missing tool", "work table"],
+						},
 					};
 					return {
 						choices: [
@@ -306,9 +312,18 @@ try {
 			calibrationSnippets: ["La lernanto trankvile vizitas laborejon."],
 		},
 	});
-	// Reading finalization no longer mutates durable learner state.
-	assert.deepEqual((await readLearnerContext()).languageProfile, {
+	const contextAfterFinalization = await readLearnerContext();
+	assert.deepEqual(contextAfterFinalization.languageProfile, {
 		...profile,
+	});
+	assert.deepEqual(contextAfterFinalization.storyMemory.recentStories[0], {
+		motif: "finding a missing workshop tool",
+		protagonist: "adult learner",
+		setting: "quiet workshop",
+		elements: ["missing tool", "work table"],
+	});
+	assert.deepEqual(contextAfterFinalization.storyMemory.recentStories[1], {
+		...storyMemory.recentStories[0],
 	});
 
 	await finalizeStoryEvidence(fakeOpenai, evidence, "");

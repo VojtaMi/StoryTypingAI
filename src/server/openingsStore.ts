@@ -386,7 +386,7 @@ async function createPreparedReadingOpening(
 	reasoningEffort: TextReasoningEffort = "low",
 	ttsModel: TtsModelId = DEFAULT_TTS_MODEL,
 ): Promise<PreparedReadingOpening> {
-	const { preferences } = await readLearnerContext();
+	const { preferences, storyMemory } = await readLearnerContext();
 	// The previous story's finalizer owns the complete pedagogical handoff. The
 	// first story starts from one fixed baseline rather than inferred history.
 	const nextStoryBrief = basedOnStoryId
@@ -406,7 +406,11 @@ async function createPreparedReadingOpening(
 		genre,
 		{ prefer: preferences.prefer, avoid: preferences.avoid },
 		nextTheme,
-		{ reasoningEffort, nextStoryBrief },
+		{
+			reasoningEffort,
+			nextStoryBrief,
+			recentStories: storyMemory.recentStories,
+		},
 	);
 	const text = readingStory.parts[0].text;
 	const title = readingStory.title;

@@ -222,6 +222,7 @@ assert.deepEqual(
 		wordLookups: ["jen"],
 		learnerQuestions: [],
 		recapResults: [],
+		recentStories: [],
 		difficulty: "bitHard",
 		practiceRequest: "accusative",
 	},

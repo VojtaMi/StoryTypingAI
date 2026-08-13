@@ -139,10 +139,18 @@ assert.match(
 	/beginner language practice/i,
 );
 const openPlotContext = JSON.parse(
-	readingStoryPlotMessages(undefined, preferences)[1].content,
+	readingStoryPlotMessages(undefined, preferences, "minimal", [
+		{
+			motif: "a lost red ball",
+			protagonist: "young child",
+			setting: "city park",
+			elements: ["red ball", "bench"],
+		},
+	])[1].content,
 );
 assert.equal(openPlotContext.storySubject, undefined);
 assert.deepEqual(openPlotContext.preferences, preferences);
+assert.equal(openPlotContext.recentStories[0].motif, "a lost red ball");
 assert.match(readingStoryPlotMessages(undefined)[0].content, /choose.*freely/i);
 
 const reviewMessages = readingStoryPlotReviewMessages("A draft plot.");
