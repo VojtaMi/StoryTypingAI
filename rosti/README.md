@@ -3,7 +3,16 @@
 This app deploys to [Rosti](https://rosti.cz), a Czech PaaS, as a Rosti
 **app** — a Node runtime managed by supervisor. No Docker is involved.
 
-The CLI is **`rosticli`** (not `rosti`).
+The CLI is **`rosticli`** (not `rosti`). It must be available on `PATH`; the
+usual per-user install location is `~/.local/bin`:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+rosticli --version
+```
+
+If a non-login shell reports `rosticli: command not found`, either start a
+login shell or export that path explicitly before running the deploy script.
 
 Verified 2026-08-12 against `rosticli` 1.4.4 by deploying the Spanish reading
 experiment to app 9220. The mechanism below is what actually ran; see
