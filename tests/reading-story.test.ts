@@ -138,6 +138,12 @@ assert.match(
 	).narrativeGuidance,
 	/beginner language practice/i,
 );
+const openPlotContext = JSON.parse(
+	readingStoryPlotMessages(undefined, preferences)[1].content,
+);
+assert.equal(openPlotContext.storySubject, undefined);
+assert.deepEqual(openPlotContext.preferences, preferences);
+assert.match(readingStoryPlotMessages(undefined)[0].content, /choose.*freely/i);
 
 const reviewMessages = readingStoryPlotReviewMessages("A draft plot.");
 assert.match(reviewMessages[0].content, /Original draft:/);

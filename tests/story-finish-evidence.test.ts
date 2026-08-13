@@ -249,7 +249,7 @@ try {
 							focus: "Naming actions with the -ado suffix",
 							progression: "advance",
 							complexity: "similar",
-							calibrationSnippets: ["La lernanto vizitas laborejon."],
+							calibrationSnippets: ["La lernanto trankvile vizitas laborejon."],
 						},
 					};
 					return {
@@ -292,6 +292,8 @@ try {
 	assert.deepEqual(firstRecord.recapResults, evidence.recapResults);
 	assert.equal(firstRecord.difficulty, "right");
 	assert.equal(firstRecord.practiceRequest, "the -ilo suffix kept slipping");
+	// Calibration examples may lightly paraphrase the story; only their schema and
+	// presence are required for the handoff to remain usable.
 	// The producer's self-contained brief is stored in the reading-lifecycle
 	// record, keyed by this story, for the next prepare to read via basedOnStoryId.
 	assert.deepEqual(firstRecord.nextStoryBrief, {
@@ -301,7 +303,7 @@ try {
 			focus: "Naming actions with the -ado suffix",
 			progression: "advance",
 			complexity: "similar",
-			calibrationSnippets: ["La lernanto vizitas laborejon."],
+			calibrationSnippets: ["La lernanto trankvile vizitas laborejon."],
 		},
 	});
 	// Reading finalization no longer mutates durable learner state.

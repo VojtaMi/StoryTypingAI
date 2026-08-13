@@ -12,6 +12,7 @@ import {
 import {
 	evidenceFor,
 	loadChainFeedback,
+	loadStoryChainScenario,
 	parseStoryChainCliArgs,
 } from "../scripts/simulate-reading-story-chain.ts";
 import { DEFAULT_LEARNER_CONTEXT } from "../src/learnerState.ts";
@@ -133,6 +134,24 @@ assert.equal(
 	parseStoryChainCliArgs(["--ai-log", ".artifacts/chain.ndjson"]).aiLogPath,
 	".artifacts/chain.ndjson",
 );
+assert.equal(
+	parseStoryChainCliArgs(["--scenario", "scenario.json"]).scenarioPath,
+	"scenario.json",
+);
+assert.throws(
+	() =>
+		parseStoryChainCliArgs([
+			"--scenario",
+			"scenario.json",
+			"--feedback",
+			"feedback.json",
+		]),
+	/cannot be used together/,
+);
+assert.throws(
+	() => parseStoryChainCliArgs(["--scenario", "scenario.json", "-n", "3"]),
+	/cannot be used together/,
+);
 assert.throws(
 	() => parseStoryChainCliArgs(["--length", "0"]),
 	/positive integer/,
@@ -145,6 +164,42 @@ assert.deepEqual(await loadChainFeedback(undefined, 2), [
 	{ difficulty: "right" },
 	{ difficulty: "right" },
 ]);
+const scenarioDirectory = await mkdtemp(join(tmpdir(), "story-scenario-test-"));
+try {
+	const scenarioPath = join(scenarioDirectory, "scenario.json");
+	await writeFile(
+		scenarioPath,
+		JSON.stringify({
+			initialPreferences: { prefer: [], avoid: ["school routines"] },
+			steps: [
+				{ label: "baseline", afterStory: { difficulty: "tooEasy" } },
+				{
+					label: "adventure",
+					beforeStory: {
+						preferences: {
+							prefer: ["adventurous stories"],
+							avoid: ["school routines"],
+						},
+						theme: "A cave expedition",
+					},
+				},
+			],
+		}),
+		"utf8",
+	);
+	const scenario = await loadStoryChainScenario(scenarioPath);
+	assert.equal(scenario.steps.length, 2);
+	assert.deepEqual(scenario.initialPreferences, {
+		prefer: [],
+		avoid: ["school routines"],
+	});
+	assert.equal(scenario.steps[1].beforeStory?.theme, "A cave expedition");
+	assert.deepEqual(scenario.steps[1].beforeStory?.preferences?.prefer, [
+		"adventurous stories",
+	]);
+} finally {
+	await rm(scenarioDirectory, { recursive: true });
+}
 const story = {
 	title: "Testo",
 	storySummary: "A simple test.",
