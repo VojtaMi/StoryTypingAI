@@ -40,6 +40,7 @@ export async function handleCompleteStreamRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 	anthropicKey: string,
+	geminiKey: string,
 ) {
 	const {
 		messages,
@@ -54,6 +55,7 @@ export async function handleCompleteStreamRequest(
 		model,
 		anthropicKey,
 		(chunk) => writeJsonLine(res, { type: "chunk", text: chunk }),
+		geminiKey,
 	);
 	writeJsonLine(res, { type: "done", text });
 	res.end();
@@ -81,6 +83,7 @@ export async function handleCompleteRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 	anthropicKey: string,
+	geminiKey: string,
 ) {
 	const {
 		messages,
@@ -88,7 +91,14 @@ export async function handleCompleteRequest(
 		model = DEFAULT_TEXT_MODEL,
 	} = JSON.parse(await readBody(req));
 	sendJson(res, 200, {
-		text: await completeAi(openai, messages, maxTokens, model, anthropicKey),
+		text: await completeAi(
+			openai,
+			messages,
+			maxTokens,
+			model,
+			anthropicKey,
+			geminiKey,
+		),
 	});
 }
 

@@ -14,8 +14,12 @@ export default defineConfig(({ mode }) => {
 			savesApi(),
 			storyImagesApi(),
 			galleryApi(),
-			openingsApi(env.OPENAI_API_KEY, env.ANTHROPIC_API_KEY),
-			aiApi(env.OPENAI_API_KEY, env.ANTHROPIC_API_KEY),
+			openingsApi(
+				env.OPENAI_API_KEY,
+				env.ANTHROPIC_API_KEY,
+				env.GEMINI_API_KEY,
+			),
+			aiApi(env.OPENAI_API_KEY, env.ANTHROPIC_API_KEY, env.GEMINI_API_KEY),
 		],
 	};
 });

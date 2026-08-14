@@ -11,7 +11,11 @@ import {
 	readStoryImage,
 } from "./openingsStore";
 
-export function openingsApi(apiKey: string, anthropicKey: string): Plugin {
+export function openingsApi(
+	apiKey: string,
+	anthropicKey: string,
+	geminiKey: string,
+): Plugin {
 	let preparePromise: Promise<void> | null = null;
 
 	return {
@@ -47,6 +51,7 @@ export function openingsApi(apiKey: string, anthropicKey: string): Plugin {
 							openai,
 							body.model,
 							anthropicKey,
+							geminiKey,
 						).finally(() => {
 							preparePromise = null;
 						});

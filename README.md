@@ -42,13 +42,19 @@ The dev server exposes local `/api/saves` endpoints for JSON file saves and a
 
 ## Getting started
 
-This app calls the OpenAI API, so it needs an API key.
+This app uses OpenAI for images and narration, so `OPENAI_API_KEY` is always
+required. Add the provider key for any additional text model you select:
+`ANTHROPIC_API_KEY` for Claude or `GEMINI_API_KEY` for Gemini.
 
 ```bash
 npm install
 
-# Add your OpenAI key — kept server-side, never sent to the browser:
-echo 'OPENAI_API_KEY=sk-...' > .env.local
+# Keys stay server-side and are never sent to the browser:
+cat > .env.local <<'EOF'
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=...
+EOF
 
 npm run dev      # start the dev server
 npm run build    # type-check and build for production
@@ -72,7 +78,8 @@ npm run story:chain -- --author-inputs path/to/author-inputs.json --json
 ```
 
 Run `npm run story:chain -- --help` for all chain options. The author-input file
-is a JSON array of non-empty strings.
+is a JSON array of non-empty strings. The selectable text models are GPT-5.6
+Luna Low, GPT-5.6 Terra Low, Claude Sonnet 5, and Gemini 3.7 Flash Low.
 
 Saved stories are local development files under `saves/`, which is git-ignored.
 The file-save and AI proxy APIs are provided by Vite during `npm run dev`; a

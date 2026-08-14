@@ -6,8 +6,9 @@ import OpenAI from "openai";
 import type { ChatMessage } from "../ai";
 import type { GenreId } from "../genres";
 import { DEFAULT_TEXT_MODEL } from "../models";
-import { completeAi, synthesizeSpeech } from "./aiService";
+import { completeAi, streamAi, synthesizeSpeech } from "./aiService";
 import { readBody, sendJson } from "./http";
+import { sendNdjsonError, startNdjsonResponse, writeJsonLine } from "./ndjson";
 import {
 	consumePreparedOpening,
 	createBackgroundImage,
@@ -30,6 +31,7 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PORT = Number(process.env.PORT) || 80;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? "";
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? "";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
 const distDir = join(__dirname, "dist");
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -95,6 +97,7 @@ const server = createServer(async (req, res) => {
 				openai,
 				body.model,
 				ANTHROPIC_API_KEY,
+				GEMINI_API_KEY,
 			).finally(() => {
 				preparePromise = null;
 			});
@@ -229,8 +232,35 @@ const server = createServer(async (req, res) => {
 					maxTokens,
 					model,
 					ANTHROPIC_API_KEY,
+					GEMINI_API_KEY,
 				),
 			});
+			return;
+		}
+
+		if (pathname === "/api/ai/complete-stream" && req.method === "POST") {
+			const {
+				messages,
+				maxTokens = 400,
+				model = DEFAULT_TEXT_MODEL,
+			} = JSON.parse(await readBody(req));
+			startNdjsonResponse(res);
+			try {
+				const text = await streamAi(
+					openai,
+					messages,
+					maxTokens,
+					model,
+					ANTHROPIC_API_KEY,
+					(chunk) => writeJsonLine(res, { type: "chunk", text: chunk }),
+					GEMINI_API_KEY,
+				);
+				writeJsonLine(res, { type: "done", text });
+				res.end();
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				sendNdjsonError(res, message);
+			}
 			return;
 		}
 

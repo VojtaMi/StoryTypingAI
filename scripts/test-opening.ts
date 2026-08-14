@@ -5,7 +5,7 @@
  *   npm run test:opening                           # generate one opening per genre
  *   npm run test:opening -- scifi                  # generate only the scifi opening
  *   npm run test:opening -- scifi 3                # generate 3 scifi openings in a row
- *   npm run test:opening -- --model gpt-5.5 scifi  # use a specific model
+ *   npm run test:opening -- --model claude-sonnet-5 scifi
  *   npm run test:opening -- --seed "garden world" scifi
  */
 import OpenAI from "openai";
@@ -64,25 +64,35 @@ if (genreArg && targetGenres.length === 0) {
 }
 
 const anthropicKey = process.env.ANTHROPIC_API_KEY ?? "";
+const geminiKey = process.env.GEMINI_API_KEY ?? "";
 const openaiKey = process.env.OPENAI_API_KEY ?? "";
 
 if (model.startsWith("claude-") && !anthropicKey) {
 	console.error("Error: ANTHROPIC_API_KEY is required for Claude models.");
 	process.exit(1);
 }
-if (!model.startsWith("claude-") && !openaiKey) {
+if (model.startsWith("gemini-") && !geminiKey) {
+	console.error("Error: GEMINI_API_KEY is required for Gemini models.");
+	process.exit(1);
+}
+if (
+	!model.startsWith("claude-") &&
+	!model.startsWith("gemini-") &&
+	!openaiKey
+) {
 	console.error("Error: OPENAI_API_KEY is required for OpenAI models.");
 	process.exit(1);
 }
 
-const openai = model.startsWith("claude-")
-	? ({} as OpenAI)
-	: new OpenAI({ apiKey: openaiKey });
+const openai =
+	model.startsWith("claude-") || model.startsWith("gemini-")
+		? ({} as OpenAI)
+		: new OpenAI({ apiKey: openaiKey });
 
 console.log(`Using model: ${model}`);
 
 const complete: Complete = (messages, maxTokens) =>
-	completeAi(openai, messages, maxTokens, model, anthropicKey);
+	completeAi(openai, messages, maxTokens, model, anthropicKey, geminiKey);
 
 for (const genre of targetGenres) {
 	for (let i = 0; i < count; i++) {

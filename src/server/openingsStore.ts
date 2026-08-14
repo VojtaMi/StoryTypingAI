@@ -42,6 +42,7 @@ export async function prepareMissingOpenings(
 	openai: OpenAI,
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
+	geminiKey = "",
 ) {
 	await mkdir(openingsDir, { recursive: true });
 
@@ -63,6 +64,7 @@ export async function prepareMissingOpenings(
 			genre,
 			model,
 			anthropicKey,
+			geminiKey,
 		);
 		await writePreparedOpening(opening);
 	}
@@ -103,6 +105,7 @@ async function createPreparedOpening(
 	genre: Genre,
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
+	geminiKey = "",
 ): Promise<PreparedOpening> {
 	const id = randomUUID();
 	const seed = genre.seeds[Math.floor(Math.random() * genre.seeds.length)];
@@ -113,9 +116,16 @@ async function createPreparedOpening(
 		{ role: "system", content: genre.systemPrompt },
 		{ role: "user", content: userContent },
 	];
-	const text = await completeAi(openai, messages, 200, model, anthropicKey);
+	const text = await completeAi(
+		openai,
+		messages,
+		200,
+		model,
+		anthropicKey,
+		geminiKey,
+	);
 	const [backgroundIntro, backgroundImage] = await Promise.all([
-		createBackgroundIntro(openai, genre, text, model, anthropicKey),
+		createBackgroundIntro(openai, genre, text, model, anthropicKey, geminiKey),
 		createBackgroundImage(openai, genre, text, id),
 	]);
 	return {
@@ -135,6 +145,7 @@ async function createBackgroundIntro(
 	openingText: string,
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
+	geminiKey = "",
 ): Promise<string> {
 	try {
 		return await completeAi(
@@ -155,6 +166,7 @@ async function createBackgroundIntro(
 			100,
 			model,
 			anthropicKey,
+			geminiKey,
 		);
 	} catch (err) {
 		console.warn("Could not generate background intro.", err);

@@ -9,8 +9,13 @@ import {
 	loadAuthorInputs,
 	parseStoryChainCliArgs,
 } from "../scripts/simulate-story-chain.ts";
-import { DEFAULT_TEXT_MODEL, reasoningEffortForModel } from "../src/models.ts";
+import {
+	DEFAULT_TEXT_MODEL,
+	reasoningEffortForModel,
+	TEXT_MODELS,
+} from "../src/models.ts";
 import { completeAi } from "../src/server/aiService.ts";
+import { normalizeStoryText } from "../src/server/http.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -20,6 +25,10 @@ assert.equal(defaults.length, 5);
 assert.equal(defaults.model, DEFAULT_TEXT_MODEL);
 assert.equal(defaults.retries, 2);
 assert.equal(reasoningEffortForModel(DEFAULT_TEXT_MODEL), "low");
+assert.deepEqual(
+	TEXT_MODELS.map(({ id }) => id),
+	["gpt-5.6-luna", "gpt-5.6-terra", "claude-sonnet-5", "gemini-3.7-flash"],
+);
 
 const configured = parseStoryChainCliArgs([
 	"--genre",
@@ -31,14 +40,14 @@ const configured = parseStoryChainCliArgs([
 	"--retries",
 	"0",
 	"--model",
-	"gpt-5.5",
+	"claude-sonnet-5",
 	"--json",
 ]);
 assert.equal(configured.genre, "fantasy");
 assert.equal(configured.seed, "glass forest");
 assert.equal(configured.length, 3);
 assert.equal(configured.retries, 0);
-assert.equal(configured.model, "gpt-5.5");
+assert.equal(configured.model, "claude-sonnet-5");
 assert.equal(configured.json, true);
 
 assert.throws(
@@ -80,11 +89,75 @@ await completeAi(
 	400,
 	"gpt-5.6-luna",
 );
+await completeAi(
+	fakeOpenAi,
+	[{ role: "user", content: "Begin." }],
+	400,
+	"gpt-5.6-terra",
+);
 assert.equal(
 	(completionRequests[0] as { reasoning_effort?: string }).reasoning_effort,
 	"low",
 );
+assert.equal(
+	(completionRequests[1] as { reasoning_effort?: string }).reasoning_effort,
+	"low",
+);
 console.log("checked story AI: Luna requests use low reasoning");
+
+const originalFetch = globalThis.fetch;
+let geminiUrl = "";
+let geminiRequest: Record<string, unknown> = {};
+globalThis.fetch = async (input, init) => {
+	geminiUrl = String(input);
+	geminiRequest = JSON.parse(String(init?.body));
+	return new Response(
+		JSON.stringify({
+			candidates: [
+				{
+					content: { parts: [{ text: "A Gemini result." }] },
+					finishReason: "STOP",
+				},
+			],
+		}),
+		{ status: 200, headers: { "Content-Type": "application/json" } },
+	);
+};
+try {
+	assert.equal(
+		await completeAi(
+			fakeOpenAi,
+			[
+				{ role: "system", content: "Write prose." },
+				{ role: "user", content: "Begin." },
+			],
+			400,
+			"gemini-3.7-flash",
+			"",
+			"gemini-test-key",
+		),
+		"A Gemini result.",
+	);
+} finally {
+	globalThis.fetch = originalFetch;
+}
+assert.match(geminiUrl, /gemini-3\.7-flash:generateContent$/);
+assert.deepEqual(geminiRequest.generationConfig, {
+	maxOutputTokens: 800,
+	thinkingConfig: { thinkingLevel: "low" },
+});
+assert.deepEqual(geminiRequest.systemInstruction, {
+	parts: [{ text: "Write prose." }],
+});
+console.log(
+	"checked story AI: Gemini uses low thinking and a safe token floor",
+);
+
+assert.equal(
+	normalizeStoryText("Comms—*Reyes, report*—went silent."),
+	"Comms -- Reyes, report -- went silent.",
+);
+console.log("checked story text: model markup and dash spacing are normalized");
 
 const temporaryDirectory = await mkdtemp(join(tmpdir(), "story-chain-test-"));
 try {

@@ -217,18 +217,34 @@ export async function runStoryChainCli(rawArgs: string[]): Promise<void> {
 
 	const openaiKey = process.env.OPENAI_API_KEY ?? "";
 	const anthropicKey = process.env.ANTHROPIC_API_KEY ?? "";
+	const geminiKey = process.env.GEMINI_API_KEY ?? "";
 	if (options.model.startsWith("claude-") && !anthropicKey) {
 		throw new Error("ANTHROPIC_API_KEY is required for Claude models.");
 	}
-	if (!options.model.startsWith("claude-") && !openaiKey) {
+	if (options.model.startsWith("gemini-") && !geminiKey) {
+		throw new Error("GEMINI_API_KEY is required for Gemini models.");
+	}
+	if (
+		!options.model.startsWith("claude-") &&
+		!options.model.startsWith("gemini-") &&
+		!openaiKey
+	) {
 		throw new Error("OPENAI_API_KEY is required for OpenAI models.");
 	}
 
-	const openai = options.model.startsWith("claude-")
-		? ({} as OpenAI)
-		: new OpenAI({ apiKey: openaiKey });
+	const openai =
+		options.model.startsWith("claude-") || options.model.startsWith("gemini-")
+			? ({} as OpenAI)
+			: new OpenAI({ apiKey: openaiKey });
 	const complete = (messages: ChatMessage[], maxTokens: number) =>
-		completeAi(openai, messages, maxTokens, options.model, anthropicKey);
+		completeAi(
+			openai,
+			messages,
+			maxTokens,
+			options.model,
+			anthropicKey,
+			geminiKey,
+		);
 	const genre = genres.find(({ id }) => id === options.genre);
 	if (!genre) throw new Error(`Genre "${options.genre}" is not configured.`);
 	const seed =

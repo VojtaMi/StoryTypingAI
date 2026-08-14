@@ -11,7 +11,11 @@ import { sendNdjsonError } from "./ndjson";
 
 type AiApiRoute = "complete" | "complete-stream" | "background-image" | "speak";
 
-export function aiApi(openaiKey: string, anthropicKey: string): Plugin {
+export function aiApi(
+	openaiKey: string,
+	anthropicKey: string,
+	geminiKey: string,
+): Plugin {
 	return {
 		name: "ai-proxy-api",
 		configureServer(server) {
@@ -30,7 +34,13 @@ export function aiApi(openaiKey: string, anthropicKey: string): Plugin {
 					}
 
 					if (route === "complete-stream") {
-						await handleCompleteStreamRequest(req, res, openai, anthropicKey);
+						await handleCompleteStreamRequest(
+							req,
+							res,
+							openai,
+							anthropicKey,
+							geminiKey,
+						);
 						return;
 					}
 
@@ -39,7 +49,13 @@ export function aiApi(openaiKey: string, anthropicKey: string): Plugin {
 						return;
 					}
 
-					await handleCompleteRequest(req, res, openai, anthropicKey);
+					await handleCompleteRequest(
+						req,
+						res,
+						openai,
+						anthropicKey,
+						geminiKey,
+					);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
 					if (route === "complete-stream" && !res.writableEnded) {

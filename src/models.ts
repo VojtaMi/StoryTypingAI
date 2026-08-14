@@ -4,13 +4,22 @@ export const TEXT_MODELS = [
 		label: "GPT 5.6 Luna · Low",
 		reasoningEffort: "low",
 	},
-	{ id: "gpt-5.4-mini", label: "GPT 5.4 mini" },
-	{ id: "gpt-5.5", label: "GPT 5.5" },
-	{ id: "claude-sonnet-4-6", label: "Claude Sonnet" },
+	{
+		id: "gpt-5.6-terra",
+		label: "GPT 5.6 Terra · Low",
+		reasoningEffort: "low",
+	},
+	{ id: "claude-sonnet-5", label: "Claude Sonnet 5" },
+	{
+		id: "gemini-3.7-flash",
+		label: "Gemini 3.7 Flash · Low",
+		thinkingLevel: "low",
+	},
 ] as const;
 
 export type TextModelId = (typeof TEXT_MODELS)[number]["id"];
 export type TextReasoningEffort = "low";
+export type TextThinkingLevel = "low";
 export const DEFAULT_TEXT_MODEL: TextModelId = "gpt-5.6-luna";
 
 /** Returns the reasoning setting curated for a selectable model, when it has one. */
@@ -20,6 +29,16 @@ export function reasoningEffortForModel(
 	const configured = TEXT_MODELS.find((candidate) => candidate.id === model);
 	return configured && "reasoningEffort" in configured
 		? configured.reasoningEffort
+		: undefined;
+}
+
+/** Returns the Gemini thinking level curated for a selectable model. */
+export function thinkingLevelForModel(
+	model: string,
+): TextThinkingLevel | undefined {
+	const configured = TEXT_MODELS.find((candidate) => candidate.id === model);
+	return configured && "thinkingLevel" in configured
+		? configured.thinkingLevel
 		: undefined;
 }
 
