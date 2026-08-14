@@ -3,6 +3,7 @@ import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
 import {
 	DEFAULT_TEXT_MODEL,
+	reasoningEffortForModel,
 	STORY_SEGMENT_MAX_TOKENS,
 	TTS_MAX_INPUT_CHARS,
 	TTS_MODEL,
@@ -78,6 +79,7 @@ async function completeOpenAi(
 		model,
 		max_completion_tokens: maxTokens,
 		messages,
+		reasoning_effort: reasoningEffortForModel(model),
 	});
 	const choice = response.choices[0];
 	const raw = choice?.message?.content?.trim();
@@ -99,6 +101,7 @@ async function streamOpenAi(
 		model,
 		max_completion_tokens: maxTokens,
 		messages,
+		reasoning_effort: reasoningEffortForModel(model),
 		stream: true,
 	});
 

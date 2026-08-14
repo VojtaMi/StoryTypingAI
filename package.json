@@ -8,12 +8,15 @@
 		"build": "tsc -b && vite build && npm run build:server",
 		"build:server": "vite build --config vite.server.config.ts",
 		"preview": "vite preview",
-		"check": "npm run build && npm run lint",
+		"check": "npm run build && npm run lint && npm run story:test",
 		"lint": "biome ci .",
 		"lint:fix": "biome check --write .",
 		"lint:staged": "biome check --staged --no-errors-on-unmatched",
 		"prepare": "husky",
-		"test:opening": "tsx scripts/test-opening.ts"
+		"test:opening": "tsx --env-file-if-exists=.env.local scripts/test-opening.ts",
+		"story:generate": "tsx --env-file-if-exists=.env.local scripts/test-opening.ts",
+		"story:chain": "tsx --env-file-if-exists=.env.local scripts/simulate-story-chain.ts",
+		"story:test": "tsx tests/story-cli.test.ts"
 	},
 	"dependencies": {
 		"@anthropic-ai/sdk": "^0.104.2",

@@ -5,8 +5,10 @@ import {
 	type TextModelId,
 } from "./models";
 import {
+	AI_CONTINUE_PROMPT,
 	type ChatMessage,
 	type Complete,
+	continuationMessages,
 	generateIntro,
 	generateTitle,
 	openingMessages,
@@ -20,9 +22,6 @@ type StreamEvent =
 	| { type: "chunk"; text?: string }
 	| { type: "done"; text?: string }
 	| { type: "error"; error?: string };
-
-const AI_CONTINUE_PROMPT =
-	"Continue the story from here. Keep the same style, tension, and perspective.";
 
 async function complete(
 	messages: ChatMessage[],
@@ -117,10 +116,7 @@ export async function continueStoryStream(
 	messages: ChatMessage[];
 	memory?: StoryMemory;
 }> {
-	const messages: ChatMessage[] = [
-		...history,
-		{ role: "user", content: userText },
-	];
+	const messages = continuationMessages(history, userText);
 	const context = await prepareStoryContext(
 		messages,
 		memory,

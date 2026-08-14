@@ -1,11 +1,27 @@
 export const TEXT_MODELS = [
+	{
+		id: "gpt-5.6-luna",
+		label: "GPT 5.6 Luna · Low",
+		reasoningEffort: "low",
+	},
 	{ id: "gpt-5.4-mini", label: "GPT 5.4 mini" },
 	{ id: "gpt-5.5", label: "GPT 5.5" },
 	{ id: "claude-sonnet-4-6", label: "Claude Sonnet" },
 ] as const;
 
 export type TextModelId = (typeof TEXT_MODELS)[number]["id"];
-export const DEFAULT_TEXT_MODEL: TextModelId = "claude-sonnet-4-6";
+export type TextReasoningEffort = "low";
+export const DEFAULT_TEXT_MODEL: TextModelId = "gpt-5.6-luna";
+
+/** Returns the reasoning setting curated for a selectable model, when it has one. */
+export function reasoningEffortForModel(
+	model: string,
+): TextReasoningEffort | undefined {
+	const configured = TEXT_MODELS.find((candidate) => candidate.id === model);
+	return configured && "reasoningEffort" in configured
+		? configured.reasoningEffort
+		: undefined;
+}
 
 /**
  * Token ceiling for a single story segment. This is a safety net, not a length

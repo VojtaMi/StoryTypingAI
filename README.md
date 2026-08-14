@@ -35,7 +35,8 @@ story and a typing drill at once.
 ## Tech
 
 React 19 + TypeScript + Vite, with the [`openai`](https://www.npmjs.com/package/openai)
-SDK for story generation (model `gpt-5.4-mini`, configurable in `vite.config.ts`).
+SDK for story generation. GPT-5.6 Luna with low reasoning is the default; the
+model can be changed from the menu.
 The dev server exposes local `/api/saves` endpoints for JSON file saves and a
 `/api/ai/complete` endpoint that proxies OpenAI calls server-side.
 
@@ -53,6 +54,25 @@ npm run dev      # start the dev server
 npm run build    # type-check and build for production
 npm run preview  # preview the production build
 ```
+
+## Story-generation experiments
+
+The API-backed scripts load `.env.local` automatically. They cost money and are
+deliberately not used by the normal test suite.
+
+```bash
+# Generate and inspect an opening, title, and background intro.
+npm run story:generate -- --model gpt-5.6-luna --seed "garden world" scifi
+
+# Run the real text-only opening/continuation/memory chain, without images or TTS.
+npm run story:chain -- --genre scifi --seed "first contact" --length 5
+
+# Supply simulated user-authored turns; remaining turns continue automatically.
+npm run story:chain -- --author-inputs path/to/author-inputs.json --json
+```
+
+Run `npm run story:chain -- --help` for all chain options. The author-input file
+is a JSON array of non-empty strings.
 
 Saved stories are local development files under `saves/`, which is git-ignored.
 The file-save and AI proxy APIs are provided by Vite during `npm run dev`; a

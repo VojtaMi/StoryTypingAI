@@ -25,6 +25,9 @@ const INTRO_PROMPT =
 const TITLE_MAX_TOKENS = 120;
 const INTRO_MAX_TOKENS = 180;
 
+export const AI_CONTINUE_PROMPT =
+	"Continue the story from here. Keep the same style, tension, and perspective.";
+
 /** Messages that begin a new story. Pass a seed to nudge the opening toward a specific element. */
 export function openingMessages(genre: Genre, seed?: string): ChatMessage[] {
 	return [
@@ -36,6 +39,14 @@ export function openingMessages(genre: Genre, seed?: string): ChatMessage[] {
 				: "Begin the story.",
 		},
 	];
+}
+
+/** Adds one author turn to the transcript used to generate the next segment. */
+export function continuationMessages(
+	history: ChatMessage[],
+	authorText: string,
+): ChatMessage[] {
+	return [...history, { role: "user", content: authorText }];
 }
 
 /** Creates a concise title for a story excerpt. */
