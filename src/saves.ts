@@ -1,6 +1,6 @@
 import type { ChatMessage, ReadingStory } from "./ai";
 import type { StoryPhase, StorySegment } from "./exercise_screen/types";
-import type { GenreId } from "./genres";
+import type { LanguageId } from "./languages";
 import type { NarrationVoiceId } from "./narrationVoice";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
@@ -10,7 +10,7 @@ export interface SavedStory
 	extends Partial<StoryBackgroundImage>,
 		Partial<StoryOpeningAudio> {
 	id: string;
-	genreId: GenreId;
+	genreId: LanguageId;
 	title: string;
 	updatedAt: string;
 	messages: ChatMessage[];
@@ -33,7 +33,7 @@ export interface SavedStory
 
 export interface SavedStorySummary {
 	id: string;
-	genreId: GenreId;
+	genreId: LanguageId;
 	title: string;
 	updatedAt: string;
 	preview: string;
@@ -43,7 +43,7 @@ export interface SavedStorySummary {
 }
 
 export async function listSavedStories(
-	genreId?: GenreId,
+	genreId?: LanguageId,
 ): Promise<SavedStorySummary[]> {
 	const query = genreId ? `?language=${encodeURIComponent(genreId)}` : "";
 	const response = await fetch(`/api/saves${query}`);

@@ -1,4 +1,4 @@
-import { type Genre, type GenreId, getGenre } from "./genres";
+import { getLanguage, type Language, type LanguageId } from "./languages";
 import type { LearnerContext } from "./learnerContext";
 import type { LearnerPreferences } from "./learnerState";
 import { DEFAULT_LEARNER_CONTEXT, parseLearnerContext } from "./learnerState";
@@ -33,7 +33,7 @@ export type LanguageTutorChatMessage = {
 };
 
 interface LanguageTutorRequest {
-	language: Genre;
+	language: Language;
 	segments: Array<{ author: "ai" | "user"; text: string }>;
 	currentTarget: string | null;
 	backgroundIntro?: string;
@@ -161,7 +161,7 @@ async function refineLearnerProfile(
 }
 
 export interface StoryFinishEvidence {
-	genreId: GenreId;
+	genreId: LanguageId;
 	storyId: string;
 	storySummary: string;
 	/** Complete prose lets finalization choose grounded complexity examples. */
@@ -191,7 +191,7 @@ export async function finalizeReadingStoryEvidence(
 }
 
 interface GenerateStoryRecapLessonInput {
-	genreId: GenreId;
+	genreId: LanguageId;
 	storyParts: string[];
 	languageFocuses: string[];
 	wordTranslations: Record<string, string>;
@@ -201,7 +201,7 @@ export async function generateStoryRecapLesson(
 	input: GenerateStoryRecapLessonInput,
 	model: TextModelId = EXERCISE_MODEL,
 ): Promise<StoryRecapLesson> {
-	const genre = getGenre(input.genreId);
+	const genre = getLanguage(input.genreId);
 	const text = await complete(
 		[
 			{
@@ -232,7 +232,7 @@ export async function generateStoryRecapLesson(
 }
 
 export async function generateStoryBackgroundImage(
-	genreId: GenreId,
+	genreId: LanguageId,
 	messages: ChatMessage[],
 	storyId: string,
 	options: {
@@ -249,7 +249,7 @@ export async function generateStoryBackgroundImage(
 }
 
 export async function generateOpeningAudio(
-	genreId: GenreId,
+	genreId: LanguageId,
 	text: string,
 	storyId: string,
 	narrationVoice: NarrationVoiceId,
@@ -263,7 +263,7 @@ export async function generateOpeningAudio(
 }
 
 export async function getWordAudioUrl(
-	genreId: GenreId,
+	genreId: LanguageId,
 	word: string,
 ): Promise<string> {
 	const body = await postJson<{ url: string }>(
@@ -275,7 +275,7 @@ export async function getWordAudioUrl(
 }
 
 export async function logLearnerWordClick(
-	genreId: GenreId,
+	genreId: LanguageId,
 	word: string,
 	storyId?: string,
 ): Promise<void> {
@@ -291,7 +291,7 @@ export async function logLearnerWordClick(
 }
 
 export async function regenerateWordAudioUrl(
-	genreId: GenreId,
+	genreId: LanguageId,
 	word: string,
 ): Promise<string> {
 	const body = await postJson<{ url: string }>(
@@ -303,7 +303,7 @@ export async function regenerateWordAudioUrl(
 }
 
 export async function regenerateWordTranslation(
-	genreId: GenreId,
+	genreId: LanguageId,
 	word: string,
 	storyContext?: string,
 ): Promise<string | null> {
@@ -346,7 +346,7 @@ export async function askLanguageTutor({
 			role: "system",
 			content:
 				`You are ${language.label} Bot, a friendly tutor inside a ${language.label} reading story. ` +
-				`Explain ${language.label} clearly and practically: ${language.botTeachingTopics}. ` +
+				`Explain ${language.label} clearly and practically: ${language.teachingTopics}. ` +
 				"Use the provided story context when it helps. Do not continue or rewrite the story unless the learner asks for that. " +
 				"If the learner asks for an exercise answer, prefer a helpful hint and explanation before giving the full answer. " +
 				"Reply in the language the learner uses for their latest message. If their message is mixed or ambiguous, reply in English. " +

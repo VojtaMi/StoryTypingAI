@@ -1,4 +1,4 @@
-import { DEFAULT_GENRE, type Genre } from "./genres";
+import { DEFAULT_LANGUAGE, type Language } from "./languages";
 import type { LearnerPreferences, RecentStoryMemory } from "./learnerState";
 import type { TextModelId } from "./models";
 import type { NarrativeScale } from "./nextStoryBrief";
@@ -68,7 +68,7 @@ export function readingStoryPlotMessages(
 	preferences?: Pick<LearnerPreferences, "prefer" | "avoid">,
 	narrativeScale: NarrativeScale = "minimal",
 	recentStories: RecentStoryMemory[] = [],
-	genre: Genre = DEFAULT_GENRE,
+	genre: Language = DEFAULT_LANGUAGE,
 ): ChatMessage[] {
 	return [
 		{ role: "system", content: PLOT_AUTHOR_PROMPT },
@@ -101,7 +101,7 @@ export async function prepareReadingStoryPlot(
 	preferences?: Pick<LearnerPreferences, "prefer" | "avoid">,
 	narrativeScale: NarrativeScale = "minimal",
 	recentStories: RecentStoryMemory[] = [],
-	genre: Genre = DEFAULT_GENRE,
+	genre: Language = DEFAULT_LANGUAGE,
 ): Promise<string> {
 	const draft = (
 		await complete(

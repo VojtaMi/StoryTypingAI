@@ -1,4 +1,4 @@
-import { DEFAULT_GENRE, type Genre } from "./genres";
+import { DEFAULT_LANGUAGE, type Language } from "./languages";
 import {
 	countWords,
 	type GenerationSpec,
@@ -71,7 +71,7 @@ export interface StoryRecapExerciseResult {
 type RecapExerciseSpec<T> = GenerationSpec<T>;
 
 function wordConnectSpec(
-	genre: Genre,
+	genre: Language,
 ): RecapExerciseSpec<StoryRecapWordConnectExercise> {
 	return {
 		shape: {
@@ -105,7 +105,7 @@ function wordConnectSpec(
 }
 
 function fillMissingWordSpec(
-	genre: Genre,
+	genre: Language,
 ): RecapExerciseSpec<StoryRecapFillMissingWordExercise> {
 	return {
 		shape: {
@@ -117,7 +117,7 @@ function fillMissingWordSpec(
 			"Use exactly three fill choices, using only words and facts from the story. " +
 			"This exercise is the story's focus test: it must exercise the story's primary language focus stated below. " +
 			`Choose the fill sentence so its blanked \`answer\` is the exact ${genre.label} word or short phrase that realizes that focus. ` +
-			`The \`answer\` is a single word or at most a short two-word phrase (e.g. \`${genre.recapAnswerExample}\`). ` +
+			"The `answer` is a single word or at most a short two-word phrase. " +
 			`The fill sentence must be one complete, natural ${genre.label} sentence containing the answer written exactly as in \`answer\` — the app carves the blank out of it itself, so write a normal sentence and do not pre-split it or omit the answer.`,
 		parse(value) {
 			if (!isObject(value)) throw new Error("Recap fill exercise is invalid.");
@@ -190,7 +190,7 @@ const storyQuestionSpec: RecapExerciseSpec<StoryRecapQuestionExercise> = {
 	},
 };
 
-function recapExerciseSpecs(genre: Genre) {
+function recapExerciseSpecs(genre: Language) {
 	return [
 		wordConnectSpec(genre),
 		fillMissingWordSpec(genre),
@@ -210,7 +210,7 @@ export const RECAP_FOCUS_EXERCISE_TYPE = "fill-missing-word" as const;
 /** Composes the recap generation prompt from each exercise type's own shape and rules. */
 export function buildStoryRecapPrompt(
 	primaryFocus?: string,
-	genre: Genre = DEFAULT_GENRE,
+	genre: Language = DEFAULT_LANGUAGE,
 ): string {
 	const specs = recapExerciseSpecs(genre);
 	const shape = JSON.stringify({
@@ -230,7 +230,7 @@ export function buildStoryRecapPrompt(
 
 export function parseStoryRecapLesson(
 	text: string,
-	genre: Genre = DEFAULT_GENRE,
+	genre: Language = DEFAULT_LANGUAGE,
 ): StoryRecapLesson {
 	const parsed = JSON.parse(text) as unknown;
 	if (!isObject(parsed)) throw new Error("Recap JSON was not an object.");

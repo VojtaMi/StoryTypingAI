@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import OpenAI from "openai";
-import { genres } from "../src/genres.ts";
+import { languages } from "../src/languages.ts";
 import type {
 	LearnerContext,
 	LearnerPreferences,
@@ -503,7 +503,7 @@ async function simulateChain(
 			),
 		options.reasoningEffort,
 	);
-	const genre = genres[0];
+	const genre = languages[0];
 	if (!genre) throw new Error("No reading-story genre is configured.");
 	let preferences = structuredClone(
 		scenario?.initialPreferences ?? {

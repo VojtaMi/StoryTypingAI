@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import OpenAI from "openai";
-import { genres } from "../src/genres.ts";
+import { languages } from "../src/languages.ts";
 import {
 	type GeminiImageModel,
 	generateStoryImage,
@@ -36,7 +36,7 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 const story = JSON.parse(await readFile(storyPath, "utf8")) as StoryRecord;
-const genre = genres.find((candidate) => candidate.id === story.genreId);
+const genre = languages.find((candidate) => candidate.id === story.genreId);
 if (!genre) {
 	console.error(`Error: unknown genreId in ${storyPath}.`);
 	process.exit(1);

@@ -11,7 +11,7 @@ language registry → prepare complete story → reveal sections → recap
 
 | Area | Owns |
 | --- | --- |
-| `src/genres.ts` | Extensible language identity: labels, assets, generation, recap, tutor, and speech guidance. |
+| `src/languages.ts` | Language identity and pedagogy, plus shared derivation of prompts, starter defaults, speech instructions, and asset paths. |
 | `src/App.tsx`, `src/languageSelection.ts` | Window-specific language selection, URL/history, document title, and top-level views. |
 | `src/home_menu/` | Language switch, settings, starting/resuming stories, and current-language saves. |
 | `src/story_session/` | Preparing, starting, advancing, resuming, persisting, and finalizing a story. |
@@ -19,7 +19,7 @@ language registry → prepare complete story → reveal sections → recap
 | `src/reading_story/`, `src/story.ts` | Whole-story generation contracts, validation, splitting, and visual plan. |
 | `src/server/` | Provider calls, prepared queues, saved files, evidence, and generated media. |
 
-The browser sends a `GenreId` with every language-sensitive request. Server
+The browser sends a `LanguageId` with every language-sensitive request. Server
 code resolves the canonical registry entry rather than trusting browser-supplied
 prompt text. Adding a language should extend that registry and provide its hero
 and bot assets, without adding a parallel application.

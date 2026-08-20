@@ -1,7 +1,11 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
-import { getGenre, isGenreId } from "../genres";
+import {
+	getLanguage,
+	isLanguageId,
+	languageTtsInstructions,
+} from "../languages";
 import {
 	DEFAULT_TEXT_MODEL,
 	STORY_SEGMENT_MAX_TOKENS,
@@ -19,7 +23,7 @@ import { readBody, sendJson } from "./http";
 import { enqueueLearnerProfileMutation } from "./learnerProfileMutationQueue";
 import { readLearnerContext, writeLearnerContext } from "./learnerProfileStore";
 import { appendLearnerWordLogEntry } from "./learnerWordLogStore";
-import { createBackgroundImage, findGenre } from "./openingsStore";
+import { createBackgroundImage, findLanguage } from "./openingsStore";
 import { saveIdPattern } from "./savesStore";
 import { createOpeningAudio } from "./storyAudioStore";
 import {
@@ -47,9 +51,9 @@ export async function handleBackgroundImageRequest(
 		visualContext,
 		anchorToFirstSection,
 	} = JSON.parse(await readBody(req));
-	const genre = findGenre(genreId);
+	const genre = findLanguage(genreId);
 	if (!genre) {
-		sendJson(res, 404, { error: "Genre not found." });
+		sendJson(res, 404, { error: "Language not found." });
 		return;
 	}
 	if (!storyId || typeof storyId !== "string" || !saveIdPattern.test(storyId)) {
@@ -85,7 +89,7 @@ export async function handleOpeningAudioRequest(
 ) {
 	const { genreId, text, storyId, narrationVoice, sectionIndex, ttsModel } =
 		JSON.parse(await readBody(req));
-	if (!isGenreId(genreId)) {
+	if (!isLanguageId(genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
 	}
@@ -107,7 +111,7 @@ export async function handleOpeningAudioRequest(
 			createOpeningAudio(openai, text, storyId, narrationVoice, {
 				sectionIndex: validSectionIndex(sectionIndex),
 				ttsModel: isTtsModelId(ttsModel) ? ttsModel : DEFAULT_TTS_MODEL,
-				instructions: getGenre(genreId).ttsInstructions,
+				instructions: languageTtsInstructions(getLanguage(genreId)),
 			}),
 	);
 	if (!audio) {
@@ -129,7 +133,7 @@ export async function handleRegenerateWordRequest(
 	openai: OpenAI,
 ) {
 	const { genreId, word, storyContext } = JSON.parse(await readBody(req));
-	if (!isGenreId(genreId)) {
+	if (!isLanguageId(genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
 	}
@@ -140,7 +144,7 @@ export async function handleRegenerateWordRequest(
 	const context = typeof storyContext === "string" ? storyContext : undefined;
 	const fresh = await translateWords(
 		openai,
-		getGenre(genreId),
+		getLanguage(genreId),
 		[word],
 		context,
 	);
@@ -153,7 +157,7 @@ export async function handleWordAudioRequest(
 	openai: OpenAI,
 ) {
 	const { genreId, word } = JSON.parse(await readBody(req));
-	if (!isGenreId(genreId)) {
+	if (!isLanguageId(genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
 	}
@@ -176,7 +180,7 @@ export async function handleRegenerateWordAudioRequest(
 	openai: OpenAI,
 ) {
 	const { genreId, word } = JSON.parse(await readBody(req));
-	if (!isGenreId(genreId)) {
+	if (!isLanguageId(genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
 	}
@@ -285,7 +289,7 @@ export async function handleFinalizeStoryEvidenceRequest(
 	const body = JSON.parse(
 		await readBody(req),
 	) as Partial<StoryFinalizationInput>;
-	if (!isGenreId(body.genreId)) {
+	if (!isLanguageId(body.genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
 	}
@@ -389,7 +393,7 @@ export async function handleLearnerWordLogRequest(
 	res: ServerResponse,
 ) {
 	const { genreId, word, storyId } = JSON.parse(await readBody(req));
-	if (!isGenreId(genreId)) {
+	if (!isLanguageId(genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
 	}

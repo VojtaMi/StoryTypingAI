@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { finalizeReadingStoryEvidence, type StoryFinishEvidence } from "../ai";
-import type { GenreId } from "../genres";
+import type { LanguageId } from "../languages";
 import { readSelectedNarrationModel } from "../modelSelection/modelSelectionStore";
 import type { StoryGenerationPreset } from "../models";
 import {
@@ -214,7 +214,7 @@ export interface ReadingPreparation {
  * menu, since that is the only place a fresh reading story is ever started.
  */
 export function useReadingPreparation(
-	languageId: GenreId,
+	languageId: LanguageId,
 	storyGeneration: StoryGenerationPreset,
 	unfinishedReadingSaveId: string | null,
 	isMenuVisible: boolean,

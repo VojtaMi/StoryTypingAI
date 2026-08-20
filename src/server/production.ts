@@ -7,7 +7,7 @@ import {
 import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import OpenAI from "openai";
-import { type GenreId, isGenreId } from "../genres";
+import { isLanguageId, type LanguageId } from "../languages";
 import { TEXT_REASONING_EFFORTS, type TextReasoningEffort } from "../models";
 import { DEFAULT_TTS_MODEL, isTtsModelId } from "../ttsModel";
 import {
@@ -26,7 +26,7 @@ import { createAiTraceContext, withAiTraceContext } from "./aiTrace";
 import { readBody, sendBufferWithRangeSupport, sendJson } from "./http";
 import {
 	consumePreparedReadingOpening,
-	findGenre,
+	findLanguage,
 	imageFilePattern,
 	listPreparedReadingOpenings,
 	listStoryImages,
@@ -52,7 +52,7 @@ const distDir = join(__dirname, "dist");
 // Keep the API server available without local credentials so the client can
 // show a useful setup message instead of failing during server startup.
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY || "missing-openai-key" });
-const prepareReadingPromises = new Map<GenreId, Promise<void>>();
+const prepareReadingPromises = new Map<LanguageId, Promise<void>>();
 
 const mimeTypes: Record<string, string> = {
 	".html": "text/html; charset=utf-8",
@@ -118,7 +118,7 @@ async function handleRequest(
 	try {
 		if (pathname === "/api/reading-openings" && req.method === "GET") {
 			const languageId = url.searchParams.get("language");
-			if (!isGenreId(languageId)) {
+			if (!isLanguageId(languageId)) {
 				sendJson(res, 400, { error: "language is invalid." });
 				return;
 			}
@@ -130,7 +130,7 @@ async function handleRequest(
 			const body = req.headers["content-length"]
 				? JSON.parse(await readBody(req))
 				: {};
-			if (!isGenreId(body.genreId)) {
+			if (!isLanguageId(body.genreId)) {
 				sendJson(res, 400, { error: "genreId is invalid." });
 				return;
 			}
@@ -170,21 +170,21 @@ async function handleRequest(
 			req.method === "POST"
 		) {
 			const genreId = parts[2];
-			if (!genreId || !findGenre(genreId)) {
-				sendJson(res, 404, { error: "Genre not found." });
+			if (!genreId || !findLanguage(genreId)) {
+				sendJson(res, 404, { error: "Language not found." });
 				return;
 			}
-			const cached = await consumePreparedReadingOpening(genreId as GenreId);
+			const cached = await consumePreparedReadingOpening(genreId as LanguageId);
 			if (cached) {
 				sendJson(res, 200, cached);
 				return;
 			}
-			const preparation = prepareReadingPromises.get(genreId as GenreId);
+			const preparation = prepareReadingPromises.get(genreId as LanguageId);
 			if (preparation) await preparation;
 			sendJson(
 				res,
 				200,
-				await consumePreparedReadingOpening(genreId as GenreId),
+				await consumePreparedReadingOpening(genreId as LanguageId),
 			);
 			return;
 		}
@@ -277,7 +277,7 @@ async function handleRequest(
 
 		if (pathname === "/api/saves" && req.method === "GET") {
 			const languageId = url.searchParams.get("language");
-			if (languageId !== null && !isGenreId(languageId)) {
+			if (languageId !== null && !isLanguageId(languageId)) {
 				sendJson(res, 400, { error: "language is invalid." });
 				return;
 			}
@@ -393,7 +393,7 @@ async function handleRequest(
 			const languageId = parts[2];
 			const word = decodeURIComponent(parts[3] ?? "");
 			if (
-				!isGenreId(languageId) ||
+				!isLanguageId(languageId) ||
 				!word ||
 				!wordFilePattern.test(`${word}.mp3`)
 			) {

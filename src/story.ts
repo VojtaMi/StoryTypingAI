@@ -1,4 +1,8 @@
-import type { Genre } from "./genres";
+import {
+	type Language,
+	languageStorySystemPrompt,
+	starterBriefForLanguage,
+} from "./languages";
 import type { LearnerPreferences, RecentStoryMemory } from "./learnerState";
 import type { TextModelId, TextReasoningEffort } from "./models";
 import type { NextStoryBrief } from "./nextStoryBrief";
@@ -60,12 +64,12 @@ const NEXT_THEME_MAX_CHARS = 240;
  * revealed. It records the prose already shown for persistence and tutor context.
  */
 export function readingStoryMessages(
-	genre: Genre,
+	genre: Language,
 	story: ReadingStory,
 	partIndex: number,
 ): ChatMessage[] {
 	return [
-		{ role: "system", content: genre.systemPrompt },
+		{ role: "system", content: languageStorySystemPrompt(genre) },
 		...story.parts
 			.slice(0, partIndex)
 			.map((part): ChatMessage => ({ role: "assistant", content: part.text })),
@@ -97,7 +101,7 @@ export function readingStorySummary(story: ReadingStory): string {
 
 export async function generateReadingStory(
 	complete: Complete,
-	genre: Genre,
+	genre: Language,
 	preferences?: Pick<LearnerPreferences, "prefer" | "avoid">,
 	nextTheme?: string,
 	options: {
@@ -106,7 +110,8 @@ export async function generateReadingStory(
 		recentStories?: RecentStoryMemory[];
 	} = {},
 ): Promise<ReadingStory> {
-	const nextStoryBrief = options.nextStoryBrief ?? genre.starterBrief;
+	const nextStoryBrief =
+		options.nextStoryBrief ?? starterBriefForLanguage(genre);
 	const explicitTheme = nextTheme?.trim().slice(0, NEXT_THEME_MAX_CHARS) ?? "";
 	const storySubject = explicitTheme || nextStoryBrief.themeSuggestion;
 	const storyPlot = await prepareReadingStoryPlot(

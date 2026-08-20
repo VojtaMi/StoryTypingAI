@@ -1,6 +1,13 @@
 import { access } from "node:fs/promises";
 import { resolve, sep } from "node:path";
-import { genres, getGenre, isGenreId } from "../src/genres.ts";
+import {
+	getLanguage,
+	isLanguageId,
+	languageBotImageUrl,
+	languageFaviconUrl,
+	languageHeroImageUrl,
+	languages,
+} from "../src/languages.ts";
 import {
 	bundleIdPattern,
 	createBundleId,
@@ -23,31 +30,26 @@ It does not call an AI provider or assess the quality of language guidance.
 	process.exit(0);
 }
 
-const languages = requestedIds.length
+const selectedLanguages = requestedIds.length
 	? requestedIds.flatMap((id) => {
-			if (!isGenreId(id)) {
-				errors.push(`Language "${id}" is not registered in src/genres.ts.`);
+			if (!isLanguageId(id)) {
+				errors.push(`Language "${id}" is not registered in src/languages.ts.`);
 				return [];
 			}
-			return [getGenre(id)];
+			return [getLanguage(id)];
 		})
-	: genres;
+	: languages;
 
-for (const field of [
-	"id",
-	"label",
-	"shortCode",
-	"heroImageUrl",
-	"botImageUrl",
-	"faviconUrl",
-] as const) {
-	const duplicates = duplicateValues(genres.map((language) => language[field]));
+for (const field of ["id", "label", "shortCode"] as const) {
+	const duplicates = duplicateValues(
+		languages.map((language) => language[field]),
+	);
 	for (const value of duplicates) {
 		errors.push(`${field} must be unique; "${value}" is used more than once.`);
 	}
 }
 
-for (const language of languages) {
+for (const language of selectedLanguages) {
 	const prefix = `[${language.id}]`;
 	if (!/^[a-z][a-z0-9-]*$/.test(language.id)) {
 		errors.push(`${prefix} id must be a lowercase ASCII slug.`);
@@ -60,33 +62,30 @@ for (const language of languages) {
 
 	for (const field of [
 		"label",
-		"systemPrompt",
-		"botTeachingTopics",
-		"beginnerLanguageGuidance",
-		"grammarRequirements",
+		"teachingTopics",
+		"absoluteBeginnerGuidance",
+		"grammarInvariants",
+		"starterFocus",
 		"recapTitle",
-		"recapAnswerExample",
-		"ttsInstructions",
 	] as const) {
 		if (!language[field].trim()) errors.push(`${prefix} ${field} is empty.`);
 	}
 
-	if (!language.starterBrief.language.focus.trim()) {
-		errors.push(`${prefix} starterBrief.language.focus is empty.`);
+	if (!language.calibrationSnippets.length) {
+		errors.push(`${prefix} calibrationSnippets needs at least one example.`);
 	}
-	if (!language.starterBrief.language.calibrationSnippets.length) {
-		errors.push(
-			`${prefix} starterBrief.language.calibrationSnippets needs an example.`,
-		);
-	}
-	for (const snippet of language.starterBrief.language.calibrationSnippets) {
+	for (const snippet of language.calibrationSnippets) {
 		if (!snippet.trim())
 			errors.push(`${prefix} has an empty calibration snippet.`);
 	}
 
-	await validateAsset(language.id, "heroImageUrl", language.heroImageUrl);
-	await validateAsset(language.id, "botImageUrl", language.botImageUrl);
-	await validateAsset(language.id, "faviconUrl", language.faviconUrl);
+	await validateAsset(
+		language.id,
+		"hero image",
+		languageHeroImageUrl(language),
+	);
+	await validateAsset(language.id, "bot image", languageBotImageUrl(language));
+	await validateAsset(language.id, "favicon", languageFaviconUrl(language));
 
 	const bundleId = createBundleId(language.id, "Validation story", "ABCDEF12");
 	if (!bundleIdPattern.test(bundleId)) {
@@ -103,13 +102,13 @@ if (errors.length) {
 	process.exitCode = 1;
 } else {
 	process.stdout.write(
-		`Validated ${languages.length} language${languages.length === 1 ? "" : "s"}: ${languages.map(({ id }) => id).join(", ")}\n`,
+		`Validated ${selectedLanguages.length} language${selectedLanguages.length === 1 ? "" : "s"}: ${selectedLanguages.map(({ id }) => id).join(", ")}\n`,
 	);
 }
 
 async function validateAsset(
 	languageId: string,
-	field: "heroImageUrl" | "botImageUrl" | "faviconUrl",
+	field: "hero image" | "bot image" | "favicon",
 	url: string,
 ) {
 	const pathname = url.split("?", 1)[0];

@@ -1,4 +1,4 @@
-import { DEFAULT_GENRE, type Genre } from "../genres";
+import { DEFAULT_LANGUAGE, type Language } from "../languages";
 import { parseJsonResponse } from "../learnerState";
 import { DEFAULT_TEXT_MODEL } from "../models";
 import type { ChatMessage, Complete, ReadingStoryPart } from "../story";
@@ -8,7 +8,7 @@ import type { ReadingStoryManuscript } from "./manuscript";
 const SPLIT_MAX_TOKENS = 600;
 export const READING_STORY_MAX_PARTS = 8;
 
-function splitPrompt(genre: Genre) {
+function splitPrompt(genre: Language) {
 	return `Divide an already finished ${genre.label} reading story into presentation parts.
 
 The numbered sentences are immutable. Return only sentence numbers after which the app should break the story. Do not include the final sentence number, because the story ends there. Do not return prose and do not rewrite, omit, duplicate, or reorder anything.
@@ -56,7 +56,7 @@ function allowedSplitRange(sentenceCount: number): SplitRange {
 
 export function readingStorySplitMessages(
 	manuscript: ReadingStoryManuscript,
-	genre: Genre = DEFAULT_GENRE,
+	genre: Language = DEFAULT_LANGUAGE,
 ): ChatMessage[] {
 	const sentences = readingStorySentences(manuscript.text);
 	const range = allowedSplitRange(sentences.length);
@@ -79,7 +79,7 @@ export function readingStorySplitMessages(
 export async function splitReadingManuscript(
 	complete: Complete,
 	manuscript: ReadingStoryManuscript,
-	genre: Genre = DEFAULT_GENRE,
+	genre: Language = DEFAULT_LANGUAGE,
 ): Promise<ReadingStoryPart[]> {
 	const sentences = readingStorySentences(manuscript.text);
 	if (sentences.length < 2) {

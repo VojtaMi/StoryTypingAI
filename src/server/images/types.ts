@@ -1,5 +1,5 @@
 import type OpenAI from "openai";
-import type { Genre } from "../../genres";
+import type { Language } from "../../languages";
 
 export type ImageProvider = "openai" | "gemini";
 export type ImageProviderPreference = ImageProvider | "auto";
@@ -8,7 +8,7 @@ export type GeminiImageModel =
 	| "gemini-3.1-flash-lite-image";
 
 export interface StoryImageRequest {
-	genre: Genre;
+	genre: Language;
 	geminiModel?: GeminiImageModel;
 	openai: OpenAI;
 	provider?: ImageProviderPreference;

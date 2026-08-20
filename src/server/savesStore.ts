@@ -1,6 +1,6 @@
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { genres, isGenreId } from "../genres";
+import { isLanguageId, languages } from "../languages";
 import {
 	bundledSavePath,
 	bundleIdPattern,
@@ -23,7 +23,7 @@ export async function listSaves() {
 	const [legacyNames, languageEntries] = await Promise.all([
 		readdir(savesDir),
 		Promise.all(
-			genres.map((genre) =>
+			languages.map((genre) =>
 				readdir(join(storiesDir, genre.id), { withFileTypes: true }).catch(
 					() => [],
 				),
@@ -78,7 +78,7 @@ export async function readSave(id: string) {
 export async function writeSave(id: string, save: unknown) {
 	if (bundleIdPattern.test(id)) {
 		const genreId = (save as { genreId?: unknown })?.genreId;
-		if (!isGenreId(genreId) || genreId !== storyLanguage(id)) {
+		if (!isLanguageId(genreId) || genreId !== storyLanguage(id)) {
 			throw new Error("Save language does not match its story id.");
 		}
 	}

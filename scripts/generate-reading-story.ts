@@ -4,12 +4,12 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import OpenAI from "openai";
 import {
-	DEFAULT_GENRE,
-	type GenreId,
-	genres,
-	getGenre,
-	isGenreId,
-} from "../src/genres.ts";
+	DEFAULT_LANGUAGE,
+	getLanguage,
+	isLanguageId,
+	type LanguageId,
+	languages,
+} from "../src/languages.ts";
 import {
 	DEFAULT_LEARNER_CONTEXT,
 	type LearnerContext,
@@ -34,7 +34,7 @@ export type ReadingStoryCliOptions = {
 	defaultLearner: boolean;
 	help: boolean;
 	learnerStatePath?: string;
-	language: GenreId;
+	language: LanguageId;
 	model: TextModelId;
 	reasoningEffort?: TextReasoningEffort;
 };
@@ -46,14 +46,14 @@ type StructuredCompletion = (request: {
 	reasoningEffort?: TextReasoningEffort;
 }) => Promise<string>;
 
-const languageIds = genres.map(({ id }) => id);
+const languageIds = languages.map(({ id }) => id);
 
 const HELP = `Usage: npm run story:generate -- [options]
 
 Generate one complete adaptively-sectioned reading story and print its JSON to stdout.
 
 Options:
-  --language <id>          Story language: ${languageIds.join("|")} (default: ${DEFAULT_GENRE.id})
+  --language <id>          Story language: ${languageIds.join("|")} (default: ${DEFAULT_LANGUAGE.id})
   --model <id>             Text model (default: ${DEFAULT_TEXT_MODEL})
   --learner-state <path>   Use and validate a custom learner-state JSON file
   --default-learner        Use the built-in default learner state
@@ -70,7 +70,7 @@ export function parseReadingStoryCliArgs(
 	const options: ReadingStoryCliOptions = {
 		defaultLearner: false,
 		help: false,
-		language: DEFAULT_GENRE.id,
+		language: DEFAULT_LANGUAGE.id,
 		model: DEFAULT_TEXT_MODEL,
 	};
 
@@ -85,7 +85,7 @@ export function parseReadingStoryCliArgs(
 				break;
 			case "--language": {
 				const value = requiredFlagValue(rawArgs, index, argument);
-				if (!isGenreId(value)) {
+				if (!isLanguageId(value)) {
 					throw new Error(
 						`Unknown language "${value}". Valid languages: ${languageIds.join(", ")}`,
 					);
@@ -244,7 +244,7 @@ export async function runReadingStoryCli(rawArgs: string[]): Promise<void> {
 			),
 		options.reasoningEffort,
 	);
-	const genre = getGenre(options.language);
+	const genre = getLanguage(options.language);
 	const story = await generateReadingStory(complete, genre, {
 		prefer: learnerContext.preferences.prefer,
 		avoid: learnerContext.preferences.avoid,

@@ -1,4 +1,4 @@
-import type { Genre } from "../genres";
+import type { Language } from "../languages";
 import type { NarrationVoiceId } from "../narrationVoice";
 import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
@@ -11,7 +11,7 @@ export interface ReadingMediaSection {
 	text: string;
 	/** The dominant-action description the background image depicts; narration still uses `text`. */
 	imagePrompt: string;
-	genre: Genre;
+	genre: Language;
 	visualContext: string;
 }
 

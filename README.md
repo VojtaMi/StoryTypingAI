@@ -5,10 +5,10 @@ learning language on the main menu, read a finite illustrated and narrated
 story, tap unfamiliar words, and finish with a short recap.
 
 The interface is currently English. Language selection is window-specific via
-`?language=esperanto|german|spanish|dutch`, while the most recently selected language
-is remembered locally for the next unqualified home visit. Explicit `prefer`
-and `avoid` story settings are shared; stories, preparation queues, evidence,
-pronunciation caches, and progression remain language-specific.
+`?language=esperanto|german|spanish|dutch`, while the most recently selected
+language is remembered locally for the next unqualified home visit. Explicit
+`prefer` and `avoid` story settings are shared; stories, preparation queues,
+evidence, pronunciation caches, and progression remain language-specific.
 
 ## How it works
 
@@ -19,10 +19,10 @@ pronunciation caches, and progression remain language-specific.
 5. A recap and optional feedback produce the brief for the next story.
 
 Language identity and generation guidance live in the registry at
-[`src/genres.ts`](./src/genres.ts). Adding another language is primarily a
-registry-and-assets change; provider prompts consume the same contract. Follow
-the coding-agent workflow in
-[`docs/adding-a-language.md`](./docs/adding-a-language.md).
+[`src/languages.ts`](./src/languages.ts). Adding another language is primarily a
+registry-and-assets change. Shared code derives generic prompts, speech
+instructions, starter defaults, and asset paths. Follow the coding-agent
+workflow in [`docs/adding-a-language.md`](./docs/adding-a-language.md).
 
 ## Development
 

@@ -1,6 +1,6 @@
 import type { ChatMessage, ReadingStory } from "../ai";
 import type { StoryPhase, StorySegment } from "../exercise_screen/types";
-import type { Genre } from "../genres";
+import type { Language } from "../languages";
 import type { NarrationVoiceId } from "../narrationVoice";
 import type { SavedStory } from "../saves";
 import type { StoryOpeningAudio } from "../storyAudio";
@@ -9,7 +9,7 @@ import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
 
 interface StorySaveSnapshotInput {
 	id: string;
-	genre: Genre;
+	genre: Language;
 	title: string;
 	messages: ChatMessage[];
 	segments: StorySegment[];
@@ -29,7 +29,7 @@ interface StorySaveSnapshotInput {
 	storyFeedbackSubmittedAt?: string | null;
 }
 
-export function fallbackTitle(selected: Genre) {
+export function fallbackTitle(selected: Language) {
 	return `${selected.label} Story`;
 }
 

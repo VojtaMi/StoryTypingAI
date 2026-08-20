@@ -7,7 +7,7 @@ import {
 } from "react";
 import { askLanguageTutor, type LanguageTutorChatMessage } from "../../ai";
 import { ESPERANTO_KEY_MAP } from "../../esperantoKeyboard";
-import type { Genre } from "../../genres";
+import { type Language, languageBotImageUrl } from "../../languages";
 import {
 	readSelectedChatModel,
 	saveSelectedChatModel,
@@ -16,7 +16,7 @@ import { TEXT_MODELS, type TextModelId } from "../../models";
 import type { StorySegment } from "../types";
 
 interface LanguageChatModalProps {
-	language: Genre;
+	language: Language;
 	isOpen: boolean;
 	onOpen: () => void;
 	segments: StorySegment[];
@@ -182,7 +182,7 @@ export function LanguageChatModal({
 					isOpen ? `Close ${language.label} Bot` : `Ask ${language.label} Bot`
 				}
 			>
-				<img src={language.botImageUrl} alt="" draggable={false} />
+				<img src={languageBotImageUrl(language)} alt="" draggable={false} />
 			</button>
 
 			{isOpen && (
@@ -194,7 +194,11 @@ export function LanguageChatModal({
 					<header className="language-chat-header">
 						<div className="language-chat-title">
 							<span className="language-chat-avatar" aria-hidden="true">
-								<img src={language.botImageUrl} alt="" draggable={false} />
+								<img
+									src={languageBotImageUrl(language)}
+									alt=""
+									draggable={false}
+								/>
 							</span>
 							<div>
 								<h2>{language.label} Bot</h2>

@@ -3,7 +3,15 @@ import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type OpenAI from "openai";
 import sharp from "sharp";
-import { type Genre, type GenreId, genres, getGenre } from "../genres";
+import {
+	getLanguage,
+	type Language,
+	type LanguageId,
+	languageHeroImageUrl,
+	languages,
+	languageTtsInstructions,
+	starterBriefForLanguage,
+} from "../languages";
 import { DEFAULT_TEXT_MODEL, type TextReasoningEffort } from "../models";
 import {
 	isNarrationVoiceId,
@@ -49,7 +57,7 @@ interface PreparedReadingOpening
 	extends Partial<StoryBackgroundImage>,
 		Partial<StoryOpeningAudio> {
 	id: string;
-	genreId: GenreId;
+	genreId: LanguageId;
 	title?: string;
 	text: string;
 	messages: ChatMessage[];
@@ -67,10 +75,10 @@ interface PreparedReadingOpening
 	basedOnStoryId: string | null;
 }
 
-export async function listPreparedReadingOpenings(genreId?: GenreId) {
+export async function listPreparedReadingOpenings(genreId?: LanguageId) {
 	await mkdir(readingOpeningsDir, { recursive: true });
 	const openings = await Promise.all(
-		(genreId ? [getGenre(genreId)] : genres).map(async (genre) =>
+		(genreId ? [getLanguage(genreId)] : languages).map(async (genre) =>
 			readPreparedReadingOpening(genre.id),
 		),
 	);
@@ -85,7 +93,7 @@ export async function listPreparedReadingOpenings(genreId?: GenreId) {
 
 export async function prepareMissingReadingOpenings(
 	openai: OpenAI,
-	genreId: GenreId = "esperanto",
+	genreId: LanguageId = "esperanto",
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 	basedOnStoryId: string | null = null,
@@ -95,7 +103,7 @@ export async function prepareMissingReadingOpenings(
 ) {
 	await mkdir(readingOpeningsDir, { recursive: true });
 
-	for (const genre of [getGenre(genreId)]) {
+	for (const genre of [getLanguage(genreId)]) {
 		try {
 			const existing = await readPreparedReadingOpening(genre.id);
 			if (existing && existing.basedOnStoryId !== basedOnStoryId) {
@@ -127,7 +135,7 @@ export async function prepareMissingReadingOpenings(
 							{
 								sectionIndex: 1,
 								ttsModel,
-								instructions: genre.ttsInstructions,
+								instructions: languageTtsInstructions(genre),
 							},
 						)) ?? {},
 					);
@@ -171,7 +179,7 @@ export async function prepareMissingReadingOpenings(
 }
 
 export async function consumePreparedReadingOpening(
-	genreId: GenreId,
+	genreId: LanguageId,
 ): Promise<PreparedReadingOpening | null> {
 	const opening = await readPreparedReadingOpening(genreId);
 	if (!opening) return null;
@@ -205,13 +213,13 @@ export async function listStoryImages(storyId: string): Promise<string[]> {
 	}
 }
 
-export function findGenre(genreId: string): Genre | undefined {
-	return genres.find((genre) => genre.id === genreId);
+export function findLanguage(genreId: string): Language | undefined {
+	return languages.find((genre) => genre.id === genreId);
 }
 
 async function createPreparedReadingOpening(
 	openai: OpenAI,
-	genre: Genre,
+	genre: Language,
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
 	basedOnStoryId: string | null = null,
@@ -224,8 +232,8 @@ async function createPreparedReadingOpening(
 	// first story starts from one fixed baseline rather than inferred history.
 	const nextStoryBrief = basedOnStoryId
 		? ((await readFinishEvidence(basedOnStoryId)).nextStoryBrief ??
-			genre.starterBrief)
-		: genre.starterBrief;
+			starterBriefForLanguage(genre))
+		: starterBriefForLanguage(genre);
 	const readingStory = await generateReadingStory(
 		(messages, maxTokens, options) =>
 			completeStructuredAi(
@@ -265,7 +273,7 @@ async function createPreparedReadingOpening(
 		createOpeningAudio(openai, text, id, narrationVoice, {
 			sectionIndex: 1,
 			ttsModel,
-			instructions: genre.ttsInstructions,
+			instructions: languageTtsInstructions(genre),
 		}),
 		prewarmReadingTranslations(openai, genre, readingStory),
 	]);
@@ -288,7 +296,7 @@ async function createPreparedReadingOpening(
 
 async function prewarmReadingTranslations(
 	openai: OpenAI,
-	genre: Genre,
+	genre: Language,
 	readingStory: ReadingStory,
 ): Promise<Record<string, string>> {
 	try {
@@ -332,7 +340,7 @@ async function readAnchorImage(storyId: string): Promise<Buffer | null> {
 
 export async function createBackgroundImage(
 	openai: OpenAI,
-	genre: Genre,
+	genre: Language,
 	storyText: string,
 	storyId: string,
 	options: BackgroundImageOptions = {},
@@ -366,7 +374,7 @@ export async function createBackgroundImage(
 
 async function generateBackgroundImage(
 	openai: OpenAI,
-	genre: Genre,
+	genre: Language,
 	storyText: string,
 	storyId: string,
 	options: BackgroundImageOptions,
@@ -412,7 +420,7 @@ async function generateBackgroundImage(
 }
 
 async function readPreparedReadingOpening(
-	genreId: GenreId,
+	genreId: LanguageId,
 ): Promise<PreparedReadingOpening | null> {
 	try {
 		const text = await readFile(readingOpeningPath(genreId), "utf8");
@@ -458,16 +466,16 @@ async function writePreparedReadingOpening(opening: PreparedReadingOpening) {
 	);
 }
 
-function readingOpeningPath(genreId: GenreId) {
+function readingOpeningPath(genreId: LanguageId) {
 	return join(readingOpeningsDir, `${genreId}.json`);
 }
 
-function fallbackBackgroundUrl(genreId: GenreId) {
-	return getGenre(genreId).heroImageUrl;
+function fallbackBackgroundUrl(genreId: LanguageId) {
+	return languageHeroImageUrl(getLanguage(genreId));
 }
 
 function imageFilename(
-	genre: Genre,
+	genre: Language,
 	extension: "jpg" | "png" | "webp",
 	sectionIndex?: number,
 ) {

@@ -9,7 +9,11 @@ import {
 } from "../ai";
 import type { StoryPhase, StorySegment } from "../exercise_screen/types";
 import { listStoryImages } from "../gallery/galleryApi";
-import { type Genre, getGenre } from "../genres";
+import {
+	getLanguage,
+	type Language,
+	languageStorySystemPrompt,
+} from "../languages";
 import { readSelectedNarrationModel } from "../modelSelection/modelSelectionStore";
 import type { StoryGenerationPreset } from "../models";
 import {
@@ -56,7 +60,7 @@ import {
 type View = "menu" | "story";
 
 interface UseStorySessionOptions {
-	language: Genre;
+	language: Language;
 	storyGeneration: StoryGenerationPreset;
 	view: View;
 	/** The unfinished reading-story save, if any — see `findUnfinishedReadingSave`. */
@@ -80,18 +84,18 @@ function describeError(err: unknown): string {
 
 /** Carries the section's dominant-action image prompt to the background-image endpoint. */
 function readingBackgroundMessages(
-	selected: Genre,
+	selected: Language,
 	imagePrompt: string,
 ): ChatMessage[] {
 	return [
-		{ role: "system", content: selected.systemPrompt },
+		{ role: "system", content: languageStorySystemPrompt(selected) },
 		{ role: "assistant", content: imagePrompt },
 	];
 }
 
 /** Everything the media owner needs to produce one section's narration and image. */
 function readingMediaSection(
-	selected: Genre,
+	selected: Language,
 	storyId: string,
 	story: ReadingStory,
 	partIndex: number,
@@ -136,7 +140,7 @@ export function useStorySession({
 	onSavedStoriesChanged,
 	onSavesError,
 }: UseStorySessionOptions) {
-	const [genre, setGenre] = useState<Genre | null>(language);
+	const [genre, setGenre] = useState<Language | null>(language);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [segments, setSegments] = useState<StorySegment[]>([]);
 	const [currentTarget, setCurrentTarget] = useState<string | null>(null);
@@ -430,7 +434,7 @@ export function useStorySession({
 			segments: history,
 			imageMap,
 		}: {
-			selected: Genre;
+			selected: Language;
 			saveId: string;
 			story: ReadingStory;
 			voice: NarrationVoiceId;
@@ -464,7 +468,7 @@ export function useStorySession({
 	/** Warms the next section's media while the learner reads the current one. */
 	const prepareNextReadingSection = useCallback(
 		(
-			selected: Genre,
+			selected: Language,
 			saveId: string,
 			story: ReadingStory,
 			currentPartIndex: number,
@@ -1037,7 +1041,7 @@ export function useStorySession({
 			try {
 				onSavesError(null);
 				const save = await loadSavedStory(id);
-				const selected = getGenre(save.genreId);
+				const selected = getLanguage(save.genreId);
 				// A resumed save is never "just finished" in this session, even one
 				// that was already finished when saved — rereading it must not
 				// re-finalize it.

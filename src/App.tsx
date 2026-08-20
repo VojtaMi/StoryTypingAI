@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import ExerciseScreen from "./exercise_screen/ExerciseScreen";
-import { type GenreId, getGenre } from "./genres";
 import MainMenu from "./home_menu/MainMenu";
 import {
 	readSelectedLanguage,
 	selectLanguage,
 	syncLanguageDocument,
 } from "./languageSelection";
+import { getLanguage, type LanguageId } from "./languages";
 import {
 	readSelectedStoryGenerationPreset,
 	saveSelectedStoryGenerationPreset,
@@ -53,7 +53,7 @@ export default function App() {
 		return () => window.removeEventListener("popstate", handlePopState);
 	}, []);
 
-	function changeLanguage(nextLanguageId: GenreId) {
+	function changeLanguage(nextLanguageId: LanguageId) {
 		selectLanguage(nextLanguageId);
 		setLanguageId(nextLanguageId);
 	}
@@ -71,10 +71,10 @@ function ReadingApp({
 	languageId,
 	onLanguageChange,
 }: {
-	languageId: GenreId;
-	onLanguageChange: (languageId: GenreId) => void;
+	languageId: LanguageId;
+	onLanguageChange: (languageId: LanguageId) => void;
 }) {
-	const language = getGenre(languageId);
+	const language = getLanguage(languageId);
 	const [location, setLocation] = useState<string>(() =>
 		canonicalAppPath(window.location.pathname),
 	);
@@ -234,9 +234,7 @@ function ReadingApp({
 			{inStory && (
 				<header className="story-header">
 					<h1>Story Reading</h1>
-					<p className="subtitle">
-						{genre ? `${genre.emoji} ${genre.label}` : ""}
-					</p>
+					<p className="subtitle">{genre?.label ?? ""}</p>
 				</header>
 			)}
 

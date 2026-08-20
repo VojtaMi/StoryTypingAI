@@ -1,4 +1,4 @@
-import type { Genre } from "../../genres";
+import type { Language } from "../../languages";
 
 /**
  * Anchors a later section to the story's first image. The second sentence is
@@ -11,14 +11,14 @@ const REFERENCE_IMAGE_INSTRUCTION =
 	"The scene description above has final authority over what happens and what is present: render every object it names, exactly as described, even when that object is absent from or looks different in the attached image.";
 
 export function buildStoryBackgroundPrompt(
-	genre: Genre,
+	genre: Language,
 	storyText: string,
 	visualContext?: string,
 	hasReferenceImage = false,
 ) {
 	return [
 		"Create a cinematic full-page background image",
-		`Genre: ${genre.label}.`,
+		`Language: ${genre.label}.`,
 		visualContext
 			? `Visual continuity to preserve across images: ${visualContext}`
 			: "",

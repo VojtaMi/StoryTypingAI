@@ -1,15 +1,15 @@
 import { access } from "node:fs/promises";
 import { join } from "node:path";
-import { type GenreId, genres, isGenreId } from "../genres";
+import { isLanguageId, type LanguageId, languages } from "../languages";
 
 export const storiesDir = join(process.cwd(), "stories");
 
-const languageIdAlternatives = genres.map(({ id }) => id).join("|");
+const languageIdAlternatives = languages.map(({ id }) => id).join("|");
 export const bundleIdPattern = new RegExp(
 	`^(?:${languageIdAlternatives})--[a-z0-9]+(?:-[a-z0-9]+)*--[a-z0-9]+$`,
 );
 
-export function createBundleId(genreId: GenreId, label: string, id: string) {
+export function createBundleId(genreId: LanguageId, label: string, id: string) {
 	const slug = slugify(label) || "story";
 	return `${genreId}--${slug}--${id.slice(0, 8).toLowerCase()}`;
 }
@@ -28,9 +28,9 @@ export function storyBundlePath(storyId: string) {
 	return join(storiesDir, storyLanguage(storyId), storyId);
 }
 
-export function storyLanguage(storyId: string): GenreId {
+export function storyLanguage(storyId: string): LanguageId {
 	const language = storyId.split("--", 1)[0];
-	if (!isGenreId(language)) {
+	if (!isLanguageId(language)) {
 		throw new Error(`Story id does not contain a valid language: ${storyId}`);
 	}
 	return language;

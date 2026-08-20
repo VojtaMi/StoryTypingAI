@@ -1,17 +1,23 @@
-import { DEFAULT_GENRE, type GenreId, getGenre, isGenreId } from "./genres";
+import {
+	DEFAULT_LANGUAGE,
+	getLanguage,
+	isLanguageId,
+	type LanguageId,
+	languageFaviconUrl,
+} from "./languages";
 
 const LANGUAGE_QUERY_KEY = "language";
 const LAST_LANGUAGE_KEY = "last-learning-language";
 
-export function readSelectedLanguage(): GenreId {
+export function readSelectedLanguage(): LanguageId {
 	const url = new URL(window.location.href);
 	const fromUrl = url.searchParams.get(LANGUAGE_QUERY_KEY);
-	if (isGenreId(fromUrl)) return fromUrl;
+	if (isLanguageId(fromUrl)) return fromUrl;
 	const remembered = localStorage.getItem(LAST_LANGUAGE_KEY);
-	return isGenreId(remembered) ? remembered : DEFAULT_GENRE.id;
+	return isLanguageId(remembered) ? remembered : DEFAULT_LANGUAGE.id;
 }
 
-export function selectLanguage(languageId: GenreId): void {
+export function selectLanguage(languageId: LanguageId): void {
 	localStorage.setItem(LAST_LANGUAGE_KEY, languageId);
 	const url = new URL(window.location.href);
 	url.pathname = "/";
@@ -19,9 +25,9 @@ export function selectLanguage(languageId: GenreId): void {
 	window.history.pushState(null, "", url);
 }
 
-export function syncLanguageDocument(languageId: GenreId): void {
-	const language = getGenre(languageId);
+export function syncLanguageDocument(languageId: LanguageId): void {
+	const language = getLanguage(languageId);
 	document.title = `${language.label} through tiny stories`;
 	const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-	if (favicon) favicon.href = language.faviconUrl;
+	if (favicon) favicon.href = languageFaviconUrl(language);
 }

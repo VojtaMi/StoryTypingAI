@@ -6,9 +6,9 @@ The browser never talks directly to a provider:
 feature → src/ai.ts → /api → src/server → provider
 ```
 
-Language-sensitive calls carry a validated `GenreId`; the server resolves
+Language-sensitive calls carry a validated `LanguageId`; the server resolves
 generation, tutor, recap, image, and pronunciation guidance from
-`src/genres.ts`.
+`src/languages.ts`.
 
 | Operation | Owner |
 | --- | --- |

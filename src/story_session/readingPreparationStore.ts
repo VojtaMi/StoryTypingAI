@@ -1,9 +1,9 @@
 import type { StoryFinishEvidence } from "../ai";
-import type { GenreId } from "../genres";
+import type { LanguageId } from "../languages";
 
-const pendingKey = (languageId: GenreId) =>
+const pendingKey = (languageId: LanguageId) =>
 	`reading-preparation-pending:${languageId}`;
-const pendingThemeKey = (languageId: GenreId) =>
+const pendingThemeKey = (languageId: LanguageId) =>
 	`reading-preparation-theme:${languageId}`;
 
 /**
@@ -17,7 +17,7 @@ const pendingThemeKey = (languageId: GenreId) =>
  * server is idempotent per story id.
  */
 export function readPendingReadingEvidence(
-	languageId: GenreId,
+	languageId: LanguageId,
 ): StoryFinishEvidence | null {
 	const stored = localStorage.getItem(pendingKey(languageId));
 	if (!stored) return null;
@@ -39,15 +39,15 @@ export function savePendingReadingEvidence(evidence: StoryFinishEvidence) {
  * alongside — not inside — the evidence, so finalization never sees it and it
  * can never leak into the durable learner profile.
  */
-export function readPendingReadingTheme(languageId: GenreId): string | null {
+export function readPendingReadingTheme(languageId: LanguageId): string | null {
 	return localStorage.getItem(pendingThemeKey(languageId)) || null;
 }
 
-export function savePendingReadingTheme(languageId: GenreId, theme: string) {
+export function savePendingReadingTheme(languageId: LanguageId, theme: string) {
 	localStorage.setItem(pendingThemeKey(languageId), theme);
 }
 
-export function clearPendingReadingEvidence(languageId: GenreId) {
+export function clearPendingReadingEvidence(languageId: LanguageId) {
 	localStorage.removeItem(pendingKey(languageId));
 	// The theme belongs to the same lifecycle: whenever the evidence is cleared
 	// (settled, consumed, or discarded as stale) the one-shot theme is spent too.

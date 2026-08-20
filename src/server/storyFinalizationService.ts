@@ -1,5 +1,9 @@
 import type OpenAI from "openai";
-import { type GenreId, getGenre } from "../genres";
+import {
+	getLanguage,
+	type LanguageId,
+	starterBriefForLanguage,
+} from "../languages";
 import { mergeStoryMemory } from "../learnerState";
 import type { NextStoryBrief } from "../nextStoryBrief";
 import type { StoryDifficulty } from "../storyFeedback";
@@ -18,7 +22,7 @@ import {
 } from "./storyFinishEvidenceStore";
 
 export interface StoryFinalizationInput {
-	genreId: GenreId;
+	genreId: LanguageId;
 	storyId: string;
 	storySummary: string;
 	storyParts: string[];
@@ -38,12 +42,12 @@ async function finalizeOnce(
 	anthropicKey: string,
 ): Promise<NextStoryBrief> {
 	const record = await readFinishEvidence(evidence.storyId);
-	const genre = getGenre(evidence.genreId);
+	const genre = getLanguage(evidence.genreId);
 	// Finalization is resolved exactly once, at the moment the next story is
 	// generated. A story that has already finalized ignores later evidence so a
 	// reopened story cannot replace the handoff already bound to its successor.
 	if (record.finalizedAt) {
-		return record.nextStoryBrief ?? genre.starterBrief;
+		return record.nextStoryBrief ?? starterBriefForLanguage(genre);
 	}
 
 	const practiceRequest = evidence.practiceRequest?.trim() || undefined;

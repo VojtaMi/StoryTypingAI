@@ -1,4 +1,4 @@
-import type { GenreId } from "./genres";
+import type { LanguageId } from "./languages";
 
 const STORY_WORD_PATTERN = /\p{L}+(?:[-’']\p{L}+)*/gu;
 
@@ -6,7 +6,7 @@ const STORY_WORD_PATTERN = /\p{L}+(?:[-’']\p{L}+)*/gu;
 export function storyWords(
 	parts: string[],
 	excludedWords: string[] = [],
-	genreId: GenreId = "esperanto",
+	genreId: LanguageId = "esperanto",
 ): string[] {
 	const excluded = new Set(
 		excludedWords.flatMap((word) => {
@@ -29,7 +29,7 @@ export function storyWords(
 export function isStoryName(
 	word: string,
 	names: string[],
-	genreId: GenreId = "esperanto",
+	genreId: LanguageId = "esperanto",
 ): boolean {
 	const normalized = word.toLowerCase();
 	return names.some((name) => {

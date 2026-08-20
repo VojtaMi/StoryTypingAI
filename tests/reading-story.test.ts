@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { Genre } from "../src/genres.ts";
+import type { Language } from "../src/languages.ts";
 import {
 	DEFAULT_TEXT_MODEL,
 	READING_STORY_MAX_TOKENS,
@@ -57,12 +57,12 @@ import {
 import type { StoryBackgroundImage } from "../src/storyBackground.ts";
 import { storyWords } from "../src/storyVocabulary.ts";
 
-const genre: Genre = {
+const genre: Language = {
 	id: "esperanto",
 	label: "Esperanto",
 	systemPrompt: "Write Esperanto stories.",
 	seeds: [],
-} as unknown as Genre;
+} as unknown as Language;
 
 const preferences = {
 	prefer: ["Adult-respectful practical stories."],

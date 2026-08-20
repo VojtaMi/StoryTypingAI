@@ -6,7 +6,7 @@ import {
 } from "../ai";
 import "../gallery/gallery.css";
 import { GalleryModal } from "../gallery/GalleryModal";
-import type { Genre } from "../genres";
+import type { Language } from "../languages";
 import type { StoryFeedbackRecord } from "../storyFeedback";
 import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
 import { isStoryName } from "../storyVocabulary";
@@ -30,7 +30,7 @@ interface WordPopover {
 }
 
 interface ExerciseScreenProps {
-	language: Genre;
+	language: Language;
 	segments: StorySegment[];
 	currentTarget: string | null;
 	phase: StoryPhase;

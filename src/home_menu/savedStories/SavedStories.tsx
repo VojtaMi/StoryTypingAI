@@ -1,10 +1,10 @@
-import type { Genre } from "../../genres";
+import type { Language } from "../../languages";
 import type { SavedStorySummary } from "../../saves";
 import { SavedStoryPreview } from "./SavedStoryPreview";
 
 interface SavedStoriesProps {
 	savedStories: SavedStorySummary[];
-	language: Genre;
+	language: Language;
 	savesError: string | null;
 	onResume: (id: string) => void;
 	onDelete: (id: string) => void;

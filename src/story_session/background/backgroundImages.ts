@@ -1,5 +1,5 @@
 import type { ChatMessage } from "../../ai";
-import type { Genre } from "../../genres";
+import { type Language, languageHeroImageUrl } from "../../languages";
 import type { StoryBackgroundImage } from "../../storyBackground";
 
 export interface StoryBackgroundFields {
@@ -8,16 +8,18 @@ export interface StoryBackgroundFields {
 	backgroundImageSource?: string;
 }
 
-export function fallbackBackgroundImage(selected: Genre): StoryBackgroundImage {
+export function fallbackBackgroundImage(
+	selected: Language,
+): StoryBackgroundImage {
 	return {
-		backgroundImageUrl: selected.heroImageUrl,
+		backgroundImageUrl: languageHeroImageUrl(selected),
 		backgroundImageSource: "fallback",
 	};
 }
 
 export function backgroundFromOpening(
 	opening: StoryBackgroundFields,
-	selected: Genre,
+	selected: Language,
 ): StoryBackgroundImage {
 	if (
 		opening.backgroundImageUrl &&

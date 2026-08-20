@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { genres, getGenre } from "../src/genres.ts";
+import {
+	getLanguage,
+	languageBotImageUrl,
+	languageFaviconUrl,
+	languageHeroImageUrl,
+	languages,
+	starterBriefForLanguage,
+} from "../src/languages.ts";
 import {
 	DEFAULT_STORY_MEMORY,
 	mergeStoryMemory,
@@ -15,21 +22,18 @@ import { buildStoryRecapPrompt } from "../src/storyRecap.ts";
 import { isStoryName, storyWords } from "../src/storyVocabulary.ts";
 
 assert.equal(
-	new Set(genres.map((language) => language.id)).size,
-	genres.length,
+	new Set(languages.map((language) => language.id)).size,
+	languages.length,
 );
 assert.equal(
-	new Set(genres.map((language) => language.heroImageUrl)).size,
-	genres.length,
+	new Set(languages.map(languageHeroImageUrl)).size,
+	languages.length,
 );
 assert.equal(
-	new Set(genres.map((language) => language.botImageUrl)).size,
-	genres.length,
+	new Set(languages.map(languageBotImageUrl)).size,
+	languages.length,
 );
-assert.equal(
-	new Set(genres.map((language) => language.faviconUrl)).size,
-	genres.length,
-);
+assert.equal(new Set(languages.map(languageFaviconUrl)).size, languages.length);
 
 const germanStoryId = createBundleId(
 	"german",
@@ -42,35 +46,37 @@ assert.match(
 	/\/stories\/german\/german--der-kleine-schlussel--abcdef12\/story\.json$/,
 );
 
-const german = getGenre("german");
+const german = getLanguage("german");
+const germanStarterBrief = starterBriefForLanguage(german);
 const germanPrompt = readingManuscriptMessages(
 	german,
 	"A person finds a key and returns it.",
-	german.starterBrief,
+	germanStarterBrief,
 )[0].content;
 assert.match(germanPrompt, /beginner German reading story/);
 assert.match(germanPrompt, /capitalize every noun/i);
 assert.match(germanPrompt, /verb-second/i);
 
-const spanish = getGenre("spanish");
+const spanish = getLanguage("spanish");
 const spanishRecap = buildStoryRecapPrompt("present-tense actions", spanish);
 assert.match(spanishRecap, /Spanish recap lesson/);
-assert.match(spanishRecap, /piensa en/);
+assert.equal(spanish.recapTitle, "Práctica breve");
 
-const dutch = getGenre("dutch");
+const dutch = getLanguage("dutch");
+const dutchStarterBrief = starterBriefForLanguage(dutch);
 const dutchPrompt = readingManuscriptMessages(
 	dutch,
 	"A person finds a key and returns it.",
-	dutch.starterBrief,
+	dutchStarterBrief,
 )[0].content;
 assert.match(dutchPrompt, /beginner Dutch reading story/);
 assert.match(dutchPrompt, /de, het, and een/i);
 assert.match(dutchPrompt, /verb-second/i);
 const dutchRecap = buildStoryRecapPrompt("present-tense actions", dutch);
 assert.match(dutchRecap, /Dutch recap lesson/);
-assert.match(dutchRecap, /staat op/);
+assert.equal(dutch.recapTitle, "Kleine oefening");
 assert.match(
-	dutch.starterBrief.language.calibrationSnippets[0] ?? "",
+	dutchStarterBrief.language.calibrationSnippets[0] ?? "",
 	/een tuin/,
 );
 
@@ -116,6 +122,6 @@ assert.equal(
 		.length,
 	1,
 );
-assert.notDeepEqual(german.starterBrief, STARTER_NEXT_STORY_BRIEF);
+assert.notDeepEqual(germanStarterBrief, STARTER_NEXT_STORY_BRIEF);
 
 console.log("language registry and isolation checks passed");

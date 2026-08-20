@@ -1,4 +1,4 @@
-import { DEFAULT_GENRE, type Genre } from "../genres";
+import { DEFAULT_LANGUAGE, type Language } from "../languages";
 import { parseJsonResponse } from "../learnerState";
 import { SYSTEM_AI_PRESET, type TextModelId } from "../models";
 import type { ChatMessage, Complete, ReadingStoryPart } from "../story";
@@ -38,7 +38,7 @@ export function buildReadingImageSections(
 	return sections;
 }
 
-function visualPlanPrompt(imageCount: number, genre: Genre) {
+function visualPlanPrompt(imageCount: number, genre: Language) {
 	return `Design a coherent visual plan for a finished ${genre.label} reading story.
 
 The prose is supplied as ${imageCount} immutable imageSections. The app has already grouped consecutive story parts into the sections that share an image. Do not regroup them.
@@ -72,7 +72,7 @@ The original prose is supplied again as ${imageCount} immutable imageSections. R
 
 export function readingVisualPlanMessages(
 	parts: ReadingStoryPart[],
-	genre: Genre = DEFAULT_GENRE,
+	genre: Language = DEFAULT_LANGUAGE,
 ): ChatMessage[] {
 	const imageSections = buildReadingImageSections(parts);
 	return [
@@ -133,7 +133,7 @@ export function parseReadingVisualPlan(
 export async function generateReadingVisualPlan(
 	complete: Complete,
 	parts: ReadingStoryPart[],
-	genre: Genre = DEFAULT_GENRE,
+	genre: Language = DEFAULT_LANGUAGE,
 ): Promise<ReadingStoryVisualPlan> {
 	const imageSections = buildReadingImageSections(parts);
 	const imageCount = imageSections.length;

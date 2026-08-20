@@ -1,5 +1,5 @@
 import type { ChatMessage, ReadingStory } from "./ai";
-import type { GenreId } from "./genres";
+import type { LanguageId } from "./languages";
 import {
 	DEFAULT_STORY_GENERATION_PRESET_ID,
 	getStoryGenerationPreset,
@@ -14,7 +14,7 @@ export interface PreparedReadingOpening
 	extends Partial<StoryBackgroundImage>,
 		Partial<StoryOpeningAudio> {
 	id: string;
-	genreId: GenreId;
+	genreId: LanguageId;
 	title?: string;
 	text: string;
 	messages: ChatMessage[];
@@ -39,12 +39,12 @@ export interface PreparedReadingOpening
 }
 
 export interface PreparedReadingOpeningSummary {
-	genreId: GenreId;
+	genreId: LanguageId;
 	createdAt: string;
 }
 
 export async function listPreparedReadingOpenings(
-	genreId: GenreId,
+	genreId: LanguageId,
 ): Promise<PreparedReadingOpeningSummary[]> {
 	const response = await fetch(
 		`/api/reading-openings?language=${encodeURIComponent(genreId)}`,
@@ -53,7 +53,7 @@ export async function listPreparedReadingOpenings(
 }
 
 export async function prepareMissingReadingOpenings(
-	genreId: GenreId,
+	genreId: LanguageId,
 	storyGeneration: StoryGenerationPreset = getStoryGenerationPreset(
 		DEFAULT_STORY_GENERATION_PRESET_ID,
 	),
@@ -77,7 +77,7 @@ export async function prepareMissingReadingOpenings(
 }
 
 export async function consumePreparedReadingOpening(
-	genreId: GenreId,
+	genreId: LanguageId,
 ): Promise<PreparedReadingOpening | null> {
 	const response = await fetch(
 		`/api/reading-openings/${encodeURIComponent(genreId)}/consume`,

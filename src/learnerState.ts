@@ -1,4 +1,4 @@
-import { type GenreId, isGenreId } from "./genres";
+import { isLanguageId, type LanguageId } from "./languages";
 
 export const LEARNER_STATE_VERSION = 1 as const;
 
@@ -17,7 +17,7 @@ export interface StoryMemory {
 }
 
 export interface RecentStoryMemory {
-	genreId: GenreId;
+	genreId: LanguageId;
 	motif: string;
 	protagonist: string;
 	setting: string;
@@ -105,7 +105,7 @@ export function parseStoryMemory(value: unknown): StoryMemory | null {
 			"setting",
 			"elements",
 		]);
-		if (!story || !isGenreId(story.genreId)) return null;
+		if (!story || !isLanguageId(story.genreId)) return null;
 		const motif = boundedString(story.motif);
 		const protagonist = boundedString(story.protagonist);
 		const setting = boundedString(story.setting);

@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
-import { DEFAULT_GENRE, type Genre } from "../genres";
+import { DEFAULT_LANGUAGE, type Language } from "../languages";
 import {
 	DEFAULT_TEXT_MODEL,
 	STORY_SEGMENT_MAX_TOKENS,
@@ -94,11 +94,11 @@ async function completeAiOutput(
 
 export async function translateWords(
 	openai: OpenAI,
-	genreOrWords: Genre | string[],
+	genreOrWords: Language | string[],
 	wordsOrContext?: string[] | string,
 	storyContext?: string,
 ): Promise<Record<string, string>> {
-	const genre = Array.isArray(genreOrWords) ? DEFAULT_GENRE : genreOrWords;
+	const genre = Array.isArray(genreOrWords) ? DEFAULT_LANGUAGE : genreOrWords;
 	const words = Array.isArray(genreOrWords)
 		? genreOrWords
 		: (wordsOrContext as string[]);

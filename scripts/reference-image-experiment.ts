@@ -15,7 +15,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import OpenAI, { toFile } from "openai";
-import type { Genre } from "../src/genres.ts";
+import type { Language } from "../src/languages.ts";
 import { buildStoryBackgroundPrompt } from "../src/server/images/prompts.ts";
 import { type ReadingStory, readingVisualContext } from "../src/story.ts";
 
@@ -37,7 +37,7 @@ const story = JSON.parse(
 ) as { genreId: string; readingStory: ReadingStory };
 
 const readingStory = story.readingStory;
-const genre = { id: story.genreId, label: "Esperanto" } as unknown as Genre;
+const genre = { id: story.genreId, label: "Esperanto" } as unknown as Language;
 const visualContext = readingVisualContext(readingStory);
 
 const outDir = join(storyDir, "alternative-images-v2");

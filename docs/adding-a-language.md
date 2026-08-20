@@ -12,7 +12,7 @@ Before editing, establish:
 - a lowercase ASCII language ID, such as `dutch`;
 - its English display label and a 2–4 letter uppercase short code;
 - beginner grammar priorities and constructions to avoid;
-- a natural target-language recap title and answer example;
+- a natural target-language recap title;
 - at least one absolute-beginner calibration passage;
 - a wide story-poster image, a square transparent-background bot image, and a
   legible SVG favicon.
@@ -23,19 +23,22 @@ its name.
 
 ## Implementation
 
-1. Add one complete entry to `src/genres.ts`. The registry is the source of
-   truth for IDs, UI selection, prompts, TTS, storage validation, CLI options,
-   titles, bot identity, and favicon selection.
-2. Put the poster and bot under `public/images/` and the favicon under `public/`.
-   Existing assets use 1672×941 for posters and 1254×1254 for bots. Match the
-   established visual family and use distinct paths; do not reuse another
-   language's assets.
+1. Add one complete entry to `src/languages.ts`. Supply only the nine fields in
+   `LanguageDefinition`: identity, teaching topics, two authoring-guidance
+   fields, starter focus, calibration snippets, and recap title. Generic story
+   prompts, TTS wording, starter-brief structure, and asset URLs are derived by
+   shared code; do not add them to an entry.
+2. Put the assets at the paths derived from the language ID:
+   `public/images/<id>-story-hero.png`,
+   `public/images/<id>-story-bot.png`, and `public/favicon-<id>.svg`. Existing
+   assets use 1672×941 for posters and 1254×1254 for bots. Match the established
+   visual family and use a genuinely transparent bot background.
 3. Add focused assertions to `tests/languages.test.ts` for rules that are
    important or unusual in the new language. Generic registry and asset
    invariants are already checked automatically.
 4. Update the language list and example query in `README.md`.
 5. Search for language-specific exceptions with
-   `rg -n 'esperanto|german|spanish' src scripts tests README.md docs`. Most
+   `rg -n 'esperanto|german|spanish|dutch' src scripts tests README.md docs`. Most
    matches are examples or intentional language-specific behavior. Change only
    code that should apply to every registered language.
 
@@ -65,7 +68,7 @@ npm run story:generate -- --language dutch --default-learner
 Read the result rather than treating successful JSON generation as sufficient.
 Check that prose is actually in the target language, character names are
 natural for it, the level resembles the calibration passage, required grammar
-is correct, metadata remains English, and the recap example is idiomatic.
+is correct and metadata remains English.
 
 Finally, render the main menu and verify the language selector, dynamic browser
 title, favicon, poster, and bot. Do not deploy or generate production caches as

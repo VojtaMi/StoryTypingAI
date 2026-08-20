@@ -1,5 +1,10 @@
 import { type CSSProperties, useState } from "react";
-import { type Genre, type GenreId, genres } from "../genres";
+import {
+	type Language,
+	type LanguageId,
+	languageHeroImageUrl,
+	languages,
+} from "../languages";
 import type { StoryGenerationPresetId } from "../models";
 import type { SavedStorySummary } from "../saves";
 import {
@@ -12,13 +17,13 @@ import { SavedStories } from "./savedStories/SavedStories";
 
 interface MainMenuProps {
 	savedStories: SavedStorySummary[];
-	language: Genre;
+	language: Language;
 	savesError: string | null;
 	storyGenerationPreset: StoryGenerationPresetId;
 	readingStoryStatus: ReadingPreparationStatus;
 	hasUnfinishedReadingStory: boolean;
 	onStoryGenerationPresetChange: (id: StoryGenerationPresetId) => void;
-	onLanguageChange: (languageId: GenreId) => void;
+	onLanguageChange: (languageId: LanguageId) => void;
 	onStartReadingStory: () => void;
 	onRetryReadingStory: () => void;
 	onResume: (id: string) => void;
@@ -48,7 +53,7 @@ export default function MainMenu({
 			className="menu"
 			style={
 				{
-					"--menu-hero-image": `url(${language.heroImageUrl})`,
+					"--menu-hero-image": `url(${languageHeroImageUrl(language)})`,
 				} as CSSProperties
 			}
 		>
@@ -57,10 +62,10 @@ export default function MainMenu({
 					<select
 						value={language.id}
 						onChange={(event) =>
-							onLanguageChange(event.target.value as GenreId)
+							onLanguageChange(event.target.value as LanguageId)
 						}
 					>
-						{genres.map((candidate) => (
+						{languages.map((candidate) => (
 							<option key={candidate.id} value={candidate.id}>
 								{candidate.label}
 							</option>
