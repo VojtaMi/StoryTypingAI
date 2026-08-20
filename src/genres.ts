@@ -11,6 +11,7 @@ export interface Genre {
 	systemPrompt: string;
 	heroImageUrl: string;
 	botImageUrl: string;
+	faviconUrl: string;
 	botTeachingTopics: string;
 	beginnerLanguageGuidance: string;
 	grammarRequirements: string;
@@ -31,6 +32,7 @@ export const genres: Genre[] = [
 		systemPrompt: "Create an engaging Esperanto story of your choice.",
 		heroImageUrl: "/images/esperanto-lesson-hero.png",
 		botImageUrl: "/images/esperanto-bot-retro.png",
+		faviconUrl: "/favicon-esperanto.svg",
 		botTeachingTopics:
 			"vocabulary, roots, affixes, grammar, pronunciation, and why sentences mean what they mean",
 		beginnerLanguageGuidance:
@@ -66,6 +68,7 @@ export const genres: Genre[] = [
 			"Create an engaging German story of your choice. Write the story prose in clear, natural German for a true beginner; keep explanations and metadata in English.",
 		heroImageUrl: "/images/german-story-hero.png",
 		botImageUrl: "/images/german-bot.png",
+		faviconUrl: "/favicon-german.svg",
 		botTeachingTopics:
 			"vocabulary, cases, gender and articles, verb person and tense, word order, separable verbs, and pronunciation",
 		beginnerLanguageGuidance:
@@ -101,6 +104,7 @@ export const genres: Genre[] = [
 			"Create an engaging Spanish story of your choice. Write the story prose in clear, natural Spanish for a true beginner; keep explanations and metadata in English.",
 		heroImageUrl: "/images/spanish-story-hero.png",
 		botImageUrl: "/images/spanish-bot.png",
+		faviconUrl: "/favicon-spanish.svg",
 		botTeachingTopics:
 			"vocabulary, gender and agreement, verb conjugation and tense, ser and estar, pronunciation, and why sentences mean what they mean",
 		beginnerLanguageGuidance:

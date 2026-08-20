@@ -20,6 +20,7 @@ assert.deepEqual(
 );
 assert.equal(new Set(genres.map((language) => language.heroImageUrl)).size, 3);
 assert.equal(new Set(genres.map((language) => language.botImageUrl)).size, 3);
+assert.equal(new Set(genres.map((language) => language.faviconUrl)).size, 3);
 
 const germanStoryId = createBundleId(
 	"german",

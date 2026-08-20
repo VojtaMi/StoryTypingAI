@@ -22,4 +22,6 @@ export function selectLanguage(languageId: GenreId): void {
 export function syncLanguageDocument(languageId: GenreId): void {
 	const language = getGenre(languageId);
 	document.title = `${language.label} through tiny stories`;
+	const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+	if (favicon) favicon.href = language.faviconUrl;
 }
