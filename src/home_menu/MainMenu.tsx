@@ -54,7 +54,6 @@ export default function MainMenu({
 		>
 			<div className="menu__settings">
 				<label className="menu__language-select">
-					<span className="sr-only">Learning language</span>
 					<select
 						value={language.id}
 						onChange={(event) =>
