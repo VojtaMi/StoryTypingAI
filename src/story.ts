@@ -115,6 +115,7 @@ export async function generateReadingStory(
 		preferences,
 		nextStoryBrief.narrativeScale,
 		options.recentStories,
+		genre,
 	);
 	const manuscript = await generateReadingManuscript(
 		complete,

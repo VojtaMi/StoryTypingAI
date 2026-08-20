@@ -126,6 +126,7 @@ const plotContext = JSON.parse(plotMessages[1].content);
 assert.equal(plotContext.storySubject, "gremlins");
 assert.deepEqual(plotContext.preferences, preferences);
 assert.match(plotContext.narrativeGuidance, /introducing a language/i);
+assert.match(plotContext.characterNameGuidance, /familiar Esperanto/i);
 assert.doesNotMatch(
 	plotMessages[1].content,
 	/Ivo pensas|Using pensi pri|seaside/,
@@ -152,6 +153,14 @@ assert.equal(openPlotContext.storySubject, undefined);
 assert.deepEqual(openPlotContext.preferences, preferences);
 assert.equal(openPlotContext.recentStories[0].motif, "a lost red ball");
 assert.match(readingStoryPlotMessages(undefined)[0].content, /choose.*freely/i);
+const germanPlotContext = JSON.parse(
+	readingStoryPlotMessages(undefined, preferences, "minimal", [], {
+		...genre,
+		id: "german",
+		label: "German",
+	})[1].content,
+);
+assert.match(germanPlotContext.characterNameGuidance, /familiar German/i);
 
 const reviewMessages = readingStoryPlotReviewMessages("A draft plot.");
 assert.match(reviewMessages[0].content, /Original draft:/);
@@ -172,8 +181,7 @@ const preparedPlot = await prepareReadingStoryPlot(
 	"gremlins",
 	preferences,
 );
-assert.doesNotMatch(preparedPlot, /\bMia\b/);
-assert.match(preparedPlot, /\b(Anjo|Jozefino|Viktorino|Paŭlino|Sofio)\b/);
+assert.match(preparedPlot, /\bMia\b/);
 assert.match(preparedPlot, /\bAmelia\b/);
 assert.equal(
 	JSON.parse(plotCalls[1]?.[0][1]?.content ?? "").draft,
@@ -186,9 +194,7 @@ assert.deepEqual(
 		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
 	],
 );
-console.log(
-	"checked reading story: creative plot and review stay isolated and names normalize at their boundary",
-);
+console.log("checked reading story: plot names follow language guidance");
 
 assert.deepEqual(
 	parseNextStoryBrief(STARTER_NEXT_STORY_BRIEF),

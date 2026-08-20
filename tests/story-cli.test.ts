@@ -22,6 +22,7 @@ const execFileAsync = promisify(execFile);
 
 const defaults = parseReadingStoryCliArgs([]);
 assert.equal(defaults.model, DEFAULT_TEXT_MODEL);
+assert.equal(defaults.language, "esperanto");
 assert.equal(defaults.defaultLearner, false);
 assert.equal(defaults.learnerStatePath, undefined);
 assert.equal(defaults.reasoningEffort, undefined);
@@ -29,12 +30,15 @@ assert.equal(defaults.reasoningEffort, undefined);
 const configured = parseReadingStoryCliArgs([
 	"--model",
 	"gpt-5.4",
+	"--language",
+	"german",
 	"--learner-state",
 	"custom.json",
 	"--reasoning",
 	"medium",
 ]);
 assert.equal(configured.model, "gpt-5.4");
+assert.equal(configured.language, "german");
 assert.equal(configured.learnerStatePath, "custom.json");
 assert.equal(configured.reasoningEffort, "medium");
 
@@ -50,6 +54,10 @@ assert.throws(
 assert.throws(
 	() => parseReadingStoryCliArgs(["--model", "unknown-model"]),
 	/Unknown model/,
+);
+assert.throws(
+	() => parseReadingStoryCliArgs(["--language", "klingon"]),
+	/Unknown language/,
 );
 assert.throws(
 	() => parseReadingStoryCliArgs(["--reasoning", "enormous"]),

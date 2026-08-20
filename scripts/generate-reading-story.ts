@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import OpenAI from "openai";
-import { genres } from "../src/genres.ts";
+import { type GenreId, getGenre, isGenreId } from "../src/genres.ts";
 import {
 	DEFAULT_LEARNER_CONTEXT,
 	type LearnerContext,
@@ -28,6 +28,7 @@ export type ReadingStoryCliOptions = {
 	defaultLearner: boolean;
 	help: boolean;
 	learnerStatePath?: string;
+	language: GenreId;
 	model: TextModelId;
 	reasoningEffort?: TextReasoningEffort;
 };
@@ -44,6 +45,7 @@ const HELP = `Usage: npm run story:generate -- [options]
 Generate one complete adaptively-sectioned reading story and print its JSON to stdout.
 
 Options:
+  --language <id>          Story language: esperanto|german|spanish (default: esperanto)
   --model <id>             Text model (default: ${DEFAULT_TEXT_MODEL})
   --learner-state <path>   Use and validate a custom learner-state JSON file
   --default-learner        Use the built-in default learner state
@@ -60,6 +62,7 @@ export function parseReadingStoryCliArgs(
 	const options: ReadingStoryCliOptions = {
 		defaultLearner: false,
 		help: false,
+		language: "esperanto",
 		model: DEFAULT_TEXT_MODEL,
 	};
 
@@ -72,6 +75,17 @@ export function parseReadingStoryCliArgs(
 			case "--default-learner":
 				options.defaultLearner = true;
 				break;
+			case "--language": {
+				const value = requiredFlagValue(rawArgs, index, argument);
+				if (!isGenreId(value)) {
+					throw new Error(
+						`Unknown language "${value}". Valid languages: esperanto, german, spanish`,
+					);
+				}
+				options.language = value;
+				index += 1;
+				break;
+			}
 			case "--model": {
 				const value = requiredFlagValue(rawArgs, index, argument);
 				const model = TEXT_MODELS.find((candidate) => candidate.id === value);
@@ -222,8 +236,7 @@ export async function runReadingStoryCli(rawArgs: string[]): Promise<void> {
 			),
 		options.reasoningEffort,
 	);
-	const genre = genres[0];
-	if (!genre) throw new Error("No reading-story genre is configured.");
+	const genre = getGenre(options.language);
 	const story = await generateReadingStory(complete, genre, {
 		prefer: learnerContext.preferences.prefer,
 		avoid: learnerContext.preferences.avoid,
