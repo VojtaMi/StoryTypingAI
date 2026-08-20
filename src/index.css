@@ -781,6 +781,15 @@ body {
 	color: var(--lesson-ink);
 	font: inherit;
 	cursor: pointer;
+	transition:
+		border-color 0.12s ease,
+		background 0.12s ease,
+		transform 0.12s ease;
+}
+
+.lesson-choice:hover:not(:disabled):not(.lesson-choice--wrong) {
+	border-color: var(--lesson-ink);
+	transform: translateY(-1px);
 }
 
 .lesson-choice--selected {
@@ -793,12 +802,14 @@ body {
 	border-color: #c0392b;
 	background: rgba(192, 57, 43, 0.08);
 	color: #c0392b;
+	cursor: default;
 }
 
 .lesson-choice--correct {
 	border-color: #27ae60;
 	background: rgba(39, 174, 96, 0.12);
 	color: #27ae60;
+	cursor: default;
 }
 
 .word-match__columns {
@@ -820,12 +831,22 @@ body {
 	text-align: center;
 }
 
+@keyframes word-match-correct {
+	from {
+		border-color: #27ae60;
+		background: rgba(39, 174, 96, 0.14);
+		color: #27ae60;
+	}
+	to {
+		border-color: var(--lesson-rule);
+		background: rgba(34, 28, 20, 0.04);
+		color: var(--lesson-faint);
+	}
+}
+
 .word-match__item--matched {
-	border-color: #27ae60;
-	background: rgba(39, 174, 96, 0.12);
-	color: #287a49;
+	animation: word-match-correct 0.55s ease forwards;
 	cursor: default;
-	opacity: 0.8;
 }
 
 .story-recap,
