@@ -33,7 +33,7 @@ export const DEFAULT_LEARNER_PREFERENCES: LearnerPreferences = {
 	version: LEARNER_STATE_VERSION,
 	updated: "never",
 	prefer: [],
-	avoid: [],
+	avoid: ["overly childish stories"],
 	clarityGuidance: [],
 };
 
