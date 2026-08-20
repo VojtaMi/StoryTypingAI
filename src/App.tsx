@@ -113,6 +113,10 @@ function ReadingApp({
 		}
 	}, [language.id]);
 
+	useEffect(() => {
+		void refreshSavedStories();
+	}, [refreshSavedStories]);
+
 	const sessionView: "menu" | "story" = inStory ? "story" : "menu";
 
 	const languageSavedStories = savedStories.filter(

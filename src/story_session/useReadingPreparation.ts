@@ -219,7 +219,9 @@ export function useReadingPreparation(
 	unfinishedReadingSaveId: string | null,
 	isMenuVisible: boolean,
 ): ReadingPreparation {
-	const [status, setStatus] = useState<ReadingPreparationStatus>("idle");
+	// A menu cannot know whether its queue is ready until the first async check
+	// completes, so start conservatively busy to avoid an enabled-button flash.
+	const [status, setStatus] = useState<ReadingPreparationStatus>("preparing");
 	const runningRef = useRef(false);
 	const runRef = useRef<StoryFinishEvidence | null>(null);
 	const storyGenerationRef = useRef(storyGeneration);
@@ -283,6 +285,10 @@ export function useReadingPreparation(
 	useEffect(() => {
 		if (!isMenuVisible || runRef.current) return;
 
+		// The queue check is asynchronous. Keep the start button unavailable while
+		// it is in flight; otherwise a fresh menu can briefly show an enabled
+		// button, consume nothing, and only then begin the initial preparation.
+		setStatus("preparing");
 		let cancelled = false;
 		void (async () => {
 			const pending = readPendingReadingEvidence(languageId);
