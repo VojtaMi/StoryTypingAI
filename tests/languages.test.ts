@@ -57,6 +57,23 @@ const spanishRecap = buildStoryRecapPrompt("present-tense actions", spanish);
 assert.match(spanishRecap, /Spanish recap lesson/);
 assert.match(spanishRecap, /piensa en/);
 
+const dutch = getGenre("dutch");
+const dutchPrompt = readingManuscriptMessages(
+	dutch,
+	"A person finds a key and returns it.",
+	dutch.starterBrief,
+)[0].content;
+assert.match(dutchPrompt, /beginner Dutch reading story/);
+assert.match(dutchPrompt, /de, het, and een/i);
+assert.match(dutchPrompt, /verb-second/i);
+const dutchRecap = buildStoryRecapPrompt("present-tense actions", dutch);
+assert.match(dutchRecap, /Dutch recap lesson/);
+assert.match(dutchRecap, /staat op/);
+assert.match(
+	dutch.starterBrief.language.calibrationSnippets[0] ?? "",
+	/een tuin/,
+);
+
 assert.equal(isStoryName("Petron", ["Petro"], "esperanto"), true);
 assert.equal(isStoryName("Petron", ["Petro"], "german"), false);
 assert.deepEqual(storyWords(["Petro vidas Petron."], ["Petro"], "esperanto"), [

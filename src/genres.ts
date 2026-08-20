@@ -134,6 +134,42 @@ export const genres = defineLanguages([
 		},
 		seeds: [],
 	},
+	{
+		id: "dutch",
+		label: "Dutch",
+		shortCode: "NL",
+		emoji: "★",
+		color: "#38b26d",
+		systemPrompt:
+			"Create an engaging Dutch story of your choice. Write the story prose in clear, natural Dutch for a true beginner; keep explanations and metadata in English.",
+		heroImageUrl: "/images/dutch-story-hero.png",
+		botImageUrl: "/images/dutch-bot.png",
+		faviconUrl: "/favicon-dutch.svg?v=1",
+		botTeachingTopics:
+			"vocabulary, de and het articles, verb conjugation and tense, main-clause word order, separable verbs, pronunciation, and why sentences mean what they mean",
+		beginnerLanguageGuidance:
+			"Prefer the present tense and short subject-verb-object sentences. Use de, het, and een with common beginner nouns, keep adjective forms natural, and keep main clauses verb-second. Use common separable verbs only when their split is clear; avoid past tense, subordinate-clause inversion, relative clauses, and other complex subordination until introduced by language.focus.",
+		grammarRequirements:
+			"Use de, het, and een naturally with common nouns; keep present-tense verb conjugation and main-clause verb-second order correct; use separable verbs with correct particle placement when they appear. Avoid past tense and complex subordination unless language.focus explicitly introduces them.",
+		recapTitle: "Kleine oefening",
+		recapAnswerExample: "staat op",
+		ttsInstructions:
+			"Keep Dutch pronunciation clear, natural, and learner-friendly.",
+		starterBrief: {
+			themeSuggestion: "",
+			narrativeScale: "minimal",
+			language: {
+				focus:
+					"Simple present-tense Dutch sentences with concrete beginner words; practise `de`, `het`, and `een` with basic subject-verb-object sentences and main-clause verb-second order.",
+				progression: "establish",
+				complexity: "absolute beginner",
+				calibrationSnippets: [
+					"Pieter is een man. Pieter is in een tuin. Saar is een hond. Saar slaapt naast Pieter.",
+				],
+			},
+		},
+		seeds: [],
+	},
 ]);
 
 export type GenreId = (typeof genres)[number]["id"];
