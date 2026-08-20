@@ -228,6 +228,7 @@ function WordConnectRecap({
 								selectedTerm === term && "lesson-choice--selected",
 								wrongPair?.term === term && "lesson-choice--wrong",
 							)}
+							aria-pressed={matched.has(term) || selectedTerm === term}
 							disabled={done || matched.has(term)}
 							onClick={() => chooseTerm(term)}
 						>
@@ -245,6 +246,9 @@ function WordConnectRecap({
 								selectedMeaning === meaning && "lesson-choice--selected",
 								wrongPair?.meaning === meaning && "lesson-choice--wrong",
 							)}
+							aria-pressed={
+								matchedMeanings.has(meaning) || selectedMeaning === meaning
+							}
 							disabled={done || matchedMeanings.has(meaning)}
 							onClick={() => chooseMeaning(meaning)}
 						>
