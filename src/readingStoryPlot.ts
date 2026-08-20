@@ -77,7 +77,7 @@ export function readingStoryPlotMessages(
 			content: JSON.stringify({
 				...(storySubject?.trim() ? { storySubject: storySubject.trim() } : {}),
 				narrativeGuidance: NARRATIVE_GUIDANCE[narrativeScale],
-				characterNameGuidance: `Prefer familiar ${genre.label} character names. Preserve any character names explicitly supplied by the learner or selected theme.`,
+				characterNameGuidance: `Prefer ${genre.label} character names. Preserve any character names explicitly supplied by the learner or selected theme.`,
 				preferences: {
 					...(preferences?.prefer.length ? { prefer: preferences.prefer } : {}),
 					...(preferences?.avoid.length ? { avoid: preferences.avoid } : {}),
