@@ -1,11 +1,13 @@
 import { access } from "node:fs/promises";
 import { join } from "node:path";
-import { type GenreId, isGenreId } from "../genres";
+import { type GenreId, genres, isGenreId } from "../genres";
 
 export const storiesDir = join(process.cwd(), "stories");
 
-export const bundleIdPattern =
-	/^(esperanto|german|spanish)--[a-z0-9]+(?:-[a-z0-9]+)*--[a-z0-9]+$/;
+const languageIdAlternatives = genres.map(({ id }) => id).join("|");
+export const bundleIdPattern = new RegExp(
+	`^(?:${languageIdAlternatives})--[a-z0-9]+(?:-[a-z0-9]+)*--[a-z0-9]+$`,
+);
 
 export function createBundleId(genreId: GenreId, label: string, id: string) {
 	const slug = slugify(label) || "story";

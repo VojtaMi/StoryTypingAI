@@ -1,9 +1,7 @@
 import type { NextStoryBrief } from "./nextStoryBrief";
 
-export type GenreId = "esperanto" | "german" | "spanish";
-
-export interface Genre {
-	id: GenreId;
+interface LanguageDefinition<Id extends string = string> {
+	id: Id;
 	label: string;
 	shortCode: string;
 	emoji: string;
@@ -22,7 +20,13 @@ export interface Genre {
 	seeds: string[];
 }
 
-export const genres: Genre[] = [
+function defineLanguages<const Id extends string>(
+	languages: LanguageDefinition<Id>[],
+): LanguageDefinition<Id>[] {
+	return languages;
+}
+
+export const genres = defineLanguages([
 	{
 		id: "esperanto",
 		label: "Esperanto",
@@ -130,7 +134,10 @@ export const genres: Genre[] = [
 		},
 		seeds: [],
 	},
-];
+]);
+
+export type GenreId = (typeof genres)[number]["id"];
+export type Genre = LanguageDefinition<GenreId>;
 
 export const DEFAULT_GENRE = genres[0];
 

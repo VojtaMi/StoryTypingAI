@@ -20,7 +20,9 @@ pronunciation caches, and progression remain language-specific.
 
 Language identity and generation guidance live in the registry at
 [`src/genres.ts`](./src/genres.ts). Adding another language is primarily a
-registry-and-assets change; provider prompts consume the same contract.
+registry-and-assets change; provider prompts consume the same contract. Follow
+the coding-agent workflow in
+[`docs/adding-a-language.md`](./docs/adding-a-language.md).
 
 ## Development
 
@@ -40,6 +42,7 @@ Provider keys stay server-side. `ANTHROPIC_API_KEY` is needed for Claude models;
 | `npm run dev` | Run API and browser app. |
 | `npm run build` | Type-check and build client and server. |
 | `npm run check` | Run build, lint, and all deterministic tests. |
+| `npm run language:validate -- german` | Validate language registry fields, assets, and storage IDs. |
 | `npm run story:generate -- --language german` | Generate one complete story through the real provider pipeline. |
 | `npm run story:chain` | Simulate a sequence of stories and handoffs. |
 | `npm run verify:page -- <url>` | Render a page in a real browser and fail on runtime errors. |

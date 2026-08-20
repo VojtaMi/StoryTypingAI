@@ -126,7 +126,10 @@ const plotContext = JSON.parse(plotMessages[1].content);
 assert.equal(plotContext.storySubject, "gremlins");
 assert.deepEqual(plotContext.preferences, preferences);
 assert.match(plotContext.narrativeGuidance, /introducing a language/i);
-assert.match(plotContext.characterNameGuidance, /familiar Esperanto/i);
+assert.match(
+	plotContext.characterNameGuidance,
+	/Prefer Esperanto character names/i,
+);
 assert.doesNotMatch(
 	plotMessages[1].content,
 	/Ivo pensas|Using pensi pri|seaside/,
@@ -160,7 +163,10 @@ const germanPlotContext = JSON.parse(
 		label: "German",
 	})[1].content,
 );
-assert.match(germanPlotContext.characterNameGuidance, /familiar German/i);
+assert.match(
+	germanPlotContext.characterNameGuidance,
+	/Prefer German character names/i,
+);
 
 const reviewMessages = readingStoryPlotReviewMessages("A draft plot.");
 assert.match(reviewMessages[0].content, /Original draft:/);

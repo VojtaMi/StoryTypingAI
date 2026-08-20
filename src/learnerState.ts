@@ -1,4 +1,4 @@
-import type { GenreId } from "./genres";
+import { type GenreId, isGenreId } from "./genres";
 
 export const LEARNER_STATE_VERSION = 1 as const;
 
@@ -105,20 +105,14 @@ export function parseStoryMemory(value: unknown): StoryMemory | null {
 			"setting",
 			"elements",
 		]);
-		if (
-			!story ||
-			!(["esperanto", "german", "spanish"] as const).includes(
-				story.genreId as GenreId,
-			)
-		)
-			return null;
+		if (!story || !isGenreId(story.genreId)) return null;
 		const motif = boundedString(story.motif);
 		const protagonist = boundedString(story.protagonist);
 		const setting = boundedString(story.setting);
 		const elements = boundedStrings(story.elements, LIMITS.storyElements);
 		if (!motif || !protagonist || !setting || !elements) return null;
 		recentStories.push({
-			genreId: story.genreId as GenreId,
+			genreId: story.genreId,
 			motif,
 			protagonist,
 			setting,

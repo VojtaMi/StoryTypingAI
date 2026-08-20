@@ -3,7 +3,13 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import OpenAI from "openai";
-import { type GenreId, getGenre, isGenreId } from "../src/genres.ts";
+import {
+	DEFAULT_GENRE,
+	type GenreId,
+	genres,
+	getGenre,
+	isGenreId,
+} from "../src/genres.ts";
 import {
 	DEFAULT_LEARNER_CONTEXT,
 	type LearnerContext,
@@ -40,12 +46,14 @@ type StructuredCompletion = (request: {
 	reasoningEffort?: TextReasoningEffort;
 }) => Promise<string>;
 
+const languageIds = genres.map(({ id }) => id);
+
 const HELP = `Usage: npm run story:generate -- [options]
 
 Generate one complete adaptively-sectioned reading story and print its JSON to stdout.
 
 Options:
-  --language <id>          Story language: esperanto|german|spanish (default: esperanto)
+  --language <id>          Story language: ${languageIds.join("|")} (default: ${DEFAULT_GENRE.id})
   --model <id>             Text model (default: ${DEFAULT_TEXT_MODEL})
   --learner-state <path>   Use and validate a custom learner-state JSON file
   --default-learner        Use the built-in default learner state
@@ -62,7 +70,7 @@ export function parseReadingStoryCliArgs(
 	const options: ReadingStoryCliOptions = {
 		defaultLearner: false,
 		help: false,
-		language: "esperanto",
+		language: DEFAULT_GENRE.id,
 		model: DEFAULT_TEXT_MODEL,
 	};
 
@@ -79,7 +87,7 @@ export function parseReadingStoryCliArgs(
 				const value = requiredFlagValue(rawArgs, index, argument);
 				if (!isGenreId(value)) {
 					throw new Error(
-						`Unknown language "${value}". Valid languages: esperanto, german, spanish`,
+						`Unknown language "${value}". Valid languages: ${languageIds.join(", ")}`,
 					);
 				}
 				options.language = value;

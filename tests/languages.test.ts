@@ -14,13 +14,22 @@ import {
 import { buildStoryRecapPrompt } from "../src/storyRecap.ts";
 import { isStoryName, storyWords } from "../src/storyVocabulary.ts";
 
-assert.deepEqual(
-	genres.map((language) => language.id),
-	["esperanto", "german", "spanish"],
+assert.equal(
+	new Set(genres.map((language) => language.id)).size,
+	genres.length,
 );
-assert.equal(new Set(genres.map((language) => language.heroImageUrl)).size, 3);
-assert.equal(new Set(genres.map((language) => language.botImageUrl)).size, 3);
-assert.equal(new Set(genres.map((language) => language.faviconUrl)).size, 3);
+assert.equal(
+	new Set(genres.map((language) => language.heroImageUrl)).size,
+	genres.length,
+);
+assert.equal(
+	new Set(genres.map((language) => language.botImageUrl)).size,
+	genres.length,
+);
+assert.equal(
+	new Set(genres.map((language) => language.faviconUrl)).size,
+	genres.length,
+);
 
 const germanStoryId = createBundleId(
 	"german",
