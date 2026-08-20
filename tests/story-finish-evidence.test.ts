@@ -31,35 +31,31 @@ const { readFinishEvidence, updateFinishEvidence } = await import(
 const { readLearnerContext, writeLearnerContext } = await import(
 	"../src/server/learnerProfileStore.ts"
 );
-const {
-	parseLearnerLanguageProfile,
-	parseLearnerContext,
-	mergeStoryMemory,
-	DEFAULT_LEARNER_PREFERENCES,
-} = await import("../src/learnerState.ts");
+const { parseLearnerContext, mergeStoryMemory, DEFAULT_LEARNER_PREFERENCES } =
+	await import("../src/learnerState.ts");
 const { finalizeStoryEvidence } = await import(
 	"../src/server/storyFinalizationService.ts"
 );
+const { bundledFinishEvidencePath } = await import(
+	"../src/server/storyBundleStore.ts"
+);
 
-const storyA = "story-a--0001";
-const storyB = "story-b--0002";
-const storyC = "story-c--0003";
-const storyD = "story-d--0004";
+const storyA = "esperanto--story-a--0001";
+const storyB = "german--story-b--0002";
+const storyC = "esperanto--story-c--0003";
+const storyD = "spanish--story-d--0004";
 
-const profile = {
-	version: 1 as const,
-	updated: "2026-07-16",
-	confident: ["Existing strength."],
-	learning: ["Existing target."],
-	shaky: ["Existing watch item."],
-	recentlyPracticed: ["Existing practice."],
-	notes: ["Existing note."],
-};
+assert.equal(
+	bundledFinishEvidencePath(storyB),
+	join(workDir, "stories", "german", storyB, "finish-evidence.json"),
+);
+
 const storyMemory = {
 	version: 1 as const,
 	updated: "2026-07-16",
 	recentStories: [
 		{
+			genreId: "esperanto",
 			motif: "existing motif",
 			protagonist: "existing protagonist",
 			setting: "existing setting",
@@ -176,21 +172,7 @@ try {
 
 	// --- Structured learner state: strict, bounded, and atomic --------------
 	assert.equal(
-		parseLearnerLanguageProfile({ ...profile, unexpected: true }),
-		null,
-		"unknown fields are rejected",
-	);
-	assert.equal(
-		parseLearnerLanguageProfile({
-			...profile,
-			confident: Array.from({ length: 11 }, (_, index) => `item ${index}`),
-		}),
-		null,
-		"over-limit arrays are rejected",
-	);
-	assert.equal(
 		parseLearnerContext({
-			languageProfile: profile,
 			preferences: DEFAULT_LEARNER_PREFERENCES,
 			storyMemory,
 			extra: true,
@@ -203,6 +185,7 @@ try {
 	const fifoMemory = {
 		...storyMemory,
 		recentStories: Array.from({ length: 5 }, (_, index) => ({
+			genreId: "esperanto" as const,
 			motif: `motif ${index}`,
 			protagonist: `protagonist ${index}`,
 			setting: `setting ${index}`,
@@ -212,6 +195,7 @@ try {
 	const mergedMemory = mergeStoryMemory(
 		fifoMemory,
 		{
+			genreId: "esperanto",
 			motif: "new motif",
 			protagonist: "new protagonist",
 			setting: "new setting",
@@ -233,7 +217,6 @@ try {
 	// --- Service-level finalization -----------------------------------------
 	process.env.OPENAI_API_KEY = "test-key";
 	await writeLearnerContext({
-		languageProfile: profile,
 		preferences: DEFAULT_LEARNER_PREFERENCES,
 		storyMemory,
 	});
@@ -271,6 +254,7 @@ try {
 		},
 	} as never;
 	const evidence = {
+		genreId: "esperanto" as const,
 		storyId: storyC,
 		storySummary: "A learner visits a quiet workshop.",
 		storyParts: [
@@ -314,10 +298,8 @@ try {
 		},
 	});
 	const contextAfterFinalization = await readLearnerContext();
-	assert.deepEqual(contextAfterFinalization.languageProfile, {
-		...profile,
-	});
 	assert.deepEqual(contextAfterFinalization.storyMemory.recentStories[0], {
+		genreId: "esperanto",
 		motif: "finding a missing workshop tool",
 		protagonist: "adult learner",
 		setting: "quiet workshop",

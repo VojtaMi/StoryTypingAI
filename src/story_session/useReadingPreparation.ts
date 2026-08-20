@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { finalizeReadingStoryEvidence, type StoryFinishEvidence } from "../ai";
+import type { GenreId } from "../genres";
 import { readSelectedNarrationModel } from "../modelSelection/modelSelectionStore";
 import type { StoryGenerationPreset } from "../models";
 import {
@@ -213,6 +214,7 @@ export interface ReadingPreparation {
  * menu, since that is the only place a fresh reading story is ever started.
  */
 export function useReadingPreparation(
+	languageId: GenreId,
 	storyGeneration: StoryGenerationPreset,
 	unfinishedReadingSaveId: string | null,
 	isMenuVisible: boolean,
@@ -232,12 +234,13 @@ export function useReadingPreparation(
 			// can pick the lifecycle back up. The theme rides alongside the evidence,
 			// never inside it, so finalization never sees it.
 			savePendingReadingEvidence(evidence);
-			if (nextTheme) savePendingReadingTheme(nextTheme);
+			if (nextTheme) savePendingReadingTheme(languageId, nextTheme);
 			try {
 				const settled = await runReadingPreparation({
 					finalize: () => finalizeReadingStoryEvidence(evidence),
 					prepare: () =>
 						prepareMissingReadingOpenings(
+							languageId,
 							storyGenerationRef.current,
 							evidence.storyId,
 							nextTheme,
@@ -246,12 +249,12 @@ export function useReadingPreparation(
 					setStatus,
 				});
 				// Keep the evidence on `error` — retry, here or after a reload, needs it.
-				if (settled === "ready") clearPendingReadingEvidence();
+				if (settled === "ready") clearPendingReadingEvidence(languageId);
 			} finally {
 				runningRef.current = false;
 			}
 		},
-		[],
+		[languageId],
 	);
 
 	const runInitial = useCallback(async () => {
@@ -262,6 +265,7 @@ export function useReadingPreparation(
 			await runInitialReadingPreparation({
 				prepare: () =>
 					prepareMissingReadingOpenings(
+						languageId,
 						storyGenerationRef.current,
 						null,
 						undefined,
@@ -272,7 +276,7 @@ export function useReadingPreparation(
 		} finally {
 			runningRef.current = false;
 		}
-	}, []);
+	}, [languageId]);
 
 	// Readiness comes from the durable queue, not from having watched it fill,
 	// and is only ever (re)decided while the learner is on the menu.
@@ -281,11 +285,11 @@ export function useReadingPreparation(
 
 		let cancelled = false;
 		void (async () => {
-			const pending = readPendingReadingEvidence();
+			const pending = readPendingReadingEvidence(languageId);
 			try {
 				const [prepared, saves] = await Promise.all([
-					listPreparedReadingOpenings(),
-					listSavedStories(),
+					listPreparedReadingOpenings(languageId),
+					listSavedStories(languageId),
 				]);
 				// `unfinishedReadingSaveId` is trusted when it names a story and
 				// confirmed against the server when it does not. Only the second
@@ -313,17 +317,17 @@ export function useReadingPreparation(
 							unfinishedSaveId,
 						)
 					) {
-						clearPendingReadingEvidence();
+						clearPendingReadingEvidence(languageId);
 					}
 					setStatus("idle");
 					return;
 				}
 				if (decision === "resume" && pending) {
-					void run(pending, readPendingReadingTheme() ?? undefined);
+					void run(pending, readPendingReadingTheme(languageId) ?? undefined);
 					return;
 				}
 				if (decision === "ready") {
-					clearPendingReadingEvidence();
+					clearPendingReadingEvidence(languageId);
 					setStatus("ready");
 					return;
 				}
@@ -337,7 +341,7 @@ export function useReadingPreparation(
 		return () => {
 			cancelled = true;
 		};
-	}, [isMenuVisible, unfinishedReadingSaveId, run, runInitial]);
+	}, [isMenuVisible, languageId, unfinishedReadingSaveId, run, runInitial]);
 
 	const makeNextStory = useCallback(
 		(evidence: StoryFinishEvidence, nextTheme?: string) => {
@@ -351,19 +355,19 @@ export function useReadingPreparation(
 	);
 
 	const retry = useCallback(() => {
-		const pending = runRef.current ?? readPendingReadingEvidence();
+		const pending = runRef.current ?? readPendingReadingEvidence(languageId);
 		if (pending) {
-			void run(pending, readPendingReadingTheme() ?? undefined);
+			void run(pending, readPendingReadingTheme(languageId) ?? undefined);
 			return;
 		}
 		void runInitial();
-	}, [run, runInitial]);
+	}, [languageId, run, runInitial]);
 
 	const markConsumed = useCallback(() => {
-		clearPendingReadingEvidence();
+		clearPendingReadingEvidence(languageId);
 		runRef.current = null;
 		setStatus("idle");
-	}, []);
+	}, [languageId]);
 
 	return {
 		status,

@@ -1,15 +1,7 @@
-import type { Genre, GenreId } from "./genres";
+import { type Genre, type GenreId, getGenre } from "./genres";
 import type { LearnerContext } from "./learnerContext";
 import type { LearnerPreferences } from "./learnerState";
 import { DEFAULT_LEARNER_CONTEXT, parseLearnerContext } from "./learnerState";
-import {
-	buildLessonPrompt,
-	DEFAULT_LESSON_GENERATION_SELECTION,
-	getLessonBricks,
-	type LessonGenerationSelection,
-	parseGeneratedLesson,
-} from "./lessons/lessonGeneration";
-import type { Lesson, LessonLevel } from "./lessons/types";
 import {
 	DEFAULT_TEXT_MODEL,
 	EXERCISE_MODEL,
@@ -19,17 +11,7 @@ import {
 } from "./models";
 import type { NarrationVoiceId } from "./narrationVoice";
 import type { NextStoryBrief } from "./nextStoryBrief";
-import {
-	type ChatMessage,
-	type Complete,
-	generateIntro,
-	generateReadingStory as generateReadingStoryText,
-	generateTitle,
-	openingMessages,
-	type ReadingStory,
-	type ReadingStoryPart,
-} from "./story";
-import { prepareStoryContext, type StoryMemory } from "./story_memory";
+import type { ChatMessage, ReadingStory, ReadingStoryPart } from "./story";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
 import type { StoryDifficulty } from "./storyFeedback";
@@ -39,36 +21,26 @@ import {
 	type StoryRecapExerciseResult,
 	type StoryRecapLesson,
 } from "./storyRecap";
-import { normalizeStoryText } from "./storyText";
-import { slugify } from "./structuredGeneration";
 import type { TtsModelId } from "./ttsModel";
 
-export type { ChatMessage, ReadingStory, ReadingStoryPart, StoryMemory };
+export type { ChatMessage, ReadingStory, ReadingStoryPart };
 
 const STORY_RECAP_MAX_TOKENS = 900;
-const LESSON_GENERATION_MAX_TOKENS = 1600;
 
-export type EsperantoTutorChatMessage = {
+export type LanguageTutorChatMessage = {
 	role: "user" | "assistant";
 	content: string;
 };
 
-interface EsperantoTutorRequest {
+interface LanguageTutorRequest {
+	language: Genre;
 	segments: Array<{ author: "ai" | "user"; text: string }>;
 	currentTarget: string | null;
 	backgroundIntro?: string;
-	conversation: EsperantoTutorChatMessage[];
+	conversation: LanguageTutorChatMessage[];
 	question: string;
 	model?: TextModelId;
 }
-
-type StreamEvent =
-	| { type: "chunk"; text?: string }
-	| { type: "done"; text?: string }
-	| { type: "error"; error?: string };
-
-const AI_CONTINUE_PROMPT =
-	"Continue the story from here. Keep the same style, tension, and perspective.";
 
 /**
  * POSTs `body` as JSON to an app endpoint. `label` names the operation in the
@@ -126,99 +98,11 @@ async function complete(
 	return text;
 }
 
-async function completeStream(
-	messages: ChatMessage[],
-	model: TextModelId,
-	onChunk: (chunk: string) => void,
-	maxTokens = STORY_SEGMENT_MAX_TOKENS,
-): Promise<string> {
-	const res = await post(
-		"/api/ai/complete-stream",
-		{ messages, maxTokens, model },
-		"AI request",
-	);
-	if (!res.body) throw new Error("The AI did not return a response stream.");
-
-	const reader = res.body.getReader();
-	const decoder = new TextDecoder();
-	let buffer = "";
-	let finalText = "";
-
-	function readLine(line: string) {
-		if (!line.trim()) return;
-		const event = JSON.parse(line) as StreamEvent;
-
-		if (event.type === "chunk") {
-			if (event.text) onChunk(event.text);
-			return;
-		}
-
-		if (event.type === "done") {
-			finalText = event.text ?? "";
-			return;
-		}
-
-		throw new Error(event.error || "The AI stream failed.");
-	}
-
-	while (true) {
-		const { value, done } = await reader.read();
-		buffer += decoder.decode(value, { stream: !done });
-		const lines = buffer.split("\n");
-		buffer = lines.pop() ?? "";
-		for (const line of lines) readLine(line);
-		if (done) break;
-	}
-
-	if (buffer) readLine(buffer);
-	if (!finalText) throw new Error("The AI returned an empty response.");
-	return finalText;
-}
-
-/** Binds the HTTP transport to a model, producing a generic completion function for the story domain. */
-function httpCompleter(model: TextModelId): Complete {
-	return (messages, maxTokens, options) =>
-		complete(messages, options?.model ?? model, maxTokens);
-}
-
-/** Structured output must reach its parser without prose normalization. */
-function structuredHttpCompleter(model: TextModelId): Complete {
-	return (messages, maxTokens, options) =>
-		complete(
-			messages,
-			options?.model ?? model,
-			maxTokens,
-			"json",
-			options?.reasoningEffort,
-		);
-}
-
-/** Begins a new story for the given genre. Returns the opening and the seeded history. */
-export async function startStory(
-	genre: Genre,
-	model: TextModelId = DEFAULT_TEXT_MODEL,
-): Promise<{ text: string; messages: ChatMessage[] }> {
-	const messages = openingMessages(genre);
-	const text = normalizeStoryText(await complete(messages, model));
-	messages.push({ role: "assistant", content: text });
-	return { text, messages };
-}
-
 let learnerContextPromise: Promise<LearnerContext> | null = null;
 
-/** Drops the cached learner profile so the next reading story refetches it. */
+/** Drops cached learner settings so the next read refetches them. */
 export function invalidateLearnerProfile() {
 	learnerContextPromise = null;
-}
-
-/**
- * Fetches the durable learner handout that adapts reading stories to what the
- * learner knows. Cached for the session; refreshed after the tutor chat refines
- * it. Returns "" on any failure so story generation still works.
- */
-export async function fetchLearnerProfile(): Promise<string> {
-	const context = await fetchLearnerContext();
-	return JSON.stringify(context.languageProfile);
 }
 
 async function fetchLearnerContext(): Promise<LearnerContext> {
@@ -276,15 +160,8 @@ async function refineLearnerProfile(
 	}
 }
 
-/** Folds a tutor-chat transcript into the learner handout. */
-export async function refineLearnerProfileFromChat(
-	messages: EsperantoTutorChatMessage[],
-): Promise<void> {
-	if (messages.length === 0) return;
-	return refineLearnerProfile("refine", { messages });
-}
-
 export interface StoryFinishEvidence {
+	genreId: GenreId;
 	storyId: string;
 	storySummary: string;
 	/** Complete prose lets finalization choose grounded complexity examples. */
@@ -313,44 +190,23 @@ export async function finalizeReadingStoryEvidence(
 	return refineLearnerProfile("finalize-story", evidence);
 }
 
-/**
- * Prepares a reviewed plot, authors immutable prose, divides it at semantic
- * sentence boundaries, and creates one shared visual plan. Advancing through
- * the finished story reads `story.parts`; it does not call the AI.
- */
-export async function generateReadingStory(
-	genre: Genre,
-	model: TextModelId = DEFAULT_TEXT_MODEL,
-): Promise<ReadingStory> {
-	const { preferences } = await fetchLearnerContext();
-	return generateReadingStoryText(structuredHttpCompleter(model), genre, {
-		prefer: preferences.prefer,
-		avoid: preferences.avoid,
-	});
-}
-
 interface GenerateStoryRecapLessonInput {
+	genreId: GenreId;
 	storyParts: string[];
 	languageFocuses: string[];
 	wordTranslations: Record<string, string>;
-}
-
-export interface GenerateLessonInput {
-	level: LessonLevel;
-	topic: string;
-	targetWords?: string[];
-	selection?: Omit<LessonGenerationSelection, "level">;
 }
 
 export async function generateStoryRecapLesson(
 	input: GenerateStoryRecapLessonInput,
 	model: TextModelId = EXERCISE_MODEL,
 ): Promise<StoryRecapLesson> {
+	const genre = getGenre(input.genreId);
 	const text = await complete(
 		[
 			{
 				role: "system",
-				content: buildStoryRecapPrompt(input.languageFocuses[0]),
+				content: buildStoryRecapPrompt(input.languageFocuses[0], genre),
 			},
 			{
 				role: "user",
@@ -372,94 +228,7 @@ export async function generateStoryRecapLesson(
 		STORY_RECAP_MAX_TOKENS,
 		"json",
 	);
-	return parseStoryRecapLesson(text);
-}
-
-export async function generateLesson(
-	input: GenerateLessonInput,
-	model: TextModelId = DEFAULT_TEXT_MODEL,
-): Promise<Lesson> {
-	const learnerProfile = await fetchLearnerProfile();
-	const selection: LessonGenerationSelection = {
-		level: input.level,
-		body: input.selection?.body ?? DEFAULT_LESSON_GENERATION_SELECTION.body,
-		exercises:
-			input.selection?.exercises ??
-			DEFAULT_LESSON_GENERATION_SELECTION.exercises,
-	};
-	const bricks = getLessonBricks(selection);
-	const text = await complete(
-		[
-			{ role: "system", content: buildLessonPrompt(bricks) },
-			{
-				role: "user",
-				content: [
-					`Topic: ${input.topic}`,
-					`Level: ${input.level}`,
-					"",
-					"Target words:",
-					input.targetWords?.length
-						? input.targetWords.join(", ")
-						: "(choose appropriate beginner words)",
-					"",
-					"Learner profile:",
-					learnerProfile || "(none)",
-				].join("\n"),
-			},
-		],
-		model,
-		LESSON_GENERATION_MAX_TOKENS,
-		"json",
-	);
-	return parseGeneratedLesson(
-		text,
-		bricks,
-		(title) => `generated-${slugify(title, "lesson")}-${Date.now()}`,
-	);
-}
-
-export async function continueStoryStream(
-	history: ChatMessage[],
-	userText: string,
-	onChunk: (chunk: string) => void,
-	model: TextModelId = DEFAULT_TEXT_MODEL,
-	memory?: StoryMemory,
-): Promise<{
-	text: string;
-	messages: ChatMessage[];
-	memory?: StoryMemory;
-}> {
-	const messages: ChatMessage[] = [
-		...history,
-		{ role: "user", content: userText },
-	];
-	const context = await prepareStoryContext(
-		messages,
-		memory,
-		httpCompleter(model),
-	);
-	const text = await completeStream(context.messages, model, onChunk);
-	messages.push({ role: "assistant", content: text });
-	return { text, messages, memory: context.memory };
-}
-
-export async function autoContinueStoryStream(
-	history: ChatMessage[],
-	onChunk: (chunk: string) => void,
-	model: TextModelId = DEFAULT_TEXT_MODEL,
-	memory?: StoryMemory,
-): Promise<{
-	text: string;
-	messages: ChatMessage[];
-	memory?: StoryMemory;
-}> {
-	return continueStoryStream(
-		history,
-		AI_CONTINUE_PROMPT,
-		onChunk,
-		model,
-		memory,
-	);
+	return parseStoryRecapLesson(text, genre);
 }
 
 export async function generateStoryBackgroundImage(
@@ -480,6 +249,7 @@ export async function generateStoryBackgroundImage(
 }
 
 export async function generateOpeningAudio(
+	genreId: GenreId,
 	text: string,
 	storyId: string,
 	narrationVoice: NarrationVoiceId,
@@ -487,44 +257,25 @@ export async function generateOpeningAudio(
 ): Promise<StoryOpeningAudio> {
 	return postJson<StoryOpeningAudio>(
 		"/api/ai/opening-audio",
-		{ text, storyId, narrationVoice, ...options },
+		{ genreId, text, storyId, narrationVoice, ...options },
 		"Opening audio request",
 	);
 }
 
-/** Fetches a stable audio URL for a lesson text, generating and caching it server-side on first call. */
-export async function fetchLessonAudioUrl(
-	lessonId: string,
-	text: string,
-	instructions?: string,
+export async function getWordAudioUrl(
+	genreId: GenreId,
+	word: string,
 ): Promise<string> {
-	const body = await postJson<{ url: string }>(
-		"/api/lesson-audio",
-		{ lessonId, text, instructions },
-		"Lesson audio request",
-	);
-	return body.url;
-}
-
-/** Generates a 1-2 sentence second-person intro describing who the player is and what brought them here. */
-export async function generateStoryIntro(
-	genreLabel: string,
-	openingText: string,
-	model: TextModelId = DEFAULT_TEXT_MODEL,
-): Promise<string> {
-	return generateIntro(httpCompleter(model), genreLabel, openingText);
-}
-
-export async function getWordAudioUrl(word: string): Promise<string> {
 	const body = await postJson<{ url: string }>(
 		"/api/word-audio",
-		{ word },
+		{ genreId, word },
 		"Word audio request",
 	);
 	return body.url;
 }
 
 export async function logLearnerWordClick(
+	genreId: GenreId,
 	word: string,
 	storyId?: string,
 ): Promise<void> {
@@ -532,42 +283,47 @@ export async function logLearnerWordClick(
 		await fetch("/api/learner-profile/word-log", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ word, ...(storyId ? { storyId } : {}) }),
+			body: JSON.stringify({ genreId, word, ...(storyId ? { storyId } : {}) }),
 		});
 	} catch {
 		// Learning signals should never interrupt reading.
 	}
 }
 
-export async function regenerateWordAudioUrl(word: string): Promise<string> {
+export async function regenerateWordAudioUrl(
+	genreId: GenreId,
+	word: string,
+): Promise<string> {
 	const body = await postJson<{ url: string }>(
 		"/api/word-audio/regenerate",
-		{ word },
+		{ genreId, word },
 		"Word audio regenerate",
 	);
 	return body.url;
 }
 
 export async function regenerateWordTranslation(
+	genreId: GenreId,
 	word: string,
 	storyContext?: string,
 ): Promise<string | null> {
 	const body = await postJson<{ translation: string | null }>(
 		"/api/ai/translate-words/regenerate",
-		{ word, storyContext },
+		{ genreId, word, storyContext },
 		"Regenerate request",
 	);
 	return body.translation;
 }
 
-export async function askEsperantoTutor({
+export async function askLanguageTutor({
+	language,
 	segments,
 	currentTarget,
 	backgroundIntro,
 	conversation,
 	question,
 	model = DEFAULT_TEXT_MODEL,
-}: EsperantoTutorRequest): Promise<string> {
+}: LanguageTutorRequest): Promise<string> {
 	const storyContext = [
 		backgroundIntro ? `Player context: ${backgroundIntro}` : "",
 		segments.length > 0
@@ -579,7 +335,7 @@ export async function askEsperantoTutor({
 					)
 					.join("\n\n")}`
 			: "",
-		currentTarget ? `Current typing passage:\n${currentTarget}` : "",
+		currentTarget ? `Current reading passage:\n${currentTarget}` : "",
 	]
 		.filter(Boolean)
 		.join("\n\n")
@@ -589,12 +345,12 @@ export async function askEsperantoTutor({
 		{
 			role: "system",
 			content:
-				"You are Esperanto Bot, a friendly tutor inside an Esperanto story typing exercise. " +
-				"Explain Esperanto clearly and practically: vocabulary, roots, affixes, grammar, pronunciation, and why sentences mean what they mean. " +
+				`You are ${language.label} Bot, a friendly tutor inside a ${language.label} reading story. ` +
+				`Explain ${language.label} clearly and practically: ${language.botTeachingTopics}. ` +
 				"Use the provided story context when it helps. Do not continue or rewrite the story unless the learner asks for that. " +
 				"If the learner asks for an exercise answer, prefer a helpful hint and explanation before giving the full answer. " +
 				"Reply in the language the learner uses for their latest message. If their message is mixed or ambiguous, reply in English. " +
-				"Use simple Esperanto when replying in Esperanto. Keep answers concise, warm, and easy for a beginner to act on. " +
+				`Use simple ${language.label} when replying in ${language.label}. Keep answers concise, warm, and easy for a beginner to act on. ` +
 				"Default to 2-5 short sentences. Use plain text suitable for a small chat panel. " +
 				"Do not use Markdown tables, headings, horizontal rules, or long lists. If the learner explicitly asks for more detail, you may give a longer answer, but keep the formatting simple.",
 		},
@@ -612,18 +368,4 @@ export async function askEsperantoTutor({
 	];
 
 	return complete(messages, model, 520);
-}
-
-/** Creates a short title for a saved story without changing the story history. */
-export async function titleStory(
-	history: ChatMessage[],
-	model: TextModelId = DEFAULT_TEXT_MODEL,
-): Promise<string> {
-	const storyText = history
-		.filter((message) => message.role === "assistant")
-		.map((message) => message.content)
-		.join("\n\n")
-		.slice(-3000);
-
-	return generateTitle(httpCompleter(model), storyText);
 }

@@ -8,16 +8,9 @@ export interface StorySegment {
 }
 
 export type StoryPhase =
-	| "typing"
-	| "authoring"
 	| "loading"
 	| "error"
 	| "reading"
 	| "recap-loading"
 	| "recap"
 	| "finished";
-
-export interface TypingStats {
-	wpm: number;
-	accuracy: number;
-}

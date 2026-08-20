@@ -1,13 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
+import { DEFAULT_GENRE, type Genre } from "../genres";
 import {
 	DEFAULT_TEXT_MODEL,
 	STORY_SEGMENT_MAX_TOKENS,
 	type TextModelId,
 	type TextReasoningEffort,
 } from "../models";
-import { normalizeStoryText } from "../storyText";
 import { AiTraceError, traceAiCall } from "./aiTrace";
 
 type AnthropicMessages = {
@@ -92,34 +92,25 @@ async function completeAiOutput(
 	return completeOpenAi(openai, messages, maxTokens, model, output, options);
 }
 
-export async function streamAi(
-	openai: OpenAI,
-	messages: ChatMessage[],
-	maxTokens = STORY_SEGMENT_MAX_TOKENS,
-	model = DEFAULT_TEXT_MODEL,
-	anthropicKey = "",
-	onChunk: (chunk: string) => void,
-): Promise<string> {
-	if (model.startsWith("claude-")) {
-		return streamAnthropic(messages, maxTokens, model, anthropicKey, onChunk);
-	}
-	if (model.startsWith("gemini-")) {
-		return streamGemini(messages, maxTokens, model, onChunk);
-	}
-	return streamOpenAi(openai, messages, maxTokens, model, onChunk);
-}
-
 export async function translateWords(
 	openai: OpenAI,
-	words: string[],
+	genreOrWords: Genre | string[],
+	wordsOrContext?: string[] | string,
 	storyContext?: string,
 ): Promise<Record<string, string>> {
+	const genre = Array.isArray(genreOrWords) ? DEFAULT_GENRE : genreOrWords;
+	const words = Array.isArray(genreOrWords)
+		? genreOrWords
+		: (wordsOrContext as string[]);
+	const resolvedStoryContext = Array.isArray(genreOrWords)
+		? (wordsOrContext as string | undefined)
+		: storyContext;
 	if (words.length === 0) return {};
-	const context = storyContext?.trim();
+	const context = resolvedStoryContext?.trim();
 	const systemContent =
-		"You are an Esperanto-English dictionary for a language-learning app. Given a JSON array of Esperanto words, return a JSON object mapping each exact input word to a concise, natural English gloss — the short label a learner sees on hover. Give the single most likely meaning. Only when a word is genuinely ambiguous, offer at most two alternatives separated by a slash. Reflect grammatical distinctions (tense, number, participle voice) only through your choice of English words; never add explanatory notes, parenthetical annotations, part-of-speech labels, or grammar commentary such as '(as an object)' or '(adjectival)'. Do not omit any input word. Return only valid JSON, with no markdown or explanation." +
+		`You are a ${genre.label}-English dictionary for a language-learning app. Given a JSON array of ${genre.label} words, return a JSON object mapping each exact input word to a concise, natural English gloss — the short label a learner sees on hover. Give the single most likely meaning. Only when a word is genuinely ambiguous, offer at most two alternatives separated by a slash. Reflect grammatical distinctions only through your choice of English words; never add explanatory notes, parenthetical annotations, part-of-speech labels, or grammar commentary. Do not omit any input word. Return only valid JSON, with no markdown or explanation.` +
 		(context
-			? ` The words are taken from the Esperanto reading story below. Gloss each word as it is used in THIS story, choosing the sense the context supports.\n\nStory:\n${context}`
+			? ` The words are taken from the ${genre.label} reading story below. Gloss each word as it is used in THIS story, choosing the sense the context supports.\n\nStory:\n${context}`
 			: "");
 	const messages: ChatMessage[] = [
 		{ role: "system", content: systemContent },
@@ -204,52 +195,6 @@ async function completeOpenAi(
 	return finishCompletion(raw, choice?.finish_reason === "length", output);
 }
 
-async function streamOpenAi(
-	openai: OpenAI,
-	messages: ChatMessage[],
-	maxTokens: number,
-	model: string,
-	onChunk: (chunk: string) => void,
-): Promise<string> {
-	if (!process.env.OPENAI_API_KEY) {
-		throw new Error("OpenAI API key is not configured.");
-	}
-	return traceAiCall(
-		{
-			kind: "text.stream",
-			provider: "openai",
-			model,
-			stream: true,
-			input: messages,
-			metadata: { maxTokens },
-		},
-		async () => {
-			const stream = await openai.chat.completions.create({
-				model,
-				max_completion_tokens: maxTokens,
-				messages,
-				reasoning_effort: model.startsWith("gpt-5.6") ? "none" : undefined,
-				stream: true,
-			});
-
-			let raw = "";
-			let truncated = false;
-			for await (const event of stream) {
-				const choice = event.choices[0];
-				if (choice?.finish_reason === "length") truncated = true;
-				const chunk = choice?.delta.content;
-				if (!chunk) continue;
-				raw += chunk;
-				onChunk(normalizeStoryText(chunk));
-			}
-
-			const text = normalizeStoryText(raw).trim();
-			if (!text) throw new Error("The AI returned an empty response.");
-			return truncated ? trimToSentenceBoundary(text) : text;
-		},
-	);
-}
-
 async function completeAnthropic(
 	messages: ChatMessage[],
 	maxTokens: number,
@@ -292,59 +237,6 @@ async function completeAnthropic(
 	);
 }
 
-async function streamAnthropic(
-	messages: ChatMessage[],
-	maxTokens: number,
-	model: string,
-	apiKey: string,
-	onChunk: (chunk: string) => void,
-): Promise<string> {
-	if (!apiKey) throw new Error("Anthropic API key is not configured.");
-	const anthropic = new Anthropic({ apiKey });
-	const { systemContent, conversationMessages } = toAnthropicMessages(messages);
-
-	return traceAiCall(
-		{
-			kind: "text.stream",
-			provider: "anthropic",
-			model,
-			stream: true,
-			input: { system: systemContent, messages: conversationMessages },
-			metadata: { maxTokens },
-		},
-		async () => {
-			const stream = await anthropic.messages.create({
-				model,
-				max_tokens: maxTokens,
-				...(systemContent ? { system: systemContent } : {}),
-				messages: conversationMessages,
-				stream: true,
-			});
-
-			let raw = "";
-			let stopReason: string | null = null;
-			for await (const event of stream) {
-				if (event.type === "message_delta") {
-					stopReason = event.delta.stop_reason ?? stopReason;
-					continue;
-				}
-				if (
-					event.type !== "content_block_delta" ||
-					event.delta.type !== "text_delta"
-				) {
-					continue;
-				}
-				raw += event.delta.text;
-				onChunk(normalizeStoryText(event.delta.text));
-			}
-
-			const text = normalizeStoryText(raw).trim();
-			if (!text) throw new Error("The AI returned an empty response.");
-			return stopReason === "max_tokens" ? trimToSentenceBoundary(text) : text;
-		},
-	);
-}
-
 async function completeGemini(
 	messages: ChatMessage[],
 	maxTokens: number,
@@ -359,17 +251,6 @@ async function completeGemini(
 		.trim();
 	if (!raw) throw new Error("The AI returned an empty response.");
 	return finishCompletion(raw, choice?.finishReason === "MAX_TOKENS", output);
-}
-
-async function streamGemini(
-	messages: ChatMessage[],
-	maxTokens: number,
-	model: string,
-	onChunk: (chunk: string) => void,
-): Promise<string> {
-	const text = await completeGemini(messages, maxTokens, model);
-	onChunk(text);
-	return text;
 }
 
 function finishCompletion(
@@ -444,9 +325,8 @@ async function requestGemini(
 /**
  * When a completion is cut off by the token ceiling, the tail is usually a
  * partial sentence or word. Roll the text back to the last sentence-ending
- * punctuation so a typing exercise never ends on a fragment. Applied only when
- * the model was actually truncated, leaving naturally-finished prose untouched
- * (so intentional endings like a trailing dash survive).
+ * punctuation. Applied only when the model was actually truncated, leaving
+ * naturally-finished prose untouched.
  */
 function trimToSentenceBoundary(text: string): string {
 	const match = text.match(/^[\s\S]*[.!?]["')\]]*/);

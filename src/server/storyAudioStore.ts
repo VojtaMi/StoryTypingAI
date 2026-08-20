@@ -30,7 +30,11 @@ export async function createOpeningAudio(
 	text: string,
 	storyId: string,
 	narrationVoice: NarrationVoiceId,
-	options: { sectionIndex?: number; ttsModel?: TtsModelId } = {},
+	options: {
+		sectionIndex?: number;
+		ttsModel?: TtsModelId;
+		instructions?: string;
+	} = {},
 ): Promise<StoryOpeningAudio | null> {
 	const ttsModel = options.ttsModel ?? DEFAULT_TTS_MODEL;
 	try {
@@ -46,6 +50,7 @@ export async function createOpeningAudio(
 		const speech = await tts({
 			openai,
 			text,
+			instructions: options.instructions,
 			...narrationVoiceOptions(narrationVoice),
 			...ttsModelSpeechOptions(ttsModel),
 		});

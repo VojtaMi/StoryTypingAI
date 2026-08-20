@@ -1,6 +1,5 @@
-import { useState } from "react";
-import type { Genre } from "../genres";
-import { genres } from "../genres";
+import { type CSSProperties, useState } from "react";
+import { type Genre, type GenreId, genres } from "../genres";
 import type { StoryGenerationPresetId } from "../models";
 import type { SavedStorySummary } from "../saves";
 import {
@@ -13,14 +12,13 @@ import { SavedStories } from "./savedStories/SavedStories";
 
 interface MainMenuProps {
 	savedStories: SavedStorySummary[];
+	language: Genre;
 	savesError: string | null;
 	storyGenerationPreset: StoryGenerationPresetId;
-	hasLessonProgress: boolean;
 	readingStoryStatus: ReadingPreparationStatus;
 	hasUnfinishedReadingStory: boolean;
 	onStoryGenerationPresetChange: (id: StoryGenerationPresetId) => void;
-	onSelect: (genre: Genre) => void;
-	onStartLesson: () => void;
+	onLanguageChange: (languageId: GenreId) => void;
 	onStartReadingStory: () => void;
 	onRetryReadingStory: () => void;
 	onResume: (id: string) => void;
@@ -29,59 +27,63 @@ interface MainMenuProps {
 
 export default function MainMenu({
 	savedStories,
+	language,
 	savesError,
 	storyGenerationPreset,
-	hasLessonProgress,
 	readingStoryStatus,
 	hasUnfinishedReadingStory,
 	onStoryGenerationPresetChange,
-	onSelect,
-	onStartLesson,
+	onLanguageChange,
 	onStartReadingStory,
 	onRetryReadingStory,
 	onResume,
 	onDelete,
 }: MainMenuProps) {
 	const [settingsOpen, setSettingsOpen] = useState(false);
-	const lessonGenre =
-		genres.find((genre) => genre.id === "esperanto") ?? genres[0];
-	const lessonSaves = savedStories.filter(
-		(story) => story.genreId === "esperanto",
-	);
 	const makingReadingStory = isReadingPreparationBusy(readingStoryStatus);
 	const readingStoryFailed = readingStoryStatus === "error";
 
 	return (
-		<div className="menu">
-			<button
-				type="button"
-				className="menu__settings-button"
-				onClick={() => setSettingsOpen(true)}
-				aria-label="Open settings"
-			>
-				⚙ Settings
-			</button>
+		<div
+			className="menu"
+			style={
+				{
+					"--menu-hero-image": `url(${language.heroImageUrl})`,
+				} as CSSProperties
+			}
+		>
+			<div className="menu__settings">
+				<label className="menu__language-select">
+					<span className="sr-only">Learning language</span>
+					<select
+						value={language.id}
+						onChange={(event) =>
+							onLanguageChange(event.target.value as GenreId)
+						}
+					>
+						{genres.map((candidate) => (
+							<option key={candidate.id} value={candidate.id}>
+								{candidate.label}
+							</option>
+						))}
+					</select>
+				</label>
+				<button
+					type="button"
+					className="menu__settings-button"
+					onClick={() => setSettingsOpen(true)}
+					aria-label="Open settings"
+				>
+					⚙ Settings
+				</button>
+			</div>
 			<section className="lesson-hero" aria-labelledby="lesson-hero-title">
 				<div className="lesson-hero__content">
-					<h1 id="lesson-hero-title">Esperanto through tiny stories</h1>
+					<h1 id="lesson-hero-title">{language.label} through tiny stories</h1>
 					<div className="lesson-hero__actions">
 						<button
 							type="button"
-							className="lesson-hero__start"
-							onClick={onStartLesson}
-						>
-							{hasLessonProgress ? "Lessons" : "Start Lessons"}
-						</button>
-						<button
-							type="button"
-							className="lesson-hero__start lesson-hero__start--secondary"
-							onClick={() => onSelect(lessonGenre)}
-						>
-							Typing Story
-						</button>
-						<button
-							type="button"
-							className={`lesson-hero__start lesson-hero__start--secondary${
+							className={`lesson-hero__start${
 								makingReadingStory ? " lesson-hero__start--making" : ""
 							}`}
 							onClick={
@@ -109,7 +111,8 @@ export default function MainMenu({
 				/>
 			)}
 			<SavedStories
-				savedStories={lessonSaves}
+				language={language}
+				savedStories={savedStories}
 				savesError={savesError}
 				onResume={onResume}
 				onDelete={onDelete}

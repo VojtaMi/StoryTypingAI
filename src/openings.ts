@@ -2,32 +2,13 @@ import type { ChatMessage, ReadingStory } from "./ai";
 import type { GenreId } from "./genres";
 import {
 	DEFAULT_STORY_GENERATION_PRESET_ID,
-	DEFAULT_TEXT_MODEL,
 	getStoryGenerationPreset,
 	type StoryGenerationPreset,
-	type TextModelId,
 } from "./models";
 import type { NarrationVoiceId } from "./narrationVoice";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
 import { DEFAULT_TTS_MODEL, type TtsModelId } from "./ttsModel";
-
-export interface PreparedOpening
-	extends Partial<StoryBackgroundImage>,
-		Partial<StoryOpeningAudio> {
-	id?: string;
-	genreId: GenreId;
-	title?: string;
-	text: string;
-	backgroundIntro?: string;
-	messages: ChatMessage[];
-	createdAt: string;
-}
-
-export interface PreparedOpeningSummary {
-	genreId: GenreId;
-	createdAt: string;
-}
 
 export interface PreparedReadingOpening
 	extends Partial<StoryBackgroundImage>,
@@ -62,42 +43,17 @@ export interface PreparedReadingOpeningSummary {
 	createdAt: string;
 }
 
-export async function listPreparedOpenings(): Promise<
-	PreparedOpeningSummary[]
-> {
-	const response = await fetch("/api/openings");
-	return parseResponse<PreparedOpeningSummary[]>(response);
-}
-
-export async function prepareMissingOpenings(
-	model: TextModelId = DEFAULT_TEXT_MODEL,
-): Promise<PreparedOpeningSummary[]> {
-	const response = await fetch("/api/openings/prepare", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ model }),
-	});
-	return parseResponse<PreparedOpeningSummary[]>(response);
-}
-
-export async function consumePreparedOpening(
+export async function listPreparedReadingOpenings(
 	genreId: GenreId,
-): Promise<PreparedOpening | null> {
+): Promise<PreparedReadingOpeningSummary[]> {
 	const response = await fetch(
-		`/api/openings/${encodeURIComponent(genreId)}/consume`,
-		{ method: "POST" },
+		`/api/reading-openings?language=${encodeURIComponent(genreId)}`,
 	);
-	return parseResponse<PreparedOpening | null>(response);
-}
-
-export async function listPreparedReadingOpenings(): Promise<
-	PreparedReadingOpeningSummary[]
-> {
-	const response = await fetch("/api/reading-openings");
 	return parseResponse<PreparedReadingOpeningSummary[]>(response);
 }
 
 export async function prepareMissingReadingOpenings(
+	genreId: GenreId,
 	storyGeneration: StoryGenerationPreset = getStoryGenerationPreset(
 		DEFAULT_STORY_GENERATION_PRESET_ID,
 	),
@@ -109,6 +65,7 @@ export async function prepareMissingReadingOpenings(
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({
+			genreId,
 			model: storyGeneration.model,
 			reasoningEffort: storyGeneration.reasoningEffort,
 			basedOnStoryId,

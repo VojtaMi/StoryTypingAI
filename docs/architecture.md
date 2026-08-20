@@ -1,190 +1,52 @@
 # Architecture
 
-The mental model to hold while working in this repository. For the AI operations
-themselves see [ai-workflows.md](./ai-workflows.md); for what the app writes to
-disk see [local-data.md](./local-data.md).
+The app has one product workflow: finite reading stories.
+
+```text
+language registry → prepare complete story → reveal sections → recap
+                  → finalize evidence → prepare the next story
+```
 
 ## Responsibility areas
 
-Each area owns one concern. Code belongs to the area whose concern it serves,
-not the technical layer it happens to live in.
-
 | Area | Owns |
 | --- | --- |
-| [`src/App.tsx`](../src/App.tsx) | Top-level application and view orchestration: which screen is up (main menu, lessons menu, curriculum step, story overlay), browser history, the selected text model, and the crossfading background layers. |
-| [`src/home_menu/`](../src/home_menu/) | Story and lesson selection, and saved-story entry: start a typing story, start a reading story, open lessons, resume or delete a save. |
-| [`src/story_session/`](../src/story_session/) | The story lifecycle. Starting, resuming, advancing, and finishing a story; coordinating persistence; warming the prepared-story queues; and coordinating narration and background images. |
-| [`src/exercise_screen/`](../src/exercise_screen/) | The active learning UI and its local mechanics: the typing engine and its stats, the reading view and word popovers, the authoring box, the tutor chat, the recap view, the feedback form. |
-| [`src/lessons/`](../src/lessons/) | Lesson definitions and types, the exercise **bricks**, lesson generation, and the predefined curriculum. |
-| [`src/server/`](../src/server/) | Provider calls, generated media, prepared openings, learner data, and the local persistence APIs. |
-| [`src/server/images/`](../src/server/images/), [`src/server/tts/`](../src/server/tts/) | Provider adapters for image generation and speech. |
+| `src/genres.ts` | Extensible language identity: labels, assets, generation, recap, tutor, and speech guidance. |
+| `src/App.tsx`, `src/languageSelection.ts` | Window-specific language selection, URL/history, document title, and top-level views. |
+| `src/home_menu/` | Language switch, settings, starting/resuming stories, and current-language saves. |
+| `src/story_session/` | Preparing, starting, advancing, resuming, persisting, and finalizing a story. |
+| `src/exercise_screen/` | Reading, word popovers, tutor chat, recap, and feedback interactions. |
+| `src/reading_story/`, `src/story.ts` | Whole-story generation contracts, validation, splitting, and visual plan. |
+| `src/server/` | Provider calls, prepared queues, saved files, evidence, and generated media. |
 
-## Orchestration versus mechanics
+The browser sends a `GenreId` with every language-sensitive request. Server
+code resolves the canonical registry entry rather than trusting browser-supplied
+prompt text. Adding a language should extend that registry and provide its hero
+and bot assets, without adding a parallel application.
 
-The split that keeps this codebase workable:
+The selected language is part of the URL, so two tabs can practice different
+languages. Changing it returns that tab to its menu and remounts its reading
+session. Shared taste settings intentionally do not change; language-specific
+stories and progression are selected or keyed by `genreId`.
 
-- **Orchestration** is *what happens next, and what it costs.* Which phase the
-  story is in, whether a section needs generating, when a save is written, when
-  the profile is refined. It lives in `story_session` (and, for whole screens,
-  in `App`). It is where money is spent and where correctness bugs are expensive.
-- **Mechanics** are *how one interaction behaves.* How a keystroke scores, how a
-  word popover positions itself, how a quiz item validates an answer. They live
-  in `exercise_screen` and `lessons`, take their state as props, and do not know
-  whether a story is finite.
+## Reading lifecycle
 
-`exercise_screen` therefore never generates anything or decides what comes next.
-It renders the phase it is handed and reports events upward. When a change needs
-new AI content, that change belongs in `story_session` or `server`, no matter
-which component surfaced the need.
+The prepared queue holds at most one complete story per language. The first uses
+that language's absolute-beginner starter brief. Finishing a story distills its
+word lookups, tutor questions, recap, and feedback into one validated successor
+brief. Story memory records include `genreId` and generation sees only matching
+records.
 
-The same rule inside `lessons`: a brick owns one exercise type end to end — its
-prompt fragment, its authoring rules, its parser, its component — and the lesson
-orchestrator only composes bricks and dispatches parsing. See
-[`src/lessons/bricks/README.md`](../src/lessons/bricks/README.md).
+A saved story lives at `stories/<language>/<story-id>/`, contains the complete manuscript and its section cursor. Resume
+restores it without prose generation. The session's media owner deduplicates
+narration and illustration work, seeds already-generated media, and prepares the
+next section while the current one is read.
 
-## The two story workflows
+## Placement rule
 
-Typing stories and reading stories are both "stories", and they share a save
-shape, a screen, and a session hook. **They do not share a generation
-lifecycle**, and conflating them is the mistake this section exists to prevent.
-
-| | Typing story | Reading story |
-| --- | --- | --- |
-| Length | Indefinite | Finite: adaptively divided into 2-8 sections |
-| Who writes the next passage | The AI, from conversation history | Nobody — it already exists |
-| Learner's job | Type the passage, then author a continuation | Read the section, look up words |
-| Text generation per step | One streamed continuation | **None** |
-| Adapted from previous work | No | Yes — through one transient brief |
-| Ends with | Nothing; you stop when you stop | A recap quiz, then a next-story brief |
-
-### Typing-story lifecycle
-
-```text
-select genre → consume/generate opening → type passage → author continuation
-→ AI continuation → repeat → persist
-```
-
-Concretely:
-
-1. `home_menu` calls `selectGenre`.
-2. `story_session` consumes a prepared opening from the queue
-   (`/api/openings/:genre/consume`), and falls back to generating one if the
-   queue is empty. A prepared opening carries its own title, intro, narration,
-   and background image, so nothing is regenerated when one is used.
-3. The opening becomes the typing target; `exercise_screen` runs the typing
-   exercise and reports completion.
-4. The learner authors a continuation. It is appended to the history as a `user`
-   turn, and the AI's reply is **streamed** back as the next typing target.
-5. Before each continuation, [`src/story_memory/`](../src/story_memory/) folds
-   older turns into a rolling summary once the buffer grows past its threshold,
-   so the prompt stays bounded while the story stays coherent.
-6. Every phase change persists a snapshot of the whole session.
-7. A background image is refreshed on a cadence driven by how much history has
-   accumulated.
-
-There is no completion state. The learner leaves; the save resumes.
-
-### Reading-story lifecycle
-
-```text
-prepare queued reading story → consume it → reveal finite sections
-→ prepare narration/backgrounds → recap → next-story brief
-```
-
-Concretely:
-
-1. The reading queue holds at most one story, and `useReadingPreparation`
-   (`src/story_session/useReadingPreparation.ts`) is its only writer. Unlike
-   typing openings, nothing prepares a reading story just because the menu is
-   up: finishing a story finalizes its evidence, then prepares exactly the next
-	one, so the story generated always sees the self-contained brief the one
-	before it just produced. The first story uses a fixed absolute-beginner brief.
-	Either way, the server first asks Luna Low for a compact English plot from the
-	resolved theme, explicit non-empty preferences, and one mapped `minimal` or
-	`simple` narrative-scale instruction, then runs one example-guided Luna
-	editorial pass. Calibration snippets and language focus never enter those plot
-	calls. The selected story model expands the resulting fixed plot and
-	pedagogical brief into one **complete, uninterrupted Esperanto manuscript**.
-	Luna None chooses semantic sentence boundaries without receiving permission to
-	rewrite the prose, and Luna produces one shared visual-continuity core plus one
-	settled-scene instruction per pair of resulting parts. The server then
-	assembles and validates the complete reading story and prepares part 1's
-	narration and image alongside it.
-2. Starting a reading story consumes that queued story whole — **this is the
-   last prose generation the story ever makes**. If the queue is empty,
-   `startReadingStory` refuses to start rather than generating one on the
-   spot: doing so would bypass the finalize-then-prepare ordering above.
-   Instead it (re)triggers preparation and leaves the learner on the menu,
-   where the button is disabled until a story is ready.
-3. A story is only accepted when its manuscript is complete, all 2-8 derived
-	parts contain prose, and it has exactly `ceil(parts / 2)` image instructions.
-	A malformed manuscript or visual plan is repaired once and then rejected.
-	Luna None chooses both the part count and event-based boundaries without a preferred
-	count; invalid boundaries receive one constrained retry and are then rejected.
-	A partial story is never saved as if it were complete.
-4. Advancing moves a cursor: `readingPartIndex` increments and the next part is
-   read out of the story already in hand. No AI call is made to reveal a section.
-5. **Media coordination.** Narration and background images are the only things a
-   reading story still generates, and one owner in `story_session` handles all of
-   them. Every path that wants a section's media — preparing the next section
-   ahead, arriving at a section whose media never landed, resuming a save,
-   restarting the story — asks that owner, so a section's narration or image is
-   generated at most once. Media already in hand (the queued story's part 1, the
-   images from an earlier session) is seeded into the owner rather than
-   regenerated, and concurrent requests for the same section join one promise
-   instead of paying twice.
-6. Odd-numbered sections get their own background image; even sections keep the
-   previous one on screen. Because the whole story is known up front, that
-   cadence is a property of the section number, not of accumulated history.
-7. After the last section the session generates a recap lesson from the finished
-	prose and stores it in the save. No next-story handoff exists yet.
-8. When the learner completes the recap and submits feedback, or leaves the
-   finished story without custom feedback, one finalization request sends the
-   recap results, feedback, story-scoped word lookups, and buffered learner tutor
-	questions together with all Esperanto parts. The server distills one broad
-	theme suggestion, an absolute `minimal` or `simple` narrative scale, one
-	language focus, a progression/complexity direction, and one or two grounded
-	calibration snippets. That transient brief is stored once per story in
-	`finish-evidence.json`; repeated navigation is safe. See
-   [ai-workflows.md](./ai-workflows.md#the-story-finish-evidence-manager).
-
-### Why they stay separate
-
-A reading story's value comes from being finite, complete, and adapted before
-the learner sees a word of it; a typing story's comes from being unbounded and
-collaborative. Every property one workflow needs — bounded token budget,
-whole-story validation, prepared media, a recap — is a property the other does
-not have.
-
-**Keep their orchestration separate unless a task deliberately changes both.**
-The shared pieces (the save shape, the screen, the session hook) are shared
-because their *shape* coincides, not their lifecycle. Changing "how a story
-continues" means picking one of them; a change that quietly generalizes over
-both usually means a reading story just grew a per-section generation call, which
-is the thing this design removed.
-
-## Session, persistence, and resume
-
-`story_session` writes a full snapshot of the session on every meaningful
-transition, and the server decides where it lands: newer stories are written as a
-bundle (`stories/<id>/story.json`, with `audio/` and `images/` beside it), while
-older saves stay as flat files. Reads check the bundle first and fall back, so
-both keep working — see [local-data.md](./local-data.md).
-
-A reading save stores the whole story, so resuming needs no generation: the
-session restores the cursor, re-seeds the media owner from the narration on its
-segments and the images in its gallery, and only prepares what is genuinely
-missing. Reading saves from the former frame-and-incremental-generation schema
-are unsupported development data; discard them rather than adding a migration
-or resurrecting a per-section generation path.
-
-## Where a change belongs
-
-- New screen, or a new way to move between screens → `App`.
-- New way to *start* or *pick* a story → `home_menu`.
-- Anything about what a story generates, when, or how it is saved →
-  `story_session` (orchestration) and `server` (the call itself).
-- Anything about how one exercise or interaction behaves → `exercise_screen`, or
-  a `lessons` brick.
-- A new provider, model, cache, or local file → `server`.
-</content>
+- Navigation and language selection belong in `App` or `home_menu`.
+- Lifecycle, persistence, and generation timing belong in `story_session`.
+- Interaction mechanics belong in `exercise_screen`.
+- Language differences belong in the registry unless a provider requires a
+  genuinely distinct adapter.
+- Provider and local-file concerns belong in `server`.

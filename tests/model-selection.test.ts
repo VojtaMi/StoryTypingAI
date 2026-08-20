@@ -57,6 +57,7 @@ globalThis.fetch = async (_input, init) => {
 };
 try {
 	await prepareMissingReadingOpenings(
+		"esperanto",
 		getStoryGenerationPreset("terra-medium"),
 		"previous-story",
 		"a floating city",
@@ -66,6 +67,7 @@ try {
 	globalThis.fetch = originalFetch;
 }
 assert.deepEqual(requestBody, {
+	genreId: "esperanto",
 	model: "gpt-5.6-terra",
 	reasoningEffort: "medium",
 	basedOnStoryId: "previous-story",

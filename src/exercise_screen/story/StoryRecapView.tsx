@@ -1,14 +1,13 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
-import "../../lessons/lesson.css";
-import { useChoicePrompt } from "../../lessons/useChoicePrompt";
-import { useWordMatching } from "../../lessons/useWordMatching";
 import type {
 	StoryRecapExercise,
 	StoryRecapExerciseResult,
 	StoryRecapLesson,
 	StoryRecapWordConnectExercise,
 } from "../../storyRecap";
+import { useChoicePrompt } from "./recap/useChoicePrompt";
+import { useWordMatching } from "./recap/useWordMatching";
 
 interface StoryRecapViewProps {
 	lesson: StoryRecapLesson | null;
@@ -69,7 +68,7 @@ export function StoryRecapView({
 	if (!lesson) {
 		return (
 			<div className="story-recap">
-				<p className="lesson-doc__eyebrow">Eta praktiko</p>
+				<p className="lesson-doc__eyebrow">Story practice</p>
 				<h2 className="lesson-doc__heading">Preparing your recap</h2>
 				<p className="lesson-doc__paragraph">
 					A few tiny questions are being made from the story you just read.
@@ -103,7 +102,7 @@ export function StoryRecapView({
 
 	return (
 		<div className="story-recap">
-			<p className="lesson-doc__eyebrow">Eta praktiko</p>
+			<p className="lesson-doc__eyebrow">Story practice</p>
 			<h2 className="lesson-doc__heading">{lesson.title}</h2>
 			<div className="story-recap__list">
 				{lesson.exercises.map((exercise) => (

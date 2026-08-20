@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type OpenAI from "openai";
 import type { ChatMessage } from "../ai";
+import { getGenre, isGenreId } from "../genres";
 import {
 	DEFAULT_TEXT_MODEL,
 	STORY_SEGMENT_MAX_TOKENS,
@@ -12,19 +13,12 @@ import { parseNextStoryBrief } from "../nextStoryBrief";
 import { READING_STORY_MAX_PARTS } from "../reading_story/split";
 import { isStoryDifficulty } from "../storyFeedback";
 import { DEFAULT_TTS_MODEL, isTtsModelId } from "../ttsModel";
-import {
-	completeAi,
-	completeStructuredAi,
-	streamAi,
-	translateWords,
-} from "./aiService";
+import { completeAi, completeStructuredAi, translateWords } from "./aiService";
 import { withAiTraceMetadata } from "./aiTrace";
 import { readBody, sendJson } from "./http";
 import { enqueueLearnerProfileMutation } from "./learnerProfileMutationQueue";
-import { refineLearnerStateFromChat } from "./learnerProfileService";
 import { readLearnerContext, writeLearnerContext } from "./learnerProfileStore";
 import { appendLearnerWordLogEntry } from "./learnerWordLogStore";
-import { startNdjsonResponse, writeJsonLine } from "./ndjson";
 import { createBackgroundImage, findGenre } from "./openingsStore";
 import { saveIdPattern } from "./savesStore";
 import { createOpeningAudio } from "./storyAudioStore";
@@ -38,7 +32,7 @@ import {
 	wordFilePattern,
 } from "./wordAudioStore";
 
-const learnerWordPattern = /^[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+$/u;
+const learnerWordPattern = /^\p{L}+(?:[-’']\p{L}+)*$/u;
 
 export async function handleBackgroundImageRequest(
 	req: IncomingMessage,
@@ -84,38 +78,17 @@ export async function handleBackgroundImageRequest(
 	);
 }
 
-export async function handleCompleteStreamRequest(
-	req: IncomingMessage,
-	res: ServerResponse,
-	openai: OpenAI,
-	anthropicKey: string,
-) {
-	const {
-		messages,
-		maxTokens = STORY_SEGMENT_MAX_TOKENS,
-		model = DEFAULT_TEXT_MODEL,
-	} = JSON.parse(await readBody(req));
-	startNdjsonResponse(res);
-	const text = await streamAi(
-		openai,
-		messages,
-		maxTokens,
-		model,
-		anthropicKey,
-		(chunk) => writeJsonLine(res, { type: "chunk", text: chunk }),
-	);
-	writeJsonLine(res, { type: "done", text });
-	res.end();
-}
-
 export async function handleOpeningAudioRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { text, storyId, narrationVoice, sectionIndex, ttsModel } = JSON.parse(
-		await readBody(req),
-	);
+	const { genreId, text, storyId, narrationVoice, sectionIndex, ttsModel } =
+		JSON.parse(await readBody(req));
+	if (!isGenreId(genreId)) {
+		sendJson(res, 400, { error: "genreId is invalid." });
+		return;
+	}
 	if (!text || typeof text !== "string") {
 		sendJson(res, 400, { error: "text is required." });
 		return;
@@ -134,6 +107,7 @@ export async function handleOpeningAudioRequest(
 			createOpeningAudio(openai, text, storyId, narrationVoice, {
 				sectionIndex: validSectionIndex(sectionIndex),
 				ttsModel: isTtsModelId(ttsModel) ? ttsModel : DEFAULT_TTS_MODEL,
+				instructions: getGenre(genreId).ttsInstructions,
 			}),
 	);
 	if (!audio) {
@@ -154,13 +128,22 @@ export async function handleRegenerateWordRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { word, storyContext } = JSON.parse(await readBody(req));
+	const { genreId, word, storyContext } = JSON.parse(await readBody(req));
+	if (!isGenreId(genreId)) {
+		sendJson(res, 400, { error: "genreId is invalid." });
+		return;
+	}
 	if (!word || typeof word !== "string") {
 		sendJson(res, 400, { error: "word is required." });
 		return;
 	}
 	const context = typeof storyContext === "string" ? storyContext : undefined;
-	const fresh = await translateWords(openai, [word], context);
+	const fresh = await translateWords(
+		openai,
+		getGenre(genreId),
+		[word],
+		context,
+	);
 	sendJson(res, 200, { translation: fresh[word] ?? null });
 }
 
@@ -169,7 +152,11 @@ export async function handleWordAudioRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { word } = JSON.parse(await readBody(req));
+	const { genreId, word } = JSON.parse(await readBody(req));
+	if (!isGenreId(genreId)) {
+		sendJson(res, 400, { error: "genreId is invalid." });
+		return;
+	}
 	if (!word || typeof word !== "string") {
 		sendJson(res, 400, { error: "word is required." });
 		return;
@@ -179,7 +166,7 @@ export async function handleWordAudioRequest(
 		sendJson(res, 400, { error: "word contains unsupported characters." });
 		return;
 	}
-	const url = await getOrCreateWordAudio(openai, normalizedWord);
+	const url = await getOrCreateWordAudio(openai, genreId, normalizedWord);
 	sendJson(res, 200, { url });
 }
 
@@ -188,7 +175,11 @@ export async function handleRegenerateWordAudioRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { word } = JSON.parse(await readBody(req));
+	const { genreId, word } = JSON.parse(await readBody(req));
+	if (!isGenreId(genreId)) {
+		sendJson(res, 400, { error: "genreId is invalid." });
+		return;
+	}
 	if (!word || typeof word !== "string") {
 		sendJson(res, 400, { error: "word is required." });
 		return;
@@ -198,7 +189,7 @@ export async function handleRegenerateWordAudioRequest(
 		sendJson(res, 400, { error: "word contains unsupported characters." });
 		return;
 	}
-	const url = await regenerateWordAudio(openai, normalizedWord);
+	const url = await regenerateWordAudio(openai, genreId, normalizedWord);
 	sendJson(res, 200, { url });
 }
 
@@ -285,57 +276,6 @@ export async function handleLearnerPreferencesUpdateRequest(
 	}
 }
 
-export async function handleLearnerProfileRefineRequest(
-	req: IncomingMessage,
-	res: ServerResponse,
-	openai: OpenAI,
-	anthropicKey: string,
-) {
-	const { messages } = JSON.parse(await readBody(req));
-	if (!Array.isArray(messages)) {
-		sendJson(res, 400, { error: "messages must be an array." });
-		return;
-	}
-
-	if (
-		messages.some(
-			(message) =>
-				!message ||
-				(message.role !== "user" && message.role !== "assistant") ||
-				typeof message.content !== "string",
-		)
-	) {
-		sendJson(res, 400, {
-			error:
-				"messages must contain user/assistant messages with string content.",
-		});
-		return;
-	}
-
-	let responseProfile = (await readLearnerContext()).languageProfile;
-	try {
-		const refineTask = enqueueLearnerProfileMutation(async () => {
-			const current = await readLearnerContext();
-			const today = new Date().toISOString().slice(0, 10);
-			const updated = await refineLearnerStateFromChat(
-				openai,
-				current,
-				messages,
-				anthropicKey,
-				today,
-			);
-			await writeLearnerContext(updated);
-			responseProfile = updated.languageProfile;
-		});
-		await refineTask;
-		sendJson(res, 200, { profile: responseProfile });
-	} catch (err) {
-		// Never break the capture loop: keep the existing profile on failure.
-		console.warn("Could not refine learner profile.", err);
-		sendJson(res, 200, { profile: responseProfile });
-	}
-}
-
 export async function handleFinalizeStoryEvidenceRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
@@ -345,6 +285,10 @@ export async function handleFinalizeStoryEvidenceRequest(
 	const body = JSON.parse(
 		await readBody(req),
 	) as Partial<StoryFinalizationInput>;
+	if (!isGenreId(body.genreId)) {
+		sendJson(res, 400, { error: "genreId is invalid." });
+		return;
+	}
 	if (typeof body.storyId !== "string" || !saveIdPattern.test(body.storyId)) {
 		sendJson(res, 400, { error: "storyId must be a valid story ID." });
 		return;
@@ -424,6 +368,7 @@ export async function handleFinalizeStoryEvidenceRequest(
 	const nextStoryBrief = await finalizeStoryEvidence(
 		openai,
 		{
+			genreId: body.genreId,
 			storyId: body.storyId,
 			storySummary: body.storySummary,
 			storyParts: body.storyParts,
@@ -443,7 +388,11 @@ export async function handleLearnerWordLogRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
 ) {
-	const { word, storyId } = JSON.parse(await readBody(req));
+	const { genreId, word, storyId } = JSON.parse(await readBody(req));
+	if (!isGenreId(genreId)) {
+		sendJson(res, 400, { error: "genreId is invalid." });
+		return;
+	}
 	if (!word || typeof word !== "string") {
 		sendJson(res, 400, { error: "word is required." });
 		return;

@@ -2,7 +2,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { type NextStoryBrief, parseNextStoryBrief } from "../nextStoryBrief";
 import { isStoryDifficulty, type StoryDifficulty } from "../storyFeedback";
-import type { StoryRecapEvidenceItem } from "./learnerProfileService";
 import { bundledFinishEvidencePath } from "./storyBundleStore";
 
 /** One word looked up during a reading story, with how many times it was clicked. */
@@ -11,9 +10,15 @@ export interface FinishEvidenceLookup {
 	count: number;
 }
 
+export interface StoryRecapEvidenceItem {
+	type: string;
+	label: string;
+	attempts: number;
+}
+
 /**
  * The per-story finalization record, persisted beside the story save at
- * `stories/<storyId>/finish-evidence.json`. It is the control state that makes
+ * `stories/<language>/<storyId>/finish-evidence.json`. It is the control state that makes
  * story-finish finalization idempotent: the complete evidence bundle is applied
  * once, and late evidence is applied to this same story only.
  */

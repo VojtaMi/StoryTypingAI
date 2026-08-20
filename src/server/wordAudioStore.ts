@@ -1,25 +1,26 @@
 import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type OpenAI from "openai";
+import { type GenreId, getGenre } from "../genres";
 import { tts } from "./tts";
 import type { SynthesizedSpeech } from "./tts/types";
 
 const wordAudioDir = join(process.cwd(), "word-audio");
 
-export const wordFilePattern = /^[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+\.(mp3|wav)$/u;
+export const wordFilePattern = /^\p{L}+(?:[-’']\p{L}+)*\.(mp3|wav)$/u;
 
-function wordAudioUrl(word: string, version: number): string {
-	return `/api/word-audio/${encodeURIComponent(word)}?v=${version}`;
+function wordAudioUrl(genreId: GenreId, word: string, version: number): string {
+	return `/api/word-audio/${genreId}/${encodeURIComponent(word)}?v=${version}`;
 }
 
 function preferredWordAudioFilename(word: string): string {
 	return `${word}.${process.env.GEMINI_API_KEY ? "wav" : "mp3"}`;
 }
 
-async function findCachedWordAudio(filenames: string[]) {
+async function findCachedWordAudio(genreId: GenreId, filenames: string[]) {
 	for (const filename of filenames) {
 		try {
-			const file = await stat(join(wordAudioDir, filename));
+			const file = await stat(join(wordAudioDir, genreId, filename));
 			return { filename, mtimeMs: file.mtimeMs };
 		} catch {
 			// Try the next cache format.
@@ -44,61 +45,70 @@ function wordAudioMimeType(filename: string): SynthesizedSpeech["mimeType"] {
 
 async function synthesizeWordAudio(
 	openai: OpenAI,
+	genreId: GenreId,
 	word: string,
 ): Promise<string> {
+	const genre = getGenre(genreId);
 	const speech = await tts({
 		openai,
 		text: word,
 		provider: "gemini",
-		instructions:
-			"Pronounce this single Esperanto word clearly, slowly, and in isolation — as if teaching a language learner.",
+		instructions: `Pronounce this single ${genre.label} word clearly, slowly, and in isolation — as if teaching a language learner. ${genre.ttsInstructions}`,
 	});
-	await mkdir(wordAudioDir, { recursive: true });
+	await mkdir(join(wordAudioDir, genreId), { recursive: true });
 	await writeFile(
-		join(wordAudioDir, `${word}.${speech.extension}`),
+		join(wordAudioDir, genreId, `${word}.${speech.extension}`),
 		speech.audio,
 	);
-	return wordAudioUrl(word, Date.now());
+	return wordAudioUrl(genreId, word, Date.now());
 }
 
 export async function getOrCreateWordAudio(
 	openai: OpenAI,
+	genreId: GenreId,
 	word: string,
 ): Promise<string> {
-	const cached = await findCachedWordAudio([preferredWordAudioFilename(word)]);
+	const cached = await findCachedWordAudio(genreId, [
+		preferredWordAudioFilename(word),
+	]);
 	if (cached) {
 		console.log(`[word-audio] HIT  ${word}`);
-		return wordAudioUrl(word, Math.floor(cached.mtimeMs));
+		return wordAudioUrl(genreId, word, Math.floor(cached.mtimeMs));
 	}
 
 	console.log(`[word-audio] MISS ${word} — calling TTS`);
-	return synthesizeWordAudio(openai, word);
+	return synthesizeWordAudio(openai, genreId, word);
 }
 
 export async function regenerateWordAudio(
 	openai: OpenAI,
+	genreId: GenreId,
 	word: string,
 ): Promise<string> {
 	for (const extension of ["wav", "mp3"]) {
 		try {
-			await unlink(join(wordAudioDir, `${word}.${extension}`));
+			await unlink(join(wordAudioDir, genreId, `${word}.${extension}`));
 		} catch {
 			// Missing cached audio is fine; regeneration should still create it.
 		}
 	}
 	console.log(`[word-audio] REGEN ${word} — calling TTS`);
-	return synthesizeWordAudio(openai, word);
+	return synthesizeWordAudio(openai, genreId, word);
 }
 
 export async function readWordAudio(
+	genreId: GenreId,
 	word: string,
 ): Promise<{ audio: Buffer; mimeType: SynthesizedSpeech["mimeType"] }> {
-	const cached = await findCachedWordAudio(allWordAudioFilenames(word));
+	const cached = await findCachedWordAudio(
+		genreId,
+		allWordAudioFilenames(word),
+	);
 	if (!cached) {
 		throw new Error("Audio not found.");
 	}
 	return {
-		audio: await readFile(join(wordAudioDir, cached.filename)),
+		audio: await readFile(join(wordAudioDir, genreId, cached.filename)),
 		mimeType: wordAudioMimeType(cached.filename),
 	};
 }

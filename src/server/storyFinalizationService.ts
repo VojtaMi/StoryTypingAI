@@ -1,13 +1,10 @@
 import type OpenAI from "openai";
+import { type GenreId, getGenre } from "../genres";
 import { mergeStoryMemory } from "../learnerState";
-import {
-	type NextStoryBrief,
-	STARTER_NEXT_STORY_BRIEF,
-} from "../nextStoryBrief";
+import type { NextStoryBrief } from "../nextStoryBrief";
 import type { StoryDifficulty } from "../storyFeedback";
 import { withAiTraceMetadata } from "./aiTrace";
 import { enqueueLearnerProfileMutation } from "./learnerProfileMutationQueue";
-import type { StoryRecapEvidenceItem } from "./learnerProfileService";
 import { readLearnerContext, writeLearnerContext } from "./learnerProfileStore";
 import {
 	pruneWordLogForStory,
@@ -16,10 +13,12 @@ import {
 import { generateNextStoryBrief } from "./nextStoryBriefService";
 import {
 	readFinishEvidence,
+	type StoryRecapEvidenceItem,
 	updateFinishEvidence,
 } from "./storyFinishEvidenceStore";
 
 export interface StoryFinalizationInput {
+	genreId: GenreId;
 	storyId: string;
 	storySummary: string;
 	storyParts: string[];
@@ -39,11 +38,12 @@ async function finalizeOnce(
 	anthropicKey: string,
 ): Promise<NextStoryBrief> {
 	const record = await readFinishEvidence(evidence.storyId);
+	const genre = getGenre(evidence.genreId);
 	// Finalization is resolved exactly once, at the moment the next story is
 	// generated. A story that has already finalized ignores later evidence so a
 	// reopened story cannot replace the handoff already bound to its successor.
 	if (record.finalizedAt) {
-		return record.nextStoryBrief ?? STARTER_NEXT_STORY_BRIEF;
+		return record.nextStoryBrief ?? genre.starterBrief;
 	}
 
 	const practiceRequest = evidence.practiceRequest?.trim() || undefined;
@@ -53,6 +53,7 @@ async function finalizeOnce(
 	]);
 	const handoff = await generateNextStoryBrief(
 		openai,
+		genre,
 		{
 			storySummary: evidence.storySummary,
 			storyParts: evidence.storyParts,
@@ -60,7 +61,9 @@ async function finalizeOnce(
 			wordLookups: scoped.lookups,
 			learnerQuestions: evidence.learnerQuestions,
 			recapResults: evidence.recapResults,
-			recentStories: learnerContext.storyMemory.recentStories,
+			recentStories: learnerContext.storyMemory.recentStories.filter(
+				(story) => story.genreId === evidence.genreId,
+			),
 			difficulty: evidence.difficulty,
 			practiceRequest,
 		},

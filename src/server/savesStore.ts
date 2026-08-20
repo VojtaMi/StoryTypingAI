@@ -1,11 +1,13 @@
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { genres, isGenreId } from "../genres";
 import {
 	bundledSavePath,
 	bundleIdPattern,
 	pathExists,
 	storiesDir,
 	storyBundlePath,
+	storyLanguage,
 } from "./storyBundleStore";
 
 const storyImagesDir = join(process.cwd(), "story-images");
@@ -18,14 +20,24 @@ export const saveIdPattern = /^[a-zA-Z0-9_-]+$/;
 export async function listSaves() {
 	await mkdir(savesDir, { recursive: true });
 	await mkdir(storiesDir, { recursive: true });
-	const [legacyNames, bundleEntries] = await Promise.all([
+	const [legacyNames, languageEntries] = await Promise.all([
 		readdir(savesDir),
-		readdir(storiesDir, { withFileTypes: true }),
+		Promise.all(
+			genres.map((genre) =>
+				readdir(join(storiesDir, genre.id), { withFileTypes: true }).catch(
+					() => [],
+				),
+			),
+		),
 	]);
 
 	const ids = new Set<string>();
-	for (const entry of bundleEntries) {
-		if (entry.isDirectory()) ids.add(entry.name);
+	for (const entries of languageEntries) {
+		for (const entry of entries) {
+			if (entry.isDirectory() && bundleIdPattern.test(entry.name)) {
+				ids.add(entry.name);
+			}
+		}
 	}
 	for (const name of legacyNames) {
 		if (name.endsWith(".json")) ids.add(name.slice(0, -".json".length));
@@ -64,6 +76,12 @@ export async function readSave(id: string) {
 }
 
 export async function writeSave(id: string, save: unknown) {
+	if (bundleIdPattern.test(id)) {
+		const genreId = (save as { genreId?: unknown })?.genreId;
+		if (!isGenreId(genreId) || genreId !== storyLanguage(id)) {
+			throw new Error("Save language does not match its story id.");
+		}
+	}
 	const path = await writeSavePath(id);
 	await mkdir(dirname(path), { recursive: true });
 	await writeFile(path, `${JSON.stringify(save, null, 2)}\n`, "utf8");
@@ -73,7 +91,9 @@ export async function deleteSave(id: string) {
 	await rm(savePath(id), { force: true });
 	await rm(join(storyImagesDir, id), { recursive: true, force: true });
 	await rm(join(storyAudioDir, id), { recursive: true, force: true });
-	await rm(storyBundlePath(id), { recursive: true, force: true });
+	if (bundleIdPattern.test(id)) {
+		await rm(storyBundlePath(id), { recursive: true, force: true });
+	}
 }
 
 function savePath(id: string) {
@@ -81,13 +101,16 @@ function savePath(id: string) {
 }
 
 async function resolvedSavePath(id: string) {
-	const bundled = bundledSavePath(id);
-	if (await pathExists(bundled)) return bundled;
+	if (bundleIdPattern.test(id)) {
+		const bundled = bundledSavePath(id);
+		if (await pathExists(bundled)) return bundled;
+	}
 	return savePath(id);
 }
 
 async function writeSavePath(id: string) {
 	const legacy = savePath(id);
 	if (!bundleIdPattern.test(id) && (await pathExists(legacy))) return legacy;
+	if (!bundleIdPattern.test(id)) return legacy;
 	return bundledSavePath(id);
 }

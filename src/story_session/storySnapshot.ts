@@ -1,4 +1,4 @@
-import type { ChatMessage, ReadingStory, StoryMemory } from "../ai";
+import type { ChatMessage, ReadingStory } from "../ai";
 import type { StoryPhase, StorySegment } from "../exercise_screen/types";
 import type { Genre } from "../genres";
 import type { NarrationVoiceId } from "../narrationVoice";
@@ -12,7 +12,6 @@ interface StorySaveSnapshotInput {
 	genre: Genre;
 	title: string;
 	messages: ChatMessage[];
-	memory?: StoryMemory;
 	segments: StorySegment[];
 	currentTarget: string | null;
 	phase: StoryPhase;
@@ -58,7 +57,6 @@ export function buildStorySaveSnapshot({
 	genre,
 	title,
 	messages,
-	memory,
 	segments,
 	currentTarget,
 	phase,
@@ -80,7 +78,6 @@ export function buildStorySaveSnapshot({
 		genreId: genre.id,
 		title,
 		messages,
-		memory,
 		segments,
 		currentTarget,
 		phase,

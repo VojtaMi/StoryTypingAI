@@ -1,3 +1,4 @@
+import { DEFAULT_GENRE, type Genre } from "../genres";
 import { parseJsonResponse } from "../learnerState";
 import { SYSTEM_AI_PRESET, type TextModelId } from "../models";
 import type { ChatMessage, Complete, ReadingStoryPart } from "../story";
@@ -37,8 +38,8 @@ export function buildReadingImageSections(
 	return sections;
 }
 
-function visualPlanPrompt(imageCount: number) {
-	return `Design a coherent visual plan for a finished Esperanto reading story.
+function visualPlanPrompt(imageCount: number, genre: Genre) {
+	return `Design a coherent visual plan for a finished ${genre.label} reading story.
 
 The prose is supplied as ${imageCount} immutable imageSections. The app has already grouped consecutive story parts into the sections that share an image. Do not regroup them.
 
@@ -56,7 +57,7 @@ Scene instructions:
 - Match chronology, location, weather, objects, and actions in the prose exactly. Do not add visible writing unless essential.
 - Do not repeat fixed appearances from visualContext.
 
-properNames must list every character and place name exactly as written in the Esperanto prose. Do not include common nouns.
+properNames must list every character and place name exactly as written in the ${genre.label} prose. Do not include common nouns.
 
 Return only valid JSON matching exactly:
 {"visualContext":"shared English visual-continuity instructions","properNames":["exact name"],"imagePrompts":["English scene instruction"]}`;
@@ -71,10 +72,11 @@ The original prose is supplied again as ${imageCount} immutable imageSections. R
 
 export function readingVisualPlanMessages(
 	parts: ReadingStoryPart[],
+	genre: Genre = DEFAULT_GENRE,
 ): ChatMessage[] {
 	const imageSections = buildReadingImageSections(parts);
 	return [
-		{ role: "system", content: visualPlanPrompt(imageSections.length) },
+		{ role: "system", content: visualPlanPrompt(imageSections.length, genre) },
 		{
 			role: "user",
 			content:
@@ -131,11 +133,12 @@ export function parseReadingVisualPlan(
 export async function generateReadingVisualPlan(
 	complete: Complete,
 	parts: ReadingStoryPart[],
+	genre: Genre = DEFAULT_GENRE,
 ): Promise<ReadingStoryVisualPlan> {
 	const imageSections = buildReadingImageSections(parts);
 	const imageCount = imageSections.length;
 	const raw = await complete(
-		readingVisualPlanMessages(parts),
+		readingVisualPlanMessages(parts, genre),
 		VISUAL_PLAN_MAX_TOKENS,
 		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "none" },
 	);

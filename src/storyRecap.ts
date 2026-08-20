@@ -1,3 +1,4 @@
+import { DEFAULT_GENRE, type Genre } from "./genres";
 import {
 	countWords,
 	type GenerationSpec,
@@ -69,50 +70,55 @@ export interface StoryRecapExerciseResult {
  */
 type RecapExerciseSpec<T> = GenerationSpec<T>;
 
-const wordConnectSpec: RecapExerciseSpec<StoryRecapWordConnectExercise> = {
-	shape: {
-		pairs: [{ term: "Esperanto word", meaning: "English meaning" }],
-	},
-	instructions:
-		"Use exactly three word-connect pairs, using only words and facts from the story. Keep English meanings short.",
-	parse(value) {
-		if (
-			!isObject(value) ||
-			!Array.isArray(value.pairs) ||
-			value.pairs.length !== 3
-		) {
-			throw new Error("Recap word-connect exercise needs three pairs.");
-		}
-		return {
-			id: "word-connect",
-			type: "word-connect",
-			title: "Connect the words",
-			hint: "Select a word, then its meaning.",
-			pairs: value.pairs.map((pair) => {
-				if (!isObject(pair)) throw new Error("Recap word pair is invalid.");
-				return {
-					term: requiredString(pair.term, "word term", "Recap JSON"),
-					meaning: requiredString(pair.meaning, "word meaning", "Recap JSON"),
-				};
-			}),
-		};
-	},
-};
-
-const fillMissingWordSpec: RecapExerciseSpec<StoryRecapFillMissingWordExercise> =
-	{
+function wordConnectSpec(
+	genre: Genre,
+): RecapExerciseSpec<StoryRecapWordConnectExercise> {
+	return {
 		shape: {
-			sentence:
-				"A complete, natural Esperanto sentence that contains the answer word",
-			answer: "correct Esperanto word, exactly as it appears in sentence",
+			pairs: [{ term: `${genre.label} word`, meaning: "English meaning" }],
+		},
+		instructions:
+			"Use exactly three word-connect pairs, using only words and facts from the story. Keep English meanings short.",
+		parse(value) {
+			if (
+				!isObject(value) ||
+				!Array.isArray(value.pairs) ||
+				value.pairs.length !== 3
+			) {
+				throw new Error("Recap word-connect exercise needs three pairs.");
+			}
+			return {
+				id: "word-connect",
+				type: "word-connect",
+				title: "Connect the words",
+				hint: "Select a word, then its meaning.",
+				pairs: value.pairs.map((pair) => {
+					if (!isObject(pair)) throw new Error("Recap word pair is invalid.");
+					return {
+						term: requiredString(pair.term, "word term", "Recap JSON"),
+						meaning: requiredString(pair.meaning, "word meaning", "Recap JSON"),
+					};
+				}),
+			};
+		},
+	};
+}
+
+function fillMissingWordSpec(
+	genre: Genre,
+): RecapExerciseSpec<StoryRecapFillMissingWordExercise> {
+	return {
+		shape: {
+			sentence: `A complete, natural ${genre.label} sentence that contains the answer word`,
+			answer: `correct ${genre.label} word, exactly as it appears in sentence`,
 			choices: ["correct", "wrong", "wrong"],
 		},
 		instructions:
 			"Use exactly three fill choices, using only words and facts from the story. " +
 			"This exercise is the story's focus test: it must exercise the story's primary language focus stated below. " +
-			"Choose the fill sentence so its blanked `answer` is the exact Esperanto word or short phrase that realizes that focus. " +
-			"The `answer` is a single word or at most a short two-word phrase (e.g. `pensas pri`). " +
-			"The fill sentence must be one complete, natural Esperanto sentence containing the answer written exactly as in `answer` — the app carves the blank out of it itself, so write a normal sentence and do not pre-split it or omit the answer.",
+			`Choose the fill sentence so its blanked \`answer\` is the exact ${genre.label} word or short phrase that realizes that focus. ` +
+			`The \`answer\` is a single word or at most a short two-word phrase (e.g. \`${genre.recapAnswerExample}\`). ` +
+			`The fill sentence must be one complete, natural ${genre.label} sentence containing the answer written exactly as in \`answer\` — the app carves the blank out of it itself, so write a normal sentence and do not pre-split it or omit the answer.`,
 		parse(value) {
 			if (!isObject(value)) throw new Error("Recap fill exercise is invalid.");
 			const answer = requiredString(value.answer, "fill answer", "Recap JSON");
@@ -148,6 +154,7 @@ const fillMissingWordSpec: RecapExerciseSpec<StoryRecapFillMissingWordExercise> 
 			};
 		},
 	};
+}
 
 const storyQuestionSpec: RecapExerciseSpec<StoryRecapQuestionExercise> = {
 	shape: {
@@ -183,11 +190,13 @@ const storyQuestionSpec: RecapExerciseSpec<StoryRecapQuestionExercise> = {
 	},
 };
 
-const RECAP_EXERCISE_SPECS = [
-	wordConnectSpec,
-	fillMissingWordSpec,
-	storyQuestionSpec,
-];
+function recapExerciseSpecs(genre: Genre) {
+	return [
+		wordConnectSpec(genre),
+		fillMissingWordSpec(genre),
+		storyQuestionSpec,
+	];
+}
 
 /**
  * The fill-missing-word exercise is the deterministic focus test: it is always
@@ -199,16 +208,18 @@ const RECAP_EXERCISE_SPECS = [
 export const RECAP_FOCUS_EXERCISE_TYPE = "fill-missing-word" as const;
 
 /** Composes the recap generation prompt from each exercise type's own shape and rules. */
-export function buildStoryRecapPrompt(primaryFocus?: string): string {
+export function buildStoryRecapPrompt(
+	primaryFocus?: string,
+	genre: Genre = DEFAULT_GENRE,
+): string {
+	const specs = recapExerciseSpecs(genre);
 	const shape = JSON.stringify({
-		exercises: RECAP_EXERCISE_SPECS.map((spec) => spec.shape),
+		exercises: specs.map((spec) => spec.shape),
 	});
-	const instructions = RECAP_EXERCISE_SPECS.map(
-		(spec) => spec.instructions,
-	).join(" ");
+	const instructions = specs.map((spec) => spec.instructions).join(" ");
 	const focus = primaryFocus?.trim();
 	return (
-		"Create a tiny end-of-story Esperanto recap lesson for a beginner. " +
+		`Create a tiny end-of-story ${genre.label} recap lesson for a beginner. ` +
 		"Return only valid JSON with this exact shape: " +
 		`${shape} ` +
 		`${instructions} ` +
@@ -217,7 +228,10 @@ export function buildStoryRecapPrompt(primaryFocus?: string): string {
 	);
 }
 
-export function parseStoryRecapLesson(text: string): StoryRecapLesson {
+export function parseStoryRecapLesson(
+	text: string,
+	genre: Genre = DEFAULT_GENRE,
+): StoryRecapLesson {
 	const parsed = JSON.parse(text) as unknown;
 	if (!isObject(parsed)) throw new Error("Recap JSON was not an object.");
 	if (!Array.isArray(parsed.exercises)) {
@@ -225,10 +239,10 @@ export function parseStoryRecapLesson(text: string): StoryRecapLesson {
 	}
 	return {
 		id: `story-recap-${Date.now()}`,
-		title: "Eta praktiko",
+		title: genre.recapTitle,
 		exercises: [
-			wordConnectSpec.parse(parsed.exercises[0]),
-			fillMissingWordSpec.parse(parsed.exercises[1]),
+			wordConnectSpec(genre).parse(parsed.exercises[0]),
+			fillMissingWordSpec(genre).parse(parsed.exercises[1]),
 			storyQuestionSpec.parse(parsed.exercises[2]),
 		],
 	};

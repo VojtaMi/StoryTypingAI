@@ -1,14 +1,6 @@
-export const LEARNER_STATE_VERSION = 1 as const;
+import type { GenreId } from "./genres";
 
-export interface LearnerLanguageProfile {
-	version: typeof LEARNER_STATE_VERSION;
-	updated: string;
-	confident: string[];
-	learning: string[];
-	shaky: string[];
-	recentlyPracticed: string[];
-	notes: string[];
-}
+export const LEARNER_STATE_VERSION = 1 as const;
 
 export interface LearnerPreferences {
 	version: typeof LEARNER_STATE_VERSION;
@@ -25,6 +17,7 @@ export interface StoryMemory {
 }
 
 export interface RecentStoryMemory {
+	genreId: GenreId;
 	motif: string;
 	protagonist: string;
 	setting: string;
@@ -32,22 +25,9 @@ export interface RecentStoryMemory {
 }
 
 export interface LearnerContext {
-	languageProfile: LearnerLanguageProfile;
 	preferences: LearnerPreferences;
 	storyMemory: StoryMemory;
 }
-
-export const DEFAULT_LEARNER_PROFILE: LearnerLanguageProfile = {
-	version: LEARNER_STATE_VERSION,
-	updated: "never",
-	confident: [],
-	learning: ["The first Esperanto words and the copula `estas`."],
-	shaky: ["New vocabulary needs gradual introduction and meaningful reuse."],
-	recentlyPracticed: [],
-	notes: [
-		"New to Esperanto; use short, concrete sentences with clear context.",
-	],
-};
 
 export const DEFAULT_LEARNER_PREFERENCES: LearnerPreferences = {
 	version: LEARNER_STATE_VERSION,
@@ -64,20 +44,9 @@ export const DEFAULT_STORY_MEMORY: StoryMemory = {
 };
 
 export const DEFAULT_LEARNER_CONTEXT: LearnerContext = {
-	languageProfile: DEFAULT_LEARNER_PROFILE,
 	preferences: DEFAULT_LEARNER_PREFERENCES,
 	storyMemory: DEFAULT_STORY_MEMORY,
 };
-
-const PROFILE_KEYS = [
-	"version",
-	"updated",
-	"confident",
-	"learning",
-	"shaky",
-	"recentlyPracticed",
-	"notes",
-] as const;
 const PREFERENCES_KEYS = [
 	"version",
 	"updated",
@@ -86,14 +55,9 @@ const PREFERENCES_KEYS = [
 	"clarityGuidance",
 ] as const;
 const MEMORY_KEYS = ["version", "updated", "recentStories"] as const;
-const CONTEXT_KEYS = ["languageProfile", "preferences", "storyMemory"] as const;
+const CONTEXT_KEYS = ["preferences", "storyMemory"] as const;
 
 const LIMITS = {
-	confident: 10,
-	learning: 8,
-	shaky: 8,
-	recentlyPracticed: 6,
-	notes: 4,
 	prefer: 8,
 	avoid: 8,
 	clarityGuidance: 4,
@@ -101,35 +65,6 @@ const LIMITS = {
 	storyElements: 6,
 } as const;
 const MAX_ITEM_LENGTH = 180;
-
-export function parseLearnerLanguageProfile(
-	value: unknown,
-): LearnerLanguageProfile | null {
-	const object = exactObject(value, PROFILE_KEYS);
-	if (!object || !validBase(object)) {
-		return null;
-	}
-	const confident = boundedStrings(object.confident, LIMITS.confident);
-	const learning = boundedStrings(object.learning, LIMITS.learning);
-	const shaky = boundedStrings(object.shaky, LIMITS.shaky);
-	const recentlyPracticed = boundedStrings(
-		object.recentlyPracticed,
-		LIMITS.recentlyPracticed,
-	);
-	const notes = boundedStrings(object.notes, LIMITS.notes);
-	if (!confident || !learning || !shaky || !recentlyPracticed || !notes) {
-		return null;
-	}
-	return {
-		version: LEARNER_STATE_VERSION,
-		updated: object.updated as string,
-		confident,
-		learning,
-		shaky,
-		recentlyPracticed,
-		notes,
-	};
-}
 
 export function parseLearnerPreferences(
 	value: unknown,
@@ -157,25 +92,38 @@ export function parseStoryMemory(value: unknown): StoryMemory | null {
 	if (!object || !validBase(object)) return null;
 	if (
 		!Array.isArray(object.recentStories) ||
-		object.recentStories.length > LIMITS.recentStories
+		object.recentStories.length > LIMITS.recentStories * 3
 	) {
 		return null;
 	}
 	const recentStories: RecentStoryMemory[] = [];
 	for (const value of object.recentStories) {
 		const story = exactObject(value, [
+			"genreId",
 			"motif",
 			"protagonist",
 			"setting",
 			"elements",
 		]);
-		if (!story) return null;
+		if (
+			!story ||
+			!(["esperanto", "german", "spanish"] as const).includes(
+				story.genreId as GenreId,
+			)
+		)
+			return null;
 		const motif = boundedString(story.motif);
 		const protagonist = boundedString(story.protagonist);
 		const setting = boundedString(story.setting);
 		const elements = boundedStrings(story.elements, LIMITS.storyElements);
 		if (!motif || !protagonist || !setting || !elements) return null;
-		recentStories.push({ motif, protagonist, setting, elements });
+		recentStories.push({
+			genreId: story.genreId as GenreId,
+			motif,
+			protagonist,
+			setting,
+			elements,
+		});
 	}
 	return {
 		version: LEARNER_STATE_VERSION,
@@ -187,11 +135,10 @@ export function parseStoryMemory(value: unknown): StoryMemory | null {
 export function parseLearnerContext(value: unknown): LearnerContext | null {
 	const object = exactObject(value, CONTEXT_KEYS);
 	if (!object) return null;
-	const languageProfile = parseLearnerLanguageProfile(object.languageProfile);
 	const preferences = parseLearnerPreferences(object.preferences);
 	const storyMemory = parseStoryMemory(object.storyMemory);
-	if (!languageProfile || !preferences || !storyMemory) return null;
-	return { languageProfile, preferences, storyMemory };
+	if (!preferences || !storyMemory) return null;
+	return { preferences, storyMemory };
 }
 
 export function parseJsonResponse(text: string): unknown {
@@ -211,7 +158,12 @@ export function mergeStoryMemory(
 				stories.findIndex((candidate) => storyKey(candidate) === key) === index
 			);
 		})
-		.slice(0, LIMITS.recentStories);
+		.filter((story, index, stories) => {
+			const languageIndex = stories
+				.slice(0, index + 1)
+				.filter((candidate) => candidate.genreId === story.genreId).length;
+			return languageIndex <= LIMITS.recentStories;
+		});
 	return {
 		version: LEARNER_STATE_VERSION,
 		updated: today,
@@ -220,7 +172,7 @@ export function mergeStoryMemory(
 }
 
 function storyKey(story: RecentStoryMemory): string {
-	return [story.motif, story.protagonist, story.setting]
+	return [story.genreId, story.motif, story.protagonist, story.setting]
 		.join("|")
 		.toLocaleLowerCase();
 }

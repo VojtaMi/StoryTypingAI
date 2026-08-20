@@ -1,4 +1,4 @@
-import type { ChatMessage, ReadingStory, StoryMemory } from "./ai";
+import type { ChatMessage, ReadingStory } from "./ai";
 import type { StoryPhase, StorySegment } from "./exercise_screen/types";
 import type { GenreId } from "./genres";
 import type { NarrationVoiceId } from "./narrationVoice";
@@ -14,15 +14,14 @@ export interface SavedStory
 	title: string;
 	updatedAt: string;
 	messages: ChatMessage[];
-	memory?: StoryMemory;
 	segments: StorySegment[];
 	currentTarget: string | null;
 	phase: StoryPhase;
 	backgroundIntro?: string;
 	narrationVoice?: NarrationVoiceId;
-	/** The whole story a reading save is a cursor into; absent on typing saves. */
+	/** The whole story this save is a cursor into. */
 	readingStory?: ReadingStory;
-	/** Contextual glosses for the reading story's words; absent on typing saves. */
+	/** Contextual glosses for the story's words. */
 	wordTranslations?: Record<string, string>;
 	readingPartIndex?: number;
 	storyRecapLesson?: StoryRecapLesson | null;
@@ -43,8 +42,11 @@ export interface SavedStorySummary {
 	isReadingStory: boolean;
 }
 
-export async function listSavedStories(): Promise<SavedStorySummary[]> {
-	const response = await fetch("/api/saves");
+export async function listSavedStories(
+	genreId?: GenreId,
+): Promise<SavedStorySummary[]> {
+	const query = genreId ? `?language=${encodeURIComponent(genreId)}` : "";
+	const response = await fetch(`/api/saves${query}`);
 	return parseResponse<SavedStorySummary[]>(response);
 }
 

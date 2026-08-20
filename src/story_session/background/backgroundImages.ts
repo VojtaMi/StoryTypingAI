@@ -10,7 +10,7 @@ export interface StoryBackgroundFields {
 
 export function fallbackBackgroundImage(selected: Genre): StoryBackgroundImage {
 	return {
-		backgroundImageUrl: `/images/fallback-${selected.id}.webp`,
+		backgroundImageUrl: selected.heroImageUrl,
 		backgroundImageSource: "fallback",
 	};
 }

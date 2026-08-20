@@ -7,17 +7,15 @@ import {
 import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import OpenAI from "openai";
-import type { GenreId } from "../genres";
+import { type GenreId, isGenreId } from "../genres";
 import { TEXT_REASONING_EFFORTS, type TextReasoningEffort } from "../models";
 import { DEFAULT_TTS_MODEL, isTtsModelId } from "../ttsModel";
 import {
 	handleBackgroundImageRequest,
 	handleCompleteRequest,
-	handleCompleteStreamRequest,
 	handleFinalizeStoryEvidenceRequest,
 	handleLearnerPreferencesUpdateRequest,
 	handleLearnerProfileGetRequest,
-	handleLearnerProfileRefineRequest,
 	handleLearnerWordLogRequest,
 	handleOpeningAudioRequest,
 	handleRegenerateWordAudioRequest,
@@ -27,21 +25,11 @@ import {
 import { createAiTraceContext, withAiTraceContext } from "./aiTrace";
 import { readBody, sendBufferWithRangeSupport, sendJson } from "./http";
 import {
-	getOrCreateLessonAudio,
-	lessonAudioFilePattern,
-	lessonIdPattern,
-	readLessonAudio,
-} from "./lessonAudioStore";
-import { sendNdjsonError } from "./ndjson";
-import {
-	consumePreparedOpening,
 	consumePreparedReadingOpening,
 	findGenre,
 	imageFilePattern,
-	listPreparedOpenings,
 	listPreparedReadingOpenings,
 	listStoryImages,
-	prepareMissingOpenings,
 	prepareMissingReadingOpenings,
 	readStoryImage,
 } from "./openingsStore";
@@ -64,8 +52,7 @@ const distDir = join(__dirname, "dist");
 // Keep the API server available without local credentials so the client can
 // show a useful setup message instead of failing during server startup.
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY || "missing-openai-key" });
-let preparePromise: Promise<void> | null = null;
-let prepareReadingPromise: Promise<void> | null = null;
+const prepareReadingPromises = new Map<GenreId, Promise<void>>();
 
 const mimeTypes: Record<string, string> = {
 	".html": "text/html; charset=utf-8",
@@ -129,29 +116,13 @@ async function handleRequest(
 	const parts = pathname.split("/").filter(Boolean);
 
 	try {
-		if (pathname === "/api/openings" && req.method === "GET") {
-			sendJson(res, 200, await listPreparedOpenings());
-			return;
-		}
-
 		if (pathname === "/api/reading-openings" && req.method === "GET") {
-			sendJson(res, 200, await listPreparedReadingOpenings());
-			return;
-		}
-
-		if (pathname === "/api/openings/prepare" && req.method === "POST") {
-			const body = req.headers["content-length"]
-				? JSON.parse(await readBody(req))
-				: {};
-			preparePromise ??= prepareMissingOpenings(
-				openai,
-				body.model,
-				ANTHROPIC_API_KEY,
-			).finally(() => {
-				preparePromise = null;
-			});
-			await preparePromise;
-			sendJson(res, 200, await listPreparedOpenings());
+			const languageId = url.searchParams.get("language");
+			if (!isGenreId(languageId)) {
+				sendJson(res, 400, { error: "language is invalid." });
+				return;
+			}
+			sendJson(res, 200, await listPreparedReadingOpenings(languageId));
 			return;
 		}
 
@@ -159,6 +130,10 @@ async function handleRequest(
 			const body = req.headers["content-length"]
 				? JSON.parse(await readBody(req))
 				: {};
+			if (!isGenreId(body.genreId)) {
+				sendJson(res, 400, { error: "genreId is invalid." });
+				return;
+			}
 			if (
 				body.reasoningEffort !== undefined &&
 				!TEXT_REASONING_EFFORTS.includes(
@@ -168,8 +143,10 @@ async function handleRequest(
 				sendJson(res, 400, { error: "reasoningEffort is invalid." });
 				return;
 			}
-			prepareReadingPromise ??= prepareMissingReadingOpenings(
+			let preparation = prepareReadingPromises.get(body.genreId);
+			preparation ??= prepareMissingReadingOpenings(
 				openai,
+				body.genreId,
 				body.model,
 				ANTHROPIC_API_KEY,
 				body.basedOnStoryId ?? null,
@@ -177,26 +154,11 @@ async function handleRequest(
 				body.reasoningEffort as TextReasoningEffort | undefined,
 				isTtsModelId(body.ttsModel) ? body.ttsModel : DEFAULT_TTS_MODEL,
 			).finally(() => {
-				prepareReadingPromise = null;
+				prepareReadingPromises.delete(body.genreId);
 			});
-			await prepareReadingPromise;
-			sendJson(res, 200, await listPreparedReadingOpenings());
-			return;
-		}
-
-		if (
-			parts.length === 4 &&
-			parts[0] === "api" &&
-			parts[1] === "openings" &&
-			parts[3] === "consume" &&
-			req.method === "POST"
-		) {
-			const genreId = parts[2];
-			if (!genreId || !findGenre(genreId)) {
-				sendJson(res, 404, { error: "Genre not found." });
-				return;
-			}
-			sendJson(res, 200, await consumePreparedOpening(genreId as GenreId));
+			prepareReadingPromises.set(body.genreId, preparation);
+			await preparation;
+			sendJson(res, 200, await listPreparedReadingOpenings(body.genreId));
 			return;
 		}
 
@@ -217,7 +179,8 @@ async function handleRequest(
 				sendJson(res, 200, cached);
 				return;
 			}
-			if (prepareReadingPromise) await prepareReadingPromise;
+			const preparation = prepareReadingPromises.get(genreId as GenreId);
+			if (preparation) await preparation;
 			sendJson(
 				res,
 				200,
@@ -313,7 +276,19 @@ async function handleRequest(
 		}
 
 		if (pathname === "/api/saves" && req.method === "GET") {
-			sendJson(res, 200, await listSaves());
+			const languageId = url.searchParams.get("language");
+			if (languageId !== null && !isGenreId(languageId)) {
+				sendJson(res, 400, { error: "language is invalid." });
+				return;
+			}
+			const saves = await listSaves();
+			sendJson(
+				res,
+				200,
+				languageId
+					? saves.filter((save) => save.genreId === languageId)
+					: saves,
+			);
 			return;
 		}
 
@@ -368,16 +343,6 @@ async function handleRequest(
 			return;
 		}
 
-		if (pathname === "/api/learner-profile/refine" && req.method === "POST") {
-			await handleLearnerProfileRefineRequest(
-				req,
-				res,
-				openai,
-				ANTHROPIC_API_KEY,
-			);
-			return;
-		}
-
 		if (pathname === "/api/learner-profile/word-log" && req.method === "POST") {
 			await handleLearnerWordLogRequest(req, res);
 			return;
@@ -401,11 +366,6 @@ async function handleRequest(
 			return;
 		}
 
-		if (pathname === "/api/ai/complete-stream" && req.method === "POST") {
-			await handleCompleteStreamRequest(req, res, openai, ANTHROPIC_API_KEY);
-			return;
-		}
-
 		if (
 			pathname === "/api/ai/translate-words/regenerate" &&
 			req.method === "POST"
@@ -425,73 +385,27 @@ async function handleRequest(
 		}
 
 		if (
-			parts.length === 3 &&
+			parts.length === 4 &&
 			parts[0] === "api" &&
 			parts[1] === "word-audio" &&
 			req.method === "GET"
 		) {
-			const word = decodeURIComponent(parts[2] ?? "");
-			if (!word || !wordFilePattern.test(`${word}.mp3`)) {
+			const languageId = parts[2];
+			const word = decodeURIComponent(parts[3] ?? "");
+			if (
+				!isGenreId(languageId) ||
+				!word ||
+				!wordFilePattern.test(`${word}.mp3`)
+			) {
 				sendJson(res, 404, { error: "Audio not found." });
 				return;
 			}
 			try {
-				const file = await readWordAudio(word);
+				const file = await readWordAudio(languageId, word);
 				res.statusCode = 200;
 				res.setHeader("Content-Type", file.mimeType);
 				res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
 				res.end(file.audio);
-			} catch {
-				sendJson(res, 404, { error: "Audio not found." });
-			}
-			return;
-		}
-
-		if (pathname === "/api/lesson-audio" && req.method === "POST") {
-			const { lessonId, text, instructions } = JSON.parse(await readBody(req));
-			if (
-				!lessonId ||
-				typeof lessonId !== "string" ||
-				!lessonIdPattern.test(lessonId)
-			) {
-				sendJson(res, 400, { error: "lessonId is required." });
-				return;
-			}
-			if (!text || typeof text !== "string") {
-				sendJson(res, 400, { error: "text is required." });
-				return;
-			}
-			const url = await getOrCreateLessonAudio(
-				openai,
-				lessonId,
-				text,
-				typeof instructions === "string" ? instructions : undefined,
-			);
-			sendJson(res, 200, { url });
-			return;
-		}
-
-		if (
-			parts[0] === "api" &&
-			parts[1] === "lesson-audio" &&
-			parts.length === 4 &&
-			req.method === "GET"
-		) {
-			const lessonId = decodeURIComponent(parts[2] ?? "");
-			const filename = decodeURIComponent(parts[3] ?? "");
-			if (
-				!lessonIdPattern.test(lessonId) ||
-				!lessonAudioFilePattern.test(filename)
-			) {
-				sendJson(res, 404, { error: "Audio not found." });
-				return;
-			}
-			try {
-				const file = await readLessonAudio(lessonId, filename);
-				res.statusCode = 200;
-				res.setHeader("Content-Type", "audio/mpeg");
-				res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-				res.end(file);
 			} catch {
 				sendJson(res, 404, { error: "Audio not found." });
 			}
@@ -512,10 +426,6 @@ async function handleRequest(
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		console.error(err);
-		if (pathname === "/api/ai/complete-stream" && !res.writableEnded) {
-			sendNdjsonError(res, message);
-			return;
-		}
 		sendJson(res, 500, { error: message });
 	}
 }

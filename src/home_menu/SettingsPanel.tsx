@@ -163,13 +163,12 @@ export function SettingsPanel({
 					</label>
 				</div>
 				<p className="settings-panel__hint">
-					Reasoning applies to prepared reading stories. Typing stories use the
-					selected model in streaming mode. Changes apply to the next generated
-					reading story.
+					Changes apply to the next generated reading story.
 				</p>
 				<h3>Story preferences</h3>
 				<p className="settings-panel__hint">
-					One preference per line. Only these settings persist across stories.
+					One preference per line. Story preferences are shared across all
+					languages.
 				</p>
 				{draft ? (
 					<>

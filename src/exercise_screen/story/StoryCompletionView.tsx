@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { listStoryImages } from "../../gallery/galleryApi";
-import "../../lessons/lesson.css";
 import type { StoryFeedbackRecord } from "../../storyFeedback";
 import { StoryFeedbackForm } from "./StoryFeedbackForm";
 

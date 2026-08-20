@@ -1,16 +1,19 @@
-const STORY_WORD_PATTERN = /\p{L}+(?:-\p{L}+)*/gu;
+import type { GenreId } from "./genres";
+
+const STORY_WORD_PATTERN = /\p{L}+(?:[-’']\p{L}+)*/gu;
 
 /** Returns unique normalized words, excluding known proper names. */
 export function storyWords(
 	parts: string[],
 	excludedWords: string[] = [],
+	genreId: GenreId = "esperanto",
 ): string[] {
 	const excluded = new Set(
 		excludedWords.flatMap((word) => {
 			const normalized = word.toLowerCase();
-			return normalized.endsWith("n")
-				? [normalized]
-				: [normalized, `${normalized}n`, `${normalized}-n`];
+			return genreId === "esperanto" && !normalized.endsWith("n")
+				? [normalized, `${normalized}n`, `${normalized}-n`]
+				: [normalized];
 		}),
 	);
 	return [
@@ -23,14 +26,18 @@ export function storyWords(
 	];
 }
 
-export function isStoryName(word: string, names: string[]): boolean {
+export function isStoryName(
+	word: string,
+	names: string[],
+	genreId: GenreId = "esperanto",
+): boolean {
 	const normalized = word.toLowerCase();
 	return names.some((name) => {
 		const normalizedName = name.toLowerCase();
-		return (
-			normalized === normalizedName ||
-			normalized === `${normalizedName}n` ||
-			normalized === `${normalizedName}-n`
-		);
+		return genreId === "esperanto"
+			? normalized === normalizedName ||
+					normalized === `${normalizedName}n` ||
+					normalized === `${normalizedName}-n`
+			: normalized === normalizedName;
 	});
 }

@@ -1,7 +1,10 @@
 import type { StoryFinishEvidence } from "../ai";
+import type { GenreId } from "../genres";
 
-const PENDING_KEY = "reading-preparation-pending";
-const PENDING_THEME_KEY = "reading-preparation-theme";
+const pendingKey = (languageId: GenreId) =>
+	`reading-preparation-pending:${languageId}`;
+const pendingThemeKey = (languageId: GenreId) =>
+	`reading-preparation-theme:${languageId}`;
 
 /**
  * The evidence of a finished story whose lifecycle has not yet produced a
@@ -13,8 +16,10 @@ const PENDING_THEME_KEY = "reading-preparation-theme";
  * resume the lifecycle instead of stranding it. Re-finalizing is safe: the
  * server is idempotent per story id.
  */
-export function readPendingReadingEvidence(): StoryFinishEvidence | null {
-	const stored = localStorage.getItem(PENDING_KEY);
+export function readPendingReadingEvidence(
+	languageId: GenreId,
+): StoryFinishEvidence | null {
+	const stored = localStorage.getItem(pendingKey(languageId));
 	if (!stored) return null;
 	try {
 		const parsed = JSON.parse(stored) as StoryFinishEvidence;
@@ -25,7 +30,7 @@ export function readPendingReadingEvidence(): StoryFinishEvidence | null {
 }
 
 export function savePendingReadingEvidence(evidence: StoryFinishEvidence) {
-	localStorage.setItem(PENDING_KEY, JSON.stringify(evidence));
+	localStorage.setItem(pendingKey(evidence.genreId), JSON.stringify(evidence));
 }
 
 /**
@@ -34,17 +39,17 @@ export function savePendingReadingEvidence(evidence: StoryFinishEvidence) {
  * alongside — not inside — the evidence, so finalization never sees it and it
  * can never leak into the durable learner profile.
  */
-export function readPendingReadingTheme(): string | null {
-	return localStorage.getItem(PENDING_THEME_KEY) || null;
+export function readPendingReadingTheme(languageId: GenreId): string | null {
+	return localStorage.getItem(pendingThemeKey(languageId)) || null;
 }
 
-export function savePendingReadingTheme(theme: string) {
-	localStorage.setItem(PENDING_THEME_KEY, theme);
+export function savePendingReadingTheme(languageId: GenreId, theme: string) {
+	localStorage.setItem(pendingThemeKey(languageId), theme);
 }
 
-export function clearPendingReadingEvidence() {
-	localStorage.removeItem(PENDING_KEY);
+export function clearPendingReadingEvidence(languageId: GenreId) {
+	localStorage.removeItem(pendingKey(languageId));
 	// The theme belongs to the same lifecycle: whenever the evidence is cleared
 	// (settled, consumed, or discarded as stale) the one-shot theme is spent too.
-	localStorage.removeItem(PENDING_THEME_KEY);
+	localStorage.removeItem(pendingThemeKey(languageId));
 }

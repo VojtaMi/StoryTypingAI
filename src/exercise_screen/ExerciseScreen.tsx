@@ -6,21 +6,20 @@ import {
 } from "../ai";
 import "../gallery/gallery.css";
 import { GalleryModal } from "../gallery/GalleryModal";
+import type { Genre } from "../genres";
 import type { StoryFeedbackRecord } from "../storyFeedback";
 import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
 import { isStoryName } from "../storyVocabulary";
-import { AuthoringInput } from "./authoring/AuthoringInput";
-import { EsperantoChatModal } from "./chatbot/EsperantoChatModal";
+import { LanguageChatModal } from "./chatbot/LanguageChatModal";
 import { ExerciseControls } from "./controls/ExerciseControls";
 import { OpeningAudioControl } from "./story/OpeningAudioControl";
 import { StoryCompletionView } from "./story/StoryCompletionView";
 import { StoryLoading } from "./story/StoryLoading";
 import { StoryLog } from "./story/StoryLog";
 import { StoryRecapView } from "./story/StoryRecapView";
-import type { StoryPhase, StorySegment, TypingStats } from "./types";
-import { TypingExercise } from "./typing/TypingExercise";
+import type { StoryPhase, StorySegment } from "./types";
 
-const WORD_PATTERN = /([a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+|[^a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]+)/g;
+const WORD_PATTERN = /(\p{L}+(?:[-’']\p{L}+)*|[^\p{L}]+)/gu;
 
 interface WordPopover {
 	word: string;
@@ -31,9 +30,9 @@ interface WordPopover {
 }
 
 interface ExerciseScreenProps {
+	language: Genre;
 	segments: StorySegment[];
 	currentTarget: string | null;
-	streamingTarget: string;
 	phase: StoryPhase;
 	error: string | null;
 	backgroundIntro?: string;
@@ -57,9 +56,6 @@ interface ExerciseScreenProps {
 	onCompleteStoryRecap: (results: StoryRecapExerciseResult[]) => void;
 	onRetryStoryRecap: () => void;
 	onSkipStoryRecap: () => void;
-	onTypingComplete: (stats: TypingStats) => void;
-	onSubmitContinuation: (text: string) => void;
-	onAutoContinue: () => void;
 	onBackToMenu: () => void;
 	onSubmitStoryFeedback: (record: StoryFeedbackRecord) => void;
 	onStoryFeedbackDraftChange: (record: StoryFeedbackRecord) => void;
@@ -68,9 +64,9 @@ interface ExerciseScreenProps {
 }
 
 export default function ExerciseScreen({
+	language,
 	segments,
 	currentTarget,
-	streamingTarget,
 	phase,
 	error,
 	backgroundIntro,
@@ -94,9 +90,6 @@ export default function ExerciseScreen({
 	onCompleteStoryRecap,
 	onRetryStoryRecap,
 	onSkipStoryRecap,
-	onTypingComplete,
-	onSubmitContinuation,
-	onAutoContinue,
 	onBackToMenu,
 	onSubmitStoryFeedback,
 	onStoryFeedbackDraftChange,
@@ -140,7 +133,7 @@ export default function ExerciseScreen({
 		const existingUrl = audioUrl ?? wordAudioUrls[normalizedWord];
 		(existingUrl
 			? Promise.resolve(existingUrl)
-			: getWordAudioUrl(normalizedWord)
+			: getWordAudioUrl(language.id, normalizedWord)
 		)
 			.then((url) => {
 				if (!existingUrl) {
@@ -165,7 +158,7 @@ export default function ExerciseScreen({
 		// Word popovers only appear while reading, so every lookup here belongs to
 		// this story — scope it so the story's baseline (not the global cursor)
 		// folds it and no other story can consume it.
-		void logLearnerWordClick(token, storyId ?? undefined);
+		void logLearnerWordClick(language.id, token, storyId ?? undefined);
 		playWordAudio(token);
 
 		const rect = e.currentTarget.getBoundingClientRect();
@@ -184,7 +177,7 @@ export default function ExerciseScreen({
 		try {
 			const [updated, audioUrl] = await Promise.all([
 				onRegenerateWord(popover.word),
-				regenerateWordAudioUrl(popover.word),
+				regenerateWordAudioUrl(language.id, popover.word),
 			]);
 			if (updated) setPopover((p) => p && { ...p, translation: updated });
 			setWordAudioUrls((prev) => ({ ...prev, [popover.word]: audioUrl }));
@@ -212,7 +205,11 @@ export default function ExerciseScreen({
 							const token = match[1];
 							const isWord = /[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]/.test(token);
 							if (!isWord) return token;
-							const isName = isStoryName(token, nonTranslatableWords);
+							const isName = isStoryName(
+								token,
+								nonTranslatableWords,
+								language.id,
+							);
 							const translation = isName
 								? "(name)"
 								: wordTranslations?.[token.toLowerCase()];
@@ -278,30 +275,7 @@ export default function ExerciseScreen({
 				/>
 			)}
 
-			{phase === "typing" && currentTarget && (
-				<div className="story__current">
-					<div className="story__current-header">
-						<p className="story__hint">Type the next part of the story:</p>
-					</div>
-					<TypingExercise
-						key={segments.length}
-						target={currentTarget}
-						onComplete={onTypingComplete}
-					/>
-					<OpeningAudioControl audioUrl={openingAudioUrl} />
-				</div>
-			)}
-
-			{phase === "authoring" && (
-				<AuthoringInput
-					onSubmit={onSubmitContinuation}
-					onAutoContinue={onAutoContinue}
-				/>
-			)}
-
-			{phase === "loading" && (
-				<StoryLoading streamingTarget={streamingTarget} />
-			)}
+			{phase === "loading" && <StoryLoading />}
 
 			{popover && (
 				<div
@@ -333,18 +307,15 @@ export default function ExerciseScreen({
 				onOpenGallery={() => setGalleryOpen(true)}
 			/>
 
-			<EsperantoChatModal
+			<LanguageChatModal
+				language={language}
 				isOpen={chatOpen}
 				onOpen={() => setChatOpen(true)}
 				segments={segments}
 				currentTarget={currentTarget}
 				backgroundIntro={backgroundIntro}
 				onClose={() => setChatOpen(false)}
-				// Reading stories buffer questions for the finish baseline; typing
-				// stories (no baseline) keep the immediate per-close refine.
-				onCaptureQuestions={
-					readingTotalParts !== null ? onCaptureBotQuestions : undefined
-				}
+				onCaptureQuestions={onCaptureBotQuestions}
 			/>
 
 			{galleryOpen && canShowGallery && storyId && currentImageUrl && (

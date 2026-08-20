@@ -1,23 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import ExerciseScreen from "./exercise_screen/ExerciseScreen";
+import { type GenreId, getGenre } from "./genres";
 import MainMenu from "./home_menu/MainMenu";
 import {
-	CURRICULUM,
-	CURRICULUM_PATHS,
-	CurriculumView,
-	canonicalCurriculumPath,
-	FIRST_STEP_PATH,
-} from "./lessons/curriculum";
-import LessonsMenu from "./lessons/LessonsMenu";
-import {
-	readLessonProgress,
-	rememberLessonPath,
-} from "./lessons/lessonProgress";
-import {
-	firstLesson,
-	gardenLesson,
-	miEstasHomoLesson,
-} from "./lessons/predefined/lessons";
+	readSelectedLanguage,
+	selectLanguage,
+	syncLanguageDocument,
+} from "./languageSelection";
 import {
 	readSelectedStoryGenerationPreset,
 	saveSelectedStoryGenerationPreset,
@@ -39,56 +28,55 @@ import {
 import { useStorySession } from "./story_session/useStorySession";
 
 const MAIN_MENU_PATH = "/";
-const LESSONS_MENU_PATH = "/lessons";
 
-const LESSON_MENU_ITEMS = [
-	{
-		id: "intro",
-		title: "Intro",
-		description: "Meet the course and the tiny-story format.",
-		path: "/lessons/intro",
-		completedStageIds: ["intro"],
-	},
-	{
-		id: "hundo-estas-besto",
-		title: firstLesson.title,
-		description: "Learn hundo, estas, and besto through your first sentence.",
-		path: "/lessons/hundo-estas-besto",
-		completedStageIds: [
-			"hundo-estas-besto.word-match",
-			"hundo-estas-besto.typing",
-		],
-	},
-	{
-		id: "keyboard",
-		title: "Keyboard",
-		description: "Practise Esperanto characters, then type beginner words.",
-		path: "/lessons/esperanto-keyboard",
-		completedStageIds: ["esperanto-keyboard"],
-	},
-	{
-		id: "nia-gardeno",
-		title: gardenLesson.title,
-		description:
-			"Combine colors, ownership, and known nouns into a tiny scene.",
-		path: "/lessons/nia-gardeno",
-		completedStageIds: ["nia-gardeno.typing"],
-	},
-	{
-		id: "mi-estas-homo",
-		title: miEstasHomoLesson.title,
-		description: "Meet people, names, and one cat with simple estas sentences.",
-		path: "/lessons/mi-estas-homo",
-		completedStageIds: ["mi-estas-homo.typing"],
-	},
-];
+function canonicalAppPath(path: string) {
+	return path === MAIN_MENU_PATH ? path : MAIN_MENU_PATH;
+}
 
 export default function App() {
-	// `location` (the canonical path) plus `inStory` fully determine what shows:
-	// the main menu ("/"), the lessons menu ("/lessons"), a curriculum step, or
-	// the story overlay. There is no longer a per-screen `View` enum.
+	const [languageId, setLanguageId] = useState(readSelectedLanguage);
+
+	useEffect(() => {
+		syncLanguageDocument(languageId);
+		const url = new URL(window.location.href);
+		if (url.searchParams.get("language") !== languageId) {
+			url.searchParams.set("language", languageId);
+			window.history.replaceState(null, "", url);
+		}
+	}, [languageId]);
+
+	useEffect(() => {
+		function handlePopState() {
+			setLanguageId(readSelectedLanguage());
+		}
+		window.addEventListener("popstate", handlePopState);
+		return () => window.removeEventListener("popstate", handlePopState);
+	}, []);
+
+	function changeLanguage(nextLanguageId: GenreId) {
+		selectLanguage(nextLanguageId);
+		setLanguageId(nextLanguageId);
+	}
+
+	return (
+		<ReadingApp
+			key={languageId}
+			languageId={languageId}
+			onLanguageChange={changeLanguage}
+		/>
+	);
+}
+
+function ReadingApp({
+	languageId,
+	onLanguageChange,
+}: {
+	languageId: GenreId;
+	onLanguageChange: (languageId: GenreId) => void;
+}) {
+	const language = getGenre(languageId);
 	const [location, setLocation] = useState<string>(() =>
-		canonicalCurriculumPath(window.location.pathname),
+		canonicalAppPath(window.location.pathname),
 	);
 	const [inStory, setInStory] = useState(false);
 	const [savedStories, setSavedStories] = useState<SavedStorySummary[]>([]);
@@ -97,21 +85,13 @@ export default function App() {
 		useState<StoryGenerationPresetId>(readSelectedStoryGenerationPreset);
 	const storyGeneration = getStoryGenerationPreset(storyGenerationPresetId);
 
-	const lessonProgress = readLessonProgress();
-	const hasLessonProgress =
-		lessonProgress.lastPath !== FIRST_STEP_PATH ||
-		lessonProgress.completedStages.length > 0;
-
 	const goto = useCallback((path: string, options?: { replace?: boolean }) => {
-		const canonical = canonicalCurriculumPath(path);
+		const canonical = canonicalAppPath(path);
 		setInStory(false);
 		setLocation(canonical);
 		if (window.location.pathname !== canonical) {
 			const method = options?.replace ? "replaceState" : "pushState";
 			window.history[method](null, "", canonical);
-		}
-		if (CURRICULUM_PATHS.has(canonical)) {
-			rememberLessonPath(canonical);
 		}
 	}, []);
 
@@ -126,24 +106,22 @@ export default function App() {
 	const refreshSavedStories = useCallback(async () => {
 		try {
 			setSavesError(null);
-			setSavedStories(await listSavedStories());
+			setSavedStories(await listSavedStories(language.id));
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			setSavesError(`Could not read local saves: ${message}`);
 		}
-	}, []);
+	}, [language.id]);
 
-	const sessionView: "menu" | "story" | "lesson" = inStory
-		? "story"
-		: location === MAIN_MENU_PATH
-			? "menu"
-			: "lesson";
+	const sessionView: "menu" | "story" = inStory ? "story" : "menu";
 
-	const unfinishedReadingSave = findUnfinishedReadingSave(savedStories);
+	const languageSavedStories = savedStories.filter(
+		(save) => save.genreId === language.id,
+	);
+	const unfinishedReadingSave = findUnfinishedReadingSave(languageSavedStories);
 
 	const {
 		activeSaveId,
-		autoContinueStory,
 		backToMenu,
 		backgroundImage,
 		backgroundIntro,
@@ -152,7 +130,6 @@ export default function App() {
 		currentTarget,
 		error,
 		genre,
-		handleTypingComplete,
 		openingAudio,
 		openingAudioLoading,
 		openingAudioError,
@@ -170,19 +147,16 @@ export default function App() {
 		retryStoryRecap,
 		resumeStory,
 		segments,
-		selectGenre,
 		skipStoryRecap,
 		regenerateWordTranslation,
-		startLessonStory,
 		startReadingStory,
-		streamingTarget,
 		storyRecapError,
 		storyRecapLesson,
-		submitContinuation,
 		submitStoryFeedback,
 		captureBotQuestions,
 		wordTranslations,
 	} = useStorySession({
+		language,
 		storyGeneration,
 		view: sessionView,
 		unfinishedReadingSaveId: unfinishedReadingSave?.id ?? null,
@@ -196,7 +170,7 @@ export default function App() {
 
 	useEffect(() => {
 		function handlePopState() {
-			const canonical = canonicalCurriculumPath(window.location.pathname);
+			const canonical = canonicalAppPath(window.location.pathname);
 			setInStory(false);
 			setLocation(canonical);
 			if (canonical !== window.location.pathname) {
@@ -209,37 +183,17 @@ export default function App() {
 	}, []);
 
 	useEffect(() => {
-		const canonical = canonicalCurriculumPath(window.location.pathname);
+		const canonical = canonicalAppPath(window.location.pathname);
 		if (canonical === window.location.pathname) return;
 		window.history.replaceState(null, "", canonical);
-		if (CURRICULUM_PATHS.has(canonical)) {
-			rememberLessonPath(canonical);
-		}
 	}, []);
 
 	const { visibleBackgroundUrl, previousBackgroundUrl, isBackgroundFading } =
 		useBackgroundLayers(sessionView, backgroundImage);
 
-	const currentStep = CURRICULUM.find((step) => step.path === location);
-
 	function handleStoryGenerationPresetChange(id: StoryGenerationPresetId) {
 		saveSelectedStoryGenerationPreset(id);
 		setStoryGenerationPresetId(id);
-	}
-
-	const openLessonsMenu = useCallback(() => goto(LESSONS_MENU_PATH), [goto]);
-	const returnToMenu = useCallback(() => goto(MAIN_MENU_PATH), [goto]);
-
-	function openLesson() {
-		const { lastPath } = readLessonProgress();
-		goto(CURRICULUM_PATHS.has(lastPath) ? lastPath : FIRST_STEP_PATH);
-	}
-
-	function finishCurriculum() {
-		startLessonStory({
-			title: gardenLesson.title,
-			storyText: gardenLesson.story.join(" "),
-		});
 	}
 
 	async function removeSavedStory(id: string) {
@@ -254,8 +208,6 @@ export default function App() {
 	}
 
 	const showMainMenu = !inStory && location === MAIN_MENU_PATH;
-	const showLessonsMenu = !inStory && location === LESSONS_MENU_PATH;
-	const showCurriculum = !inStory && !!currentStep;
 	const appClassName = `app${
 		inStory && visibleBackgroundUrl ? " app--story-has-background" : ""
 	}`;
@@ -281,11 +233,7 @@ export default function App() {
 
 			{inStory && (
 				<header className="story-header">
-					<h1>
-						{phase === "reading" || readingPartIndex !== null
-							? "Story Reading"
-							: "Story Typing Practice"}
-					</h1>
+					<h1>Story Reading</h1>
 					<p className="subtitle">
 						{genre ? `${genre.emoji} ${genre.label}` : ""}
 					</p>
@@ -294,13 +242,12 @@ export default function App() {
 
 			{showMainMenu && (
 				<MainMenu
-					savedStories={savedStories}
+					language={language}
+					savedStories={languageSavedStories}
 					savesError={savesError}
 					storyGenerationPreset={storyGenerationPresetId}
-					hasLessonProgress={hasLessonProgress}
+					onLanguageChange={onLanguageChange}
 					onStoryGenerationPresetChange={handleStoryGenerationPresetChange}
-					onSelect={selectGenre}
-					onStartLesson={openLessonsMenu}
 					onStartReadingStory={
 						unfinishedReadingSave
 							? () => resumeStory(unfinishedReadingSave.id)
@@ -314,30 +261,11 @@ export default function App() {
 				/>
 			)}
 
-			{showLessonsMenu && (
-				<LessonsMenu
-					progress={lessonProgress}
-					items={LESSON_MENU_ITEMS}
-					onBack={returnToMenu}
-					onContinue={openLesson}
-					onOpenLessonPath={goto}
-				/>
-			)}
-
-			{showCurriculum && (
-				<CurriculumView
-					path={location}
-					onNavigate={goto}
-					onExit={openLessonsMenu}
-					onFinish={finishCurriculum}
-				/>
-			)}
-
 			{inStory && genre && (
 				<ExerciseScreen
+					language={language}
 					segments={segments}
 					currentTarget={currentTarget}
-					streamingTarget={streamingTarget}
 					phase={phase}
 					error={error}
 					backgroundIntro={backgroundIntro ?? undefined}
@@ -361,9 +289,6 @@ export default function App() {
 					onCompleteStoryRecap={completeStoryRecap}
 					onRetryStoryRecap={retryStoryRecap}
 					onSkipStoryRecap={skipStoryRecap}
-					onTypingComplete={handleTypingComplete}
-					onSubmitContinuation={submitContinuation}
-					onAutoContinue={autoContinueStory}
 					onBackToMenu={backToMenu}
 					onSubmitStoryFeedback={submitStoryFeedback}
 					onStoryFeedbackDraftChange={onStoryFeedbackDraftChange}

@@ -577,6 +577,7 @@ async function simulateChain(
 						() =>
 							generateNextStoryBrief(
 								openai,
+								genre,
 								handoffEvidence,
 								anthropicKey,
 								inputBrief,

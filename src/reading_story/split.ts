@@ -1,3 +1,4 @@
+import { DEFAULT_GENRE, type Genre } from "../genres";
 import { parseJsonResponse } from "../learnerState";
 import { DEFAULT_TEXT_MODEL } from "../models";
 import type { ChatMessage, Complete, ReadingStoryPart } from "../story";
@@ -7,7 +8,8 @@ import type { ReadingStoryManuscript } from "./manuscript";
 const SPLIT_MAX_TOKENS = 600;
 export const READING_STORY_MAX_PARTS = 8;
 
-const SPLIT_PROMPT = `Divide an already finished Esperanto reading story into presentation parts.
+function splitPrompt(genre: Genre) {
+	return `Divide an already finished ${genre.label} reading story into presentation parts.
 
 The numbered sentences are immutable. Return only sentence numbers after which the app should break the story. Do not include the final sentence number, because the story ends there. Do not return prose and do not rewrite, omit, duplicate, or reorder anything.
 
@@ -15,6 +17,7 @@ Choose the number of parts that best fits the manuscript, within allowedPartCoun
 
 Return only valid JSON matching exactly:
 {"breakAfterSentence":[2,5]}`;
+}
 
 type SplitRange = {
 	min: number;
@@ -53,11 +56,12 @@ function allowedSplitRange(sentenceCount: number): SplitRange {
 
 export function readingStorySplitMessages(
 	manuscript: ReadingStoryManuscript,
+	genre: Genre = DEFAULT_GENRE,
 ): ChatMessage[] {
 	const sentences = readingStorySentences(manuscript.text);
 	const range = allowedSplitRange(sentences.length);
 	return [
-		{ role: "system", content: SPLIT_PROMPT },
+		{ role: "system", content: splitPrompt(genre) },
 		{
 			role: "user",
 			content: JSON.stringify({
@@ -75,6 +79,7 @@ export function readingStorySplitMessages(
 export async function splitReadingManuscript(
 	complete: Complete,
 	manuscript: ReadingStoryManuscript,
+	genre: Genre = DEFAULT_GENRE,
 ): Promise<ReadingStoryPart[]> {
 	const sentences = readingStorySentences(manuscript.text);
 	if (sentences.length < 2) {
@@ -83,7 +88,7 @@ export async function splitReadingManuscript(
 		);
 	}
 	const range = allowedSplitRange(sentences.length);
-	const messages = readingStorySplitMessages(manuscript);
+	const messages = readingStorySplitMessages(manuscript, genre);
 	const raw = await complete(messages, SPLIT_MAX_TOKENS, {
 		model: DEFAULT_TEXT_MODEL,
 	});

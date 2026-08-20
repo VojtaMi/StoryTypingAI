@@ -1,8 +1,10 @@
+import type { Genre } from "../../genres";
 import type { SavedStorySummary } from "../../saves";
 import { SavedStoryPreview } from "./SavedStoryPreview";
 
 interface SavedStoriesProps {
 	savedStories: SavedStorySummary[];
+	language: Genre;
 	savesError: string | null;
 	onResume: (id: string) => void;
 	onDelete: (id: string) => void;
@@ -10,17 +12,18 @@ interface SavedStoriesProps {
 
 export function SavedStories({
 	savedStories,
+	language,
 	savesError,
 	onResume,
 	onDelete,
 }: SavedStoriesProps) {
 	return (
 		<section className="saved-stories" aria-labelledby="saved-stories-title">
-			<h2 id="saved-stories-title">Saved lessons</h2>
+			<h2 id="saved-stories-title">Saved stories</h2>
 			{savesError && <p className="story__error">{savesError}</p>}
 			{savedStories.length === 0 ? (
 				<p className="saved-stories__empty">
-					Your Esperanto lesson saves will appear here.
+					Your {language.label} stories will appear here.
 				</p>
 			) : (
 				<div className="saved-stories__list">

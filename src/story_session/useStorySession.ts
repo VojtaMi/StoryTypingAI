@@ -1,25 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-	autoContinueStoryStream,
 	type ChatMessage,
-	continueStoryStream,
 	generateOpeningAudio,
 	generateStoryBackgroundImage,
-	generateStoryIntro,
 	generateStoryRecapLesson,
 	type ReadingStory,
 	regenerateWordTranslation,
-	type StoryMemory,
-	startStory,
-	titleStory,
 } from "../ai";
-import type {
-	StoryPhase,
-	StorySegment,
-	TypingStats,
-} from "../exercise_screen/types";
+import type { StoryPhase, StorySegment } from "../exercise_screen/types";
 import { listStoryImages } from "../gallery/galleryApi";
-import { type Genre, genres } from "../genres";
+import { type Genre, getGenre } from "../genres";
 import { readSelectedNarrationModel } from "../modelSelection/modelSelectionStore";
 import type { StoryGenerationPreset } from "../models";
 import {
@@ -28,11 +18,7 @@ import {
 	type NarrationVoiceId,
 	pickRandomNarrationVoice,
 } from "../narrationVoice";
-import {
-	consumePreparedOpening,
-	consumePreparedReadingOpening,
-	prepareMissingOpenings,
-} from "../openings";
+import { consumePreparedReadingOpening } from "../openings";
 import { loadSavedStory, saveStoryMedia } from "../saves";
 import {
 	readingImagePrompt,
@@ -51,7 +37,6 @@ import {
 	backgroundFromOpening,
 	buildSectionImageMap,
 	fallbackBackgroundImage,
-	shouldGenerateNextBackground,
 } from "./background";
 import { useStoryPersistence } from "./persistence/useStoryPersistence";
 import {
@@ -59,11 +44,7 @@ import {
 	type ReadingMediaSection,
 	type ReadingSectionMedia,
 } from "./readingMedia";
-import {
-	buildStorySaveSnapshot,
-	createSaveId,
-	fallbackTitle,
-} from "./storySnapshot";
+import { buildStorySaveSnapshot, fallbackTitle } from "./storySnapshot";
 import { useReadingPreparation } from "./useReadingPreparation";
 import {
 	type ResolvedStoryFeedback,
@@ -72,9 +53,10 @@ import {
 
 // The session only distinguishes "am I on the main menu" from "in a story" from
 // "somewhere in the lesson flow" — it never branches on individual lesson views.
-type View = "menu" | "story" | "lesson";
+type View = "menu" | "story";
 
 interface UseStorySessionOptions {
+	language: Genre;
 	storyGeneration: StoryGenerationPreset;
 	view: View;
 	/** The unfinished reading-story save, if any — see `findUnfinishedReadingSave`. */
@@ -146,6 +128,7 @@ const MAX_BUFFERED_BOT_QUESTIONS = 20;
 const MAX_BOT_QUESTION_CHARS = 300;
 
 export function useStorySession({
+	language,
 	storyGeneration,
 	view,
 	unfinishedReadingSaveId,
@@ -153,13 +136,10 @@ export function useStorySession({
 	onSavedStoriesChanged,
 	onSavesError,
 }: UseStorySessionOptions) {
-	const model = storyGeneration.model;
-	const [genre, setGenre] = useState<Genre | null>(null);
+	const [genre, setGenre] = useState<Genre | null>(language);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
-	const [memory, setMemory] = useState<StoryMemory | undefined>();
 	const [segments, setSegments] = useState<StorySegment[]>([]);
 	const [currentTarget, setCurrentTarget] = useState<string | null>(null);
-	const [streamingTarget, setStreamingTarget] = useState("");
 	const [phase, setPhase] = useState<StoryPhase>("loading");
 	const [error, setError] = useState<string | null>(null);
 	const [activeSaveId, setActiveSaveId] = useState<string | null>(null);
@@ -213,8 +193,6 @@ export function useStorySession({
 	// buffered here (deduped, bounded) and folded once into the baseline at story
 	// end — they stay out of the durable handout until the story finalizes.
 	const botQuestionsRef = useRef<string[]>([]);
-	const preparingOpeningsRef = useRef(false);
-	const prepareOpeningsAgainRef = useRef(false);
 	// Distinguishes a story that reached "finished" just now, in this session,
 	// from one loaded already finished (rereading an old save). Only the former
 	// should ever finalize: rereading must not re-finalize or re-trigger
@@ -224,6 +202,7 @@ export function useStorySession({
 	// Owns finalize-then-prepare for the next reading story, and the menu's
 	// readiness for it.
 	const readingPreparation = useReadingPreparation(
+		language.id,
 		storyGeneration,
 		unfinishedReadingSaveId,
 		view === "menu",
@@ -241,6 +220,7 @@ export function useStorySession({
 		createReadingMedia({
 			generateAudio: (section) =>
 				generateOpeningAudio(
+					section.genre.id,
 					section.text,
 					section.storyId,
 					section.narrationVoice,
@@ -318,18 +298,14 @@ export function useStorySession({
 
 	// The whole-story gloss map is seeded when a reading story starts (from the
 	// prepared opening) or resumes (from the save). It follows the reading story:
-	// clear it whenever there is no reading story, which covers every path back to
-	// a typing story or the menu without touching each reset site.
+	// clear it whenever there is no reading story.
 	useEffect(() => {
 		if (!readingStory) setWordTranslations(null);
 	}, [readingStory]);
 
 	const persistStory = useStoryPersistence({
-		model,
-		activeSaveIdRef,
 		onSavedStoriesChanged,
 		onSavesError,
-		onTitleGenerated: setActiveTitle,
 	});
 
 	/**
@@ -428,45 +404,6 @@ export function useStorySession({
 		openingAudioRetry,
 	]);
 
-	const generateAndApplyStoryBackground = useCallback(
-		async (
-			selected: Genre,
-			saveId: string,
-			storyMessages: ChatMessage[],
-			sectionIndex?: number,
-			visualContext?: string,
-		) => {
-			try {
-				const nextBackgroundImage = await generateStoryBackgroundImage(
-					selected.id,
-					storyMessages,
-					saveId,
-					{ sectionIndex, visualContext },
-				);
-				if (
-					activeSaveIdRef.current !== saveId ||
-					nextBackgroundImage.backgroundImageSource !== "generated"
-				) {
-					return;
-				}
-
-				setBackgroundImage(nextBackgroundImage);
-				await persistStoryMedia(saveId, nextBackgroundImage);
-			} catch (err) {
-				console.warn("Could not refresh the story background image.", err);
-			}
-		},
-		[persistStoryMedia],
-	);
-
-	const refreshStoryBackground = useCallback(
-		async (selected: Genre, saveId: string, storyMessages: ChatMessage[]) => {
-			if (!shouldGenerateNextBackground(storyMessages)) return;
-			await generateAndApplyStoryBackground(selected, saveId, storyMessages);
-		},
-		[generateAndApplyStoryBackground],
-	);
-
 	/** Shows a reading section's background as soon as the media owner has it. */
 	const applyReadingBackground = useCallback(
 		async (section: ReadingMediaSection) => {
@@ -545,180 +482,8 @@ export function useStorySession({
 		[],
 	);
 
-	const prepareOpeningsInBackground = useCallback(async () => {
-		if (preparingOpeningsRef.current) {
-			prepareOpeningsAgainRef.current = true;
-			return;
-		}
-		preparingOpeningsRef.current = true;
-		try {
-			await prepareMissingOpenings(model);
-		} catch (err) {
-			console.warn("Could not prepare story openings.", err);
-		} finally {
-			preparingOpeningsRef.current = false;
-			if (prepareOpeningsAgainRef.current) {
-				prepareOpeningsAgainRef.current = false;
-				void prepareOpeningsInBackground();
-			}
-		}
-	}, [model]);
-
-	useEffect(() => {
-		void (async () => {
-			await onSavedStoriesChanged();
-			void prepareOpeningsInBackground();
-		})();
-	}, [onSavedStoriesChanged, prepareOpeningsInBackground]);
-
-	// Typing openings are cheap to hold and are prefetched on menu entry. Reading
-	// stories are not: each one is prepared by `useReadingPreparation` as the
-	// consequence of finishing the previous story, so that it sees that story's
-	// evidence. Opening the menu must not start one.
-	useEffect(() => {
-		if (view === "menu") {
-			void prepareOpeningsInBackground();
-		}
-	}, [view, prepareOpeningsInBackground]);
-
-	const selectGenre = useCallback(
-		async (selected: Genre) => {
-			readingMediaRef.current.reset();
-			justFinishedReadingRef.current = false;
-			botQuestionsRef.current = [];
-			storyRecapResultsRef.current = [];
-			resetStoryFeedback();
-			setGenre(selected);
-			setMessages([]);
-			setMemory(undefined);
-			setSegments([]);
-			setCurrentTarget(null);
-			setStreamingTarget("");
-			setError(null);
-			setOpeningAudio(null);
-			setReadingStory(null);
-			setReadingPartIndex(null);
-			setStoryRecapLesson(null);
-			storyRecapLessonRef.current = null;
-			setStoryRecapError(null);
-			setPhase("loading");
-			onViewChange("story");
-			try {
-				let opening: {
-					id?: string;
-					title?: string;
-					text: string;
-					messages: ChatMessage[];
-					backgroundIntro?: string;
-					backgroundImageUrl?: string;
-					backgroundImagePrompt?: string;
-					backgroundImageSource?: string;
-					openingAudioUrl?: string;
-					openingAudioSource?: "generated";
-					openingAudioText?: string;
-					openingAudioVoice?: NarrationVoiceId;
-					narrationVoice?: NarrationVoiceId;
-				} | null = null;
-				let consumedPreparedOpening = false;
-				try {
-					opening = await consumePreparedOpening(selected.id);
-					consumedPreparedOpening = Boolean(opening);
-				} catch (err) {
-					console.warn("Could not consume a prepared opening.", err);
-				}
-				void prepareOpeningsInBackground();
-
-				if (!opening) {
-					opening = await startStory(selected, model);
-				}
-
-				const { text, messages: seeded } = opening;
-				const title = opening.title?.trim()
-					? opening.title
-					: await titleStory(seeded, model).catch(() =>
-							fallbackTitle(selected),
-						);
-				const usePreparedBundle = Boolean(opening.id && opening.title);
-				const saveId =
-					usePreparedBundle && opening.id ? opening.id : createSaveId(title);
-				const nextNarrationVoice = isNarrationVoiceId(opening.narrationVoice)
-					? opening.narrationVoice
-					: pickRandomNarrationVoice();
-				narrationVoiceRef.current = nextNarrationVoice;
-				activeSaveIdRef.current = saveId;
-				setActiveSaveId(saveId);
-				setActiveTitle(title);
-				setNarrationVoice(nextNarrationVoice);
-
-				const intro =
-					opening.backgroundIntro ||
-					(await generateStoryIntro(selected.label, text, model).catch(
-						() => "",
-					));
-				const nextOpeningAudio =
-					usePreparedBundle &&
-					opening.openingAudioUrl &&
-					opening.openingAudioSource === "generated" &&
-					opening.openingAudioVoice === nextNarrationVoice
-						? {
-								openingAudioUrl: opening.openingAudioUrl,
-								openingAudioSource: opening.openingAudioSource,
-								openingAudioText: opening.openingAudioText ?? text,
-								openingAudioVoice: opening.openingAudioVoice,
-							}
-						: await generateOpeningAudio(text, saveId, nextNarrationVoice, {
-								sectionIndex: 1,
-								ttsModel: readSelectedNarrationModel(),
-							}).catch((err) => {
-								console.warn("Could not generate opening audio.", err);
-								return null;
-							});
-				const nextBackgroundImage = usePreparedBundle
-					? backgroundFromOpening(opening, selected)
-					: fallbackBackgroundImage(selected);
-				setMessages(seeded);
-				setMemory(undefined);
-				setCurrentTarget(text);
-				setStreamingTarget("");
-				setBackgroundIntro(intro);
-				setBackgroundImage(nextBackgroundImage);
-				setOpeningAudio(nextOpeningAudio);
-				setPhase("typing");
-				void persistStory(
-					makeStorySaveSnapshot.current({
-						id: saveId,
-						genre: selected,
-						title,
-						messages: seeded,
-						memory: undefined,
-						segments: [],
-						currentTarget: text,
-						phase: "typing",
-						backgroundIntro: intro,
-						backgroundImage: nextBackgroundImage,
-						openingAudio: nextOpeningAudio,
-						narrationVoice: nextNarrationVoice,
-					}),
-				);
-				if (!consumedPreparedOpening || !usePreparedBundle) {
-					void generateAndApplyStoryBackground(selected, saveId, seeded, 1);
-				}
-			} catch (err) {
-				setError(describeError(err));
-			}
-		},
-		[
-			generateAndApplyStoryBackground,
-			model,
-			onViewChange,
-			persistStory,
-			prepareOpeningsInBackground,
-			resetStoryFeedback,
-		],
-	);
-
 	const startReadingStory = useCallback(async () => {
-		const selected = genres.find((g) => g.id === "esperanto") ?? genres[0];
+		const selected = language;
 
 		let preparedOpening: Awaited<
 			ReturnType<typeof consumePreparedReadingOpening>
@@ -748,10 +513,8 @@ export function useStorySession({
 		resetStoryFeedback();
 		setGenre(selected);
 		setMessages([]);
-		setMemory(undefined);
 		setSegments([]);
 		setCurrentTarget(null);
-		setStreamingTarget("");
 		setError(null);
 		setOpeningAudio(null);
 		setReadingStory(null);
@@ -820,9 +583,7 @@ export function useStorySession({
 			const nextOpeningAudio =
 				await readingMediaRef.current.requestAudio(firstSection);
 			setMessages(seeded);
-			setMemory(undefined);
 			setCurrentTarget(text);
-			setStreamingTarget("");
 			setBackgroundIntro(null);
 			setBackgroundImage(nextBackgroundImage);
 			setOpeningAudio(nextOpeningAudio);
@@ -838,7 +599,6 @@ export function useStorySession({
 					genre: selected,
 					title,
 					messages: seeded,
-					memory: undefined,
 					segments: [],
 					currentTarget: text,
 					phase: "reading",
@@ -857,6 +617,7 @@ export function useStorySession({
 		}
 	}, [
 		applyReadingBackground,
+		language,
 		markReadingStoryConsumed,
 		onViewChange,
 		persistStory,
@@ -864,242 +625,6 @@ export function useStorySession({
 		retryReadingPreparationLifecycle,
 		resetStoryFeedback,
 	]);
-
-	const startLessonStory = useCallback(
-		({ title, storyText }: { title: string; storyText: string }) => {
-			const selected =
-				genres.find((candidate) => candidate.id === "esperanto") ?? genres[0];
-			const saveId = createSaveId(title);
-			const nextNarrationVoice = pickRandomNarrationVoice();
-			// Seed the history as if the AI had opened with the lesson sentence, so
-			// the existing continuation flow works once the learner types it.
-			const seeded: ChatMessage[] = [
-				{ role: "system", content: selected.systemPrompt },
-				{ role: "user", content: "Begin the story." },
-				{ role: "assistant", content: storyText },
-			];
-			const nextBackgroundImage = fallbackBackgroundImage(selected);
-
-			readingMediaRef.current.reset();
-			justFinishedReadingRef.current = false;
-			botQuestionsRef.current = [];
-			storyRecapResultsRef.current = [];
-			resetStoryFeedback();
-			narrationVoiceRef.current = nextNarrationVoice;
-			activeSaveIdRef.current = saveId;
-			setGenre(selected);
-			setActiveSaveId(saveId);
-			setActiveTitle(title);
-			setNarrationVoice(nextNarrationVoice);
-			setMessages(seeded);
-			setMemory(undefined);
-			setSegments([]);
-			setCurrentTarget(storyText);
-			setStreamingTarget("");
-			setBackgroundIntro(null);
-			setBackgroundImage(nextBackgroundImage);
-			setOpeningAudio(null);
-			setReadingStory(null);
-			setReadingPartIndex(null);
-			setStoryRecapLesson(null);
-			storyRecapLessonRef.current = null;
-			setStoryRecapError(null);
-			setError(null);
-			setPhase("typing");
-			onViewChange("story");
-			void persistStory(
-				makeStorySaveSnapshot.current({
-					id: saveId,
-					genre: selected,
-					title,
-					messages: seeded,
-					memory: undefined,
-					segments: [],
-					currentTarget: storyText,
-					phase: "typing",
-					backgroundImage: nextBackgroundImage,
-					openingAudio: null,
-					narrationVoice: nextNarrationVoice,
-				}),
-			);
-			void generateAndApplyStoryBackground(selected, saveId, seeded, 1);
-		},
-		[
-			generateAndApplyStoryBackground,
-			onViewChange,
-			persistStory,
-			resetStoryFeedback,
-		],
-	);
-
-	const handleTypingComplete = useCallback(
-		(_stats: TypingStats) => {
-			if (currentTarget === null) return;
-			const nextSegments: StorySegment[] = [
-				...segments,
-				completedAiSegment(segments.length, currentTarget, openingAudio),
-			];
-			setSegments(nextSegments);
-			setCurrentTarget(null);
-			setStreamingTarget("");
-			setPhase("authoring");
-			if (genre && activeSaveId) {
-				void persistStory(
-					makeStorySaveSnapshot.current({
-						id: activeSaveId,
-						genre,
-						title: activeTitle ?? fallbackTitle(genre),
-						messages,
-						memory,
-						segments: nextSegments,
-						currentTarget: null,
-						phase: "authoring",
-						backgroundIntro: backgroundIntro ?? undefined,
-						backgroundImage,
-						openingAudio,
-						narrationVoice,
-					}),
-				);
-			}
-		},
-		[
-			activeSaveId,
-			activeTitle,
-			backgroundIntro,
-			currentTarget,
-			genre,
-			memory,
-			messages,
-			persistStory,
-			backgroundImage,
-			openingAudio,
-			narrationVoice,
-			segments,
-		],
-	);
-
-	const runContinuation = useCallback(
-		async ({
-			segmentsForSave,
-			loadingMessages,
-			streamContinuation,
-		}: {
-			segmentsForSave: StorySegment[];
-			loadingMessages: ChatMessage[];
-			streamContinuation: (onChunk: (chunk: string) => void) => Promise<{
-				text: string;
-				messages: ChatMessage[];
-				memory?: StoryMemory;
-			}>;
-		}) => {
-			if (!genre || !activeSaveId) return;
-
-			setStreamingTarget("");
-			setError(null);
-			setPhase("loading");
-			void persistStory(
-				makeStorySaveSnapshot.current({
-					id: activeSaveId,
-					genre,
-					title: activeTitle ?? fallbackTitle(genre),
-					messages: loadingMessages,
-					memory,
-					segments: segmentsForSave,
-					currentTarget: null,
-					phase: "loading",
-					backgroundIntro: backgroundIntro ?? undefined,
-					backgroundImage,
-					openingAudio,
-					narrationVoice,
-				}),
-			);
-
-			try {
-				const {
-					text,
-					messages: updated,
-					memory: updatedMemory,
-				} = await streamContinuation((chunk) =>
-					setStreamingTarget((current) => current + chunk),
-				);
-				setMessages(updated);
-				setMemory(updatedMemory);
-				setCurrentTarget(text);
-				setStreamingTarget("");
-				setPhase("typing");
-				void persistStory(
-					makeStorySaveSnapshot.current({
-						id: activeSaveId,
-						genre,
-						title: activeTitle ?? fallbackTitle(genre),
-						messages: updated,
-						memory: updatedMemory,
-						segments: segmentsForSave,
-						currentTarget: text,
-						phase: "typing",
-						backgroundIntro: backgroundIntro ?? undefined,
-						backgroundImage,
-						openingAudio,
-						narrationVoice,
-					}),
-					{ generateTitle: activeTitle === fallbackTitle(genre) },
-				);
-				void refreshStoryBackground(genre, activeSaveId, updated);
-			} catch (err) {
-				setPhase("error");
-				setError(describeError(err));
-				setStreamingTarget("");
-			}
-		},
-		[
-			activeSaveId,
-			activeTitle,
-			backgroundImage,
-			backgroundIntro,
-			genre,
-			memory,
-			openingAudio,
-			narrationVoice,
-			persistStory,
-			refreshStoryBackground,
-		],
-	);
-
-	const submitContinuation = useCallback(
-		async (userText: string) => {
-			if (!genre || !activeSaveId) return;
-
-			const nextSegments: StorySegment[] = [
-				...segments,
-				{ id: segments.length, author: "user", text: userText },
-			];
-			const userMessages: ChatMessage[] = [
-				...messages,
-				{ role: "user", content: userText },
-			];
-
-			setSegments(nextSegments);
-			setMessages(userMessages);
-			await runContinuation({
-				segmentsForSave: nextSegments,
-				loadingMessages: userMessages,
-				streamContinuation: (onChunk) =>
-					continueStoryStream(messages, userText, onChunk, model, memory),
-			});
-		},
-		[activeSaveId, genre, memory, messages, model, runContinuation, segments],
-	);
-
-	const autoContinueStory = useCallback(async () => {
-		if (!genre || !activeSaveId) return;
-
-		await runContinuation({
-			segmentsForSave: segments,
-			loadingMessages: messages,
-			streamContinuation: (onChunk) =>
-				autoContinueStoryStream(messages, onChunk, model, memory),
-		});
-	}, [activeSaveId, genre, memory, messages, model, runContinuation, segments]);
 
 	const generateAndApplyStoryRecap = useCallback(
 		async (finishedSegments: StorySegment[]) => {
@@ -1119,6 +644,7 @@ export function useStorySession({
 				// follow the story-generation preset (a prose-tier model + reasoning
 				// effort chosen for the story itself). It uses EXERCISE_MODEL.
 				const lesson = await generateStoryRecapLesson({
+					genreId: language.id,
 					storyParts,
 					languageFocuses: [readingStory.languageFocus],
 					wordTranslations: translations,
@@ -1134,7 +660,6 @@ export function useStorySession({
 						genre,
 						title: activeTitle ?? fallbackTitle(genre),
 						messages,
-						memory,
 						segments: finishedSegments,
 						currentTarget: null,
 						phase: "recap",
@@ -1157,7 +682,6 @@ export function useStorySession({
 						genre,
 						title: activeTitle ?? fallbackTitle(genre),
 						messages,
-						memory,
 						segments: finishedSegments,
 						currentTarget: null,
 						phase: "recap-loading",
@@ -1178,12 +702,12 @@ export function useStorySession({
 			backgroundImage,
 			backgroundIntro,
 			genre,
-			memory,
 			messages,
 			narrationVoice,
 			persistStory,
 			readingStory,
 			readingPartIndex,
+			language.id,
 		],
 	);
 
@@ -1237,7 +761,6 @@ export function useStorySession({
 		if (readingPartIndex >= totalParts) {
 			setSegments(nextSegments);
 			setCurrentTarget(null);
-			setStreamingTarget("");
 			setOpeningAudio(null);
 			setStoryRecapLesson(null);
 			storyRecapLessonRef.current = null;
@@ -1249,7 +772,6 @@ export function useStorySession({
 					genre,
 					title: activeTitle ?? fallbackTitle(genre),
 					messages,
-					memory,
 					segments: nextSegments,
 					currentTarget: null,
 					phase: "recap-loading",
@@ -1287,7 +809,6 @@ export function useStorySession({
 		setSegments(nextSegments);
 		setMessages(updatedMessages);
 		setCurrentTarget(text);
-		setStreamingTarget("");
 		setOpeningAudio(null);
 		setOpeningAudioLoading(true);
 		setOpeningAudioError(false);
@@ -1299,7 +820,6 @@ export function useStorySession({
 				genre,
 				title: activeTitle ?? fallbackTitle(genre),
 				messages: updatedMessages,
-				memory,
 				segments: nextSegments,
 				currentTarget: text,
 				phase: "reading",
@@ -1324,7 +844,6 @@ export function useStorySession({
 		backgroundIntro,
 		currentTarget,
 		genre,
-		memory,
 		messages,
 		narrationVoice,
 		persistStory,
@@ -1357,7 +876,6 @@ export function useStorySession({
 					genre,
 					title: activeTitle ?? fallbackTitle(genre),
 					messages,
-					memory,
 					segments,
 					currentTarget: null,
 					phase: "finished",
@@ -1377,7 +895,6 @@ export function useStorySession({
 			backgroundImage,
 			backgroundIntro,
 			genre,
-			memory,
 			messages,
 			narrationVoice,
 			persistStory,
@@ -1423,6 +940,7 @@ export function useStorySession({
 			justFinishedReadingRef.current = false;
 			makeNextReadingStory(
 				{
+					genreId: language.id,
 					storyId: saveId,
 					storySummary: readingStorySummary(story),
 					storyParts: story.parts.map((part) => part.text),
@@ -1440,7 +958,7 @@ export function useStorySession({
 				resolved.nextStoryTheme,
 			);
 		},
-		[makeNextReadingStory],
+		[language.id, makeNextReadingStory],
 	);
 
 	const backToMenu = useCallback(() => {
@@ -1458,7 +976,6 @@ export function useStorySession({
 					genre,
 					title: activeTitle ?? fallbackTitle(genre),
 					messages,
-					memory,
 					segments,
 					currentTarget,
 					phase,
@@ -1477,10 +994,8 @@ export function useStorySession({
 		onViewChange("menu");
 		setGenre(null);
 		setMessages([]);
-		setMemory(undefined);
 		setSegments([]);
 		setCurrentTarget(null);
-		setStreamingTarget("");
 		setError(null);
 		setPhase("loading");
 		setBackgroundIntro(null);
@@ -1503,7 +1018,6 @@ export function useStorySession({
 		backgroundIntro,
 		currentTarget,
 		genre,
-		memory,
 		messages,
 		onViewChange,
 		persistStory,
@@ -1523,10 +1037,7 @@ export function useStorySession({
 			try {
 				onSavesError(null);
 				const save = await loadSavedStory(id);
-				const selected = genres.find(
-					(candidate) => candidate.id === save.genreId,
-				);
-				if (!selected) throw new Error(`Unknown genre: ${save.genreId}`);
+				const selected = getGenre(save.genreId);
 				// A resumed save is never "just finished" in this session, even one
 				// that was already finished when saved — rereading it must not
 				// re-finalize it.
@@ -1573,10 +1084,8 @@ export function useStorySession({
 				setActiveTitle(save.title);
 				setGenre(selected);
 				setMessages(save.messages);
-				setMemory(save.memory);
 				setSegments(save.segments);
 				setCurrentTarget(save.currentTarget);
-				setStreamingTarget("");
 				setPhase(restoredPhase);
 				setReadingStory(save.readingStory ?? null);
 				readingStoryRef.current = save.readingStory ?? null;
@@ -1676,7 +1185,6 @@ export function useStorySession({
 						genre,
 						title: activeTitle ?? fallbackTitle(genre),
 						messages,
-						memory,
 						segments,
 						currentTarget,
 						phase,
@@ -1701,7 +1209,6 @@ export function useStorySession({
 			backgroundIntro,
 			currentTarget,
 			genre,
-			memory,
 			messages,
 			openingAudio,
 			narrationVoice,
@@ -1737,7 +1244,6 @@ export function useStorySession({
 						genre,
 						title: activeTitle ?? fallbackTitle(genre),
 						messages,
-						memory,
 						segments,
 						currentTarget,
 						phase,
@@ -1759,7 +1265,6 @@ export function useStorySession({
 			backgroundIntro,
 			currentTarget,
 			genre,
-			memory,
 			messages,
 			narrationVoice,
 			openingAudio,
@@ -1777,7 +1282,11 @@ export function useStorySession({
 				const storyContext = readingStoryRef.current?.parts
 					.map((part) => part.text)
 					.join("\n");
-				const translation = await regenerateWordTranslation(word, storyContext);
+				const translation = await regenerateWordTranslation(
+					language.id,
+					word,
+					storyContext,
+				);
 				if (translation !== null) {
 					setWordTranslations((prev) =>
 						prev ? { ...prev, [word]: translation } : { [word]: translation },
@@ -1789,12 +1298,11 @@ export function useStorySession({
 				return null;
 			}
 		},
-		[],
+		[language.id],
 	);
 
 	return {
 		activeSaveId,
-		autoContinueStory,
 		backToMenu,
 		backgroundImage,
 		backgroundIntro,
@@ -1803,7 +1311,6 @@ export function useStorySession({
 		currentTarget,
 		error,
 		genre,
-		handleTypingComplete,
 		phase,
 		startReadingStory,
 		openingAudio:
@@ -1825,17 +1332,13 @@ export function useStorySession({
 		captureBotQuestions,
 		retryStoryRecap,
 		segments,
-		selectGenre,
 		skipStoryRecap,
-		startLessonStory,
-		streamingTarget,
 		storyRecapError,
 		storyRecapLesson,
 		storyFeedbackSubmittedAt,
 		storyFeedback,
 		feedbackEditable,
 		onStoryFeedbackDraftChange: handleStoryFeedbackDraftChange,
-		submitContinuation,
 		submitStoryFeedback,
 		wordTranslations,
 	};

@@ -1,10 +1,7 @@
 import type { Genre } from "./genres";
 import type { LearnerPreferences, RecentStoryMemory } from "./learnerState";
 import type { TextModelId, TextReasoningEffort } from "./models";
-import {
-	type NextStoryBrief,
-	STARTER_NEXT_STORY_BRIEF,
-} from "./nextStoryBrief";
+import type { NextStoryBrief } from "./nextStoryBrief";
 import { generateReadingManuscript } from "./reading_story/manuscript";
 import {
 	READING_STORY_MAX_PARTS,
@@ -56,37 +53,11 @@ export type Complete = (
 	},
 ) => Promise<string>;
 
-const TITLE_PROMPT =
-	"Create a concise title for this story excerpt. Do not continue the story. Return exactly one title line, 2-6 words, with no quotes, punctuation, headings, or story prose.";
-
-const INTRO_PROMPT =
-	"Write a 1-2 sentence second-person character introduction for an interactive story. " +
-	"State concretely who the player character is and what brought them to this place. " +
-	"Write in English, even if the story opening is in another language. " +
-	"Start with 'You'. Output only the introduction — no quotes, no headings.";
-
-const TITLE_MAX_TOKENS = 120;
-const INTRO_MAX_TOKENS = 180;
-
-/** Messages that begin a new story. Pass a seed to nudge the opening toward a specific element. */
-export function openingMessages(genre: Genre, seed?: string): ChatMessage[] {
-	return [
-		{ role: "system", content: genre.systemPrompt },
-		{
-			role: "user",
-			content: seed
-				? `Begin the story. Seed element: ${seed}.`
-				: "Begin the story.",
-		},
-	];
-}
-
 const NEXT_THEME_MAX_CHARS = 240;
 
 /**
  * The chat history a reading story carries once `partIndex` parts have been
- * revealed. Reading never continues from this history — it exists so a reading
- * save has the same shape as a typing save.
+ * revealed. It records the prose already shown for persistence and tutor context.
  */
 export function readingStoryMessages(
 	genre: Genre,
@@ -135,7 +106,7 @@ export async function generateReadingStory(
 		recentStories?: RecentStoryMemory[];
 	} = {},
 ): Promise<ReadingStory> {
-	const nextStoryBrief = options.nextStoryBrief ?? STARTER_NEXT_STORY_BRIEF;
+	const nextStoryBrief = options.nextStoryBrief ?? genre.starterBrief;
 	const explicitTheme = nextTheme?.trim().slice(0, NEXT_THEME_MAX_CHARS) ?? "";
 	const storySubject = explicitTheme || nextStoryBrief.themeSuggestion;
 	const storyPlot = await prepareReadingStoryPlot(
@@ -153,8 +124,8 @@ export async function generateReadingStory(
 		preferences,
 		options.reasoningEffort ?? "low",
 	);
-	const parts = await splitReadingManuscript(complete, manuscript);
-	const visualPlan = await generateReadingVisualPlan(complete, parts);
+	const parts = await splitReadingManuscript(complete, manuscript, genre);
+	const visualPlan = await generateReadingVisualPlan(complete, parts, genre);
 	return {
 		title: manuscript.title,
 		storySummary: storyPlot,
@@ -279,34 +250,4 @@ function extractJsonObject(raw: string): string {
 		}
 	}
 	return trimmed;
-}
-
-/** Creates a concise title for a story excerpt. */
-export async function generateTitle(
-	complete: Complete,
-	storyText: string,
-): Promise<string> {
-	const text = await complete(
-		[
-			{ role: "system", content: TITLE_PROMPT },
-			{ role: "user", content: storyText },
-		],
-		TITLE_MAX_TOKENS,
-	);
-	return text.replace(/^["']|["'.!?]$/g, "").trim();
-}
-
-/** Generates a 1-2 sentence second-person intro describing who the player is and what brought them here. */
-export async function generateIntro(
-	complete: Complete,
-	genreLabel: string,
-	openingText: string,
-): Promise<string> {
-	return complete(
-		[
-			{ role: "system", content: INTRO_PROMPT },
-			{ role: "user", content: `${genreLabel} story opening:\n${openingText}` },
-		],
-		INTRO_MAX_TOKENS,
-	);
 }

@@ -1,80 +1,24 @@
 # Local data
 
-Running the app writes files into the working directory. Nothing here is a
-database — it is all plain JSON and media files written by the Node
-server ([`src/server/`](../src/server/)) and created lazily on first use.
+Runtime data is plain, git-ignored JSON and media. This generalized worktree
+starts with no user data.
 
-Everything below is **git-ignored**, with one exception noted in the table.
-Deleting any of it is safe in the sense that the app will recreate what it needs
-— but regenerating means paying a provider again, and two of these directories
-hold things that cannot be regenerated at all.
+| Path | Contents and language scope |
+| --- | --- |
+| `stories/<language>/<id>/` | Saved story, section media, and finish evidence. Story ids also begin with the language, so API lookups resolve directly to the correct folder. |
+| `saves/` | Legacy flat saved-story location, read as a fallback. |
+| `reading-openings/<genreId>.json` | One prepared complete story per language. |
+| `word-audio/<genreId>/` | Language-specific pronunciation cache. |
+| `story-images/`, `story-audio/` | Legacy media location for older ids. |
+| `learner/state.json` | Shared explicit `prefer` and `avoid` settings plus language-tagged anti-repetition memory. |
+| `learner/word-log.json` | Story-scoped word evidence; story ids bind it to one language's progression chain. |
+| `logs/`, `.artifacts/` | Optional traces and development output. |
 
-## The directories
+The browser stores only `last-learning-language` for the default home selection.
+The active tab's URL remains authoritative, allowing different languages in
+different tabs.
 
-| Path | Kind | What it holds |
-| --- | --- | --- |
-| `stories/` | Generated | The current home for a saved story: `stories/<id>/story.json`, with `audio/` and `images/` beside it, plus `finish-evidence.json` (the story-finish finalization record — see below). A reading save contains the whole adaptively-sectioned story, so it can be re-read without any generation. |
-| `saves/` | Generated | Older flat saves, `saves/<id>.json`. Reads check `stories/` first and fall back here, so both formats keep working; new stories with a bundle id are written to `stories/`. |
-| `story-images/` | Generated | Still used — the background images for stories whose id predates the bundle layout. Newer stories keep their images in `stories/<id>/images/`. |
-| `story-audio/` | Generated | The same, for narration: older stories' section audio. Newer stories use `stories/<id>/audio/`. |
-| `openings/` | Generated (cache) | The prepared **typing** opening queue: one JSON per genre, holding the opening text, title, intro, narration, and background image. Consumed (deleted) when a typing story starts, and refilled in the background. |
-| `reading-openings/` | Generated (cache) | The prepared **reading** queue: one JSON per genre, holding a complete 2-8-part story plus part 1's narration and image. Consumed when a reading story starts, and refilled in the background. |
-| `learner/` | **Source data** | Explicit `prefer`/`avoid` settings, a legacy tutor-maintained language profile, and word logs. Reading lookups carry a `storyId` and become evidence only for that story's next-story brief; unscoped menu/tutor lookups never enter the reading chain. |
-| `word-audio/` | Generated (cache) | One pronunciation file per Esperanto word, shared across every story and lesson. |
-| `lesson-audio/` | Generated (cache) — **tracked in git** | Lesson TTS output, one file per lesson and phrase. Unlike everything else here it is committed to the repository, so lessons have audio without every clone paying for it. |
-| `translation-cache.json` | Generated (cache) | Word → English translation, accumulated across all stories. |
-| `logs/` | Debugging artifact | `ai-calls.ndjson`, the AI trace log. Only written when `AI_CALL_LOG=1`. |
-| `.artifacts/` | Debugging artifact | Scratch output: `verify:page` screenshots, `ai-log:pretty` output. Nothing reads it back. |
-
-The former `profile.md`, `preferences.md`, and `story-memory.md` development
-files are no longer read. There is intentionally no runtime compatibility layer;
-preserve them only as a manual reference until their useful content has been
-represented in `state.json`.
-
-## Learner-state ownership
-
-`learner/state.json` still owns explicit durable `prefer` and `avoid` settings.
-Only the Settings panel changes them, and reading generation attaches only those
-two arrays when non-empty. Standalone tutor chat may update the legacy language
-profile used by generated lessons, but reading finalization does not maintain or
-consume that profile, `clarityGuidance`, or story memory.
-
-## The story-finish finalization record
-
-`stories/<id>/finish-evidence.json` is the control state for a finished reading
-story's one-time handoff. `finalizedAt` guards distillation of the complete prose,
-recap results, difficulty/practice feedback, learner questions, and story-scoped
-word lookups. The record stores audit evidence plus the validated
-`nextStoryBrief` consumed by the next reading preparation. Late evidence is
-ignored once the brief is bound.
-
-## What deleting costs
-
-- **`learner/` — the one to be careful with.** Deleting it removes durable
-  `prefer`/`avoid` settings, the tutor-maintained legacy language profile, and
-  word logs. The reading chain itself lives with each finished story; a first
-  story without a predecessor starts from the fixed absolute-beginner brief.
-- **`stories/` and `saves/` (and `story-images/`, `story-audio/`).** Deleting
-  loses the stories themselves — prose, narration, images, recap progress.
-  Nothing regenerates them; they are gone. Deleting a story through the app
-  removes all four locations for that id at once.
-- **`openings/` and `reading-openings/`.** Safe. They are a queue, not history:
-  the next visit to the menu refills them in the background. The only cost is
-  that the next story you start may have to generate on the spot instead of
-  appearing instantly — and a discarded queued reading story is a whole story's
-  worth of tokens thrown away.
-- **`word-audio/`, `lesson-audio/`, `translation-cache.json`.** Safe. Each entry
-  is regenerated on the next request for that word or phrase. The cost is a
-  provider call per entry, spread over time. (`lesson-audio/` is checked in, so
-  deleting it also shows up as a git change — restore it rather than
-  regenerating it.)
-- **`logs/` and `.artifacts/`.** Always safe. Nothing in the app reads them.
-
-## Privacy
-
-The AI trace log can contain learner content. With `AI_CALL_LOG_PAYLOAD=full`,
-every record holds the complete request and response: whole prompts, whole
-stories, the learner profile, and tutor-chat messages verbatim. `learner/` and
-`logs/` are both git-ignored, and should stay that way. Do not paste raw trace
-records or profile contents into issues, commits, or documentation.
-</content>
+Deleting caches is safe but can cause paid regeneration. Deleting `stories/`,
+`saves/`, or `learner/` loses user-created history or settings. AI trace logs can
+contain complete learner content when full payload logging is enabled and must
+remain untracked.

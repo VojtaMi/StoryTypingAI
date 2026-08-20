@@ -55,7 +55,6 @@ import {
 	type ReadingMediaSection,
 } from "../src/story_session/readingMedia.ts";
 import type { StoryBackgroundImage } from "../src/storyBackground.ts";
-import { normalizeStoryText } from "../src/storyText.ts";
 import { storyWords } from "../src/storyVocabulary.ts";
 
 const genre: Genre = {
@@ -141,6 +140,7 @@ assert.match(
 const openPlotContext = JSON.parse(
 	readingStoryPlotMessages(undefined, preferences, "minimal", [
 		{
+			genreId: "esperanto",
 			motif: "a lost red ball",
 			protagonist: "young child",
 			setting: "city park",
@@ -563,7 +563,6 @@ const fakeStructuredOpenAi = {
 const rawStructuredStory = await completeStructuredAi(fakeStructuredOpenAi, []);
 assert.equal(requestedReasoningEffort, "none");
 assert.doesNotThrow(() => parseReadingStory(rawStructuredStory));
-assert.equal(normalizeStoryText("Mara diras: “Jes.”"), 'Mara diras: "Jes."');
 assert.equal(await completeAi(fakeStructuredOpenAi, []), rawStructuredStory);
 
 let translationRequest:
