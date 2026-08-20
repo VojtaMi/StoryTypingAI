@@ -1,6 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#171b2b"/>
-  <path d="M10 15c8-2 15 0 22 5 7-5 14-7 22-5v34c-8-2-15 0-22 5-7-5-14-7-22-5V15Z" fill="none" stroke="#f7f3df" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M32 20v34" stroke="#55c981" stroke-width="3"/>
-  <text x="21" y="40" fill="#55c981" font-family="system-ui, sans-serif" font-size="14" font-weight="800" text-anchor="middle">EO</text>
+  <rect width="64" height="64" rx="14" fill="#258b50"/>
+  <text x="32" y="42" fill="#fff" font-family="Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="-1" text-anchor="middle">EO</text>
 </svg>
