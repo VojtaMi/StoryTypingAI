@@ -1012,10 +1012,16 @@ body {
 	}
 
 	.language-chat-assistant--open {
-		left: 0.5rem;
-		right: 0.5rem;
+		left: 0;
+		right: 0;
 		bottom: 0.5rem;
-		width: auto;
+		width: 100%;
+		max-width: none;
+		display: block;
+	}
+
+	.language-chat-assistant--open .language-bot-character {
+		display: none;
 	}
 
 	.language-bot-character {
@@ -1024,10 +1030,41 @@ body {
 	}
 
 	.language-chat-panel {
-		width: 100%;
+		width: calc(100% - 1rem);
 		min-width: 0;
-		max-height: 78vh;
-		margin-bottom: 0.55rem;
+		height: 80dvh;
+		max-height: none;
+		margin: 0 0.5rem;
+		border-radius: 22px;
+		box-shadow:
+			0 -14px 45px rgba(0, 0, 0, 0.3),
+			inset 0 1px 0 rgba(255, 255, 255, 0.6);
+		animation: language-chat-sheet-rise 0.2s ease-out;
+	}
+
+	.language-chat-panel::before {
+		content: "";
+		position: absolute;
+		top: 0.55rem;
+		left: 50%;
+		z-index: 1;
+		width: 2.5rem;
+		height: 0.25rem;
+		border-radius: 999px;
+		background: rgba(120, 96, 58, 0.28);
+		transform: translateX(-50%);
+	}
+
+	@keyframes language-chat-sheet-rise {
+		from {
+			opacity: 0;
+			transform: translateY(2rem);
+		}
+
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	.language-chat-panel::after {
@@ -1035,7 +1072,7 @@ body {
 	}
 
 	.language-chat-log {
-		min-height: 14rem;
+		min-height: 0;
 	}
 
 	.language-chat-message {
@@ -1044,5 +1081,6 @@ body {
 
 	.language-chat-form {
 		grid-template-columns: 1fr;
+		padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 	}
 }
