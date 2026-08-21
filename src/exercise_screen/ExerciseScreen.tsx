@@ -17,6 +17,7 @@ import { StoryCompletionView } from "./story/StoryCompletionView";
 import { StoryLoading } from "./story/StoryLoading";
 import { StoryLog } from "./story/StoryLog";
 import { StoryRecapView } from "./story/StoryRecapView";
+import "./story/storyPractice.css";
 import type { StoryPhase, StorySegment } from "./types";
 
 const WORD_PATTERN = /(\p{L}+(?:[-’']\p{L}+)*|[^\p{L}]+)/gu;

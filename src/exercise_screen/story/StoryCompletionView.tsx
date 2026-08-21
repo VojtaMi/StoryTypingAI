@@ -53,9 +53,9 @@ export function StoryCompletionView({
 
 	return (
 		<div className="story-completion">
-			<p className="lesson-doc__eyebrow">Story complete</p>
-			<h2 className="lesson-doc__heading">Congratulations</h2>
-			<p className="lesson-doc__lede">
+			<p className="story-practice__eyebrow">Story complete</p>
+			<h2 className="story-practice__heading">Congratulations</h2>
+			<p className="story-practice__lede">
 				{readingTotalParts !== null
 					? `You finished all ${readingTotalParts} parts.`
 					: "You finished the whole story."}
@@ -65,7 +65,7 @@ export function StoryCompletionView({
 				{canShowGallery && (
 					<button
 						type="button"
-						className="word-match__item"
+						className="story-practice__match-item"
 						onClick={onOpenGallery}
 					>
 						Review gallery
@@ -86,7 +86,7 @@ export function StoryCompletionView({
 
 			{feedbackEditable ? (
 				<>
-					<hr className="lesson-doc__rule" />
+					<hr className="story-practice__rule" />
 					<StoryFeedbackForm
 						key={storyId}
 						onSubmit={onSubmitStoryFeedback}
@@ -97,9 +97,9 @@ export function StoryCompletionView({
 			) : (
 				priorFeedback && (
 					<>
-						<hr className="lesson-doc__rule" />
-						<p className="lesson-doc__subheading">Your feedback</p>
-						<p className="lesson-doc__paragraph">{priorFeedback}</p>
+						<hr className="story-practice__rule" />
+						<p className="story-practice__subheading">Your feedback</p>
+						<p className="story-practice__paragraph">{priorFeedback}</p>
 					</>
 				)
 			)}

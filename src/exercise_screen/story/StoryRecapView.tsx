@@ -31,8 +31,8 @@ function describeExercise(exercise: StoryRecapExercise): string {
 
 function itemClass(...modifiers: (string | false | null)[]): string {
 	return [
-		"lesson-choice",
-		"word-match__item",
+		"story-practice__choice",
+		"story-practice__match-item",
 		...modifiers.filter(Boolean),
 	].join(" ");
 }
@@ -68,9 +68,9 @@ export function StoryRecapView({
 	if (!lesson) {
 		return (
 			<div className="story-recap">
-				<p className="lesson-doc__eyebrow">Story practice</p>
-				<h2 className="lesson-doc__heading">Preparing your recap</h2>
-				<p className="lesson-doc__paragraph">
+				<p className="story-practice__eyebrow">Story practice</p>
+				<h2 className="story-practice__heading">Preparing your recap</h2>
+				<p className="story-practice__paragraph">
 					A few tiny questions are being made from the story you just read.
 				</p>
 				{error ? (
@@ -79,14 +79,14 @@ export function StoryRecapView({
 						<div className="story-recap__actions">
 							<button
 								type="button"
-								className="lesson-doc__begin"
+								className="story-practice__button"
 								onClick={onRetry}
 							>
 								Try again
 							</button>
 							<button
 								type="button"
-								className="word-match__item"
+								className="story-practice__match-item"
 								onClick={onSkip}
 							>
 								Skip recap
@@ -94,7 +94,7 @@ export function StoryRecapView({
 						</div>
 					</div>
 				) : (
-					<p className="lesson-doc__paragraph">Generating practice...</p>
+					<p className="story-practice__paragraph">Generating practice...</p>
 				)}
 			</div>
 		);
@@ -102,8 +102,8 @@ export function StoryRecapView({
 
 	return (
 		<div className="story-recap">
-			<p className="lesson-doc__eyebrow">Story practice</p>
-			<h2 className="lesson-doc__heading">{lesson.title}</h2>
+			<p className="story-practice__eyebrow">Story practice</p>
+			<h2 className="story-practice__heading">{lesson.title}</h2>
 			<div className="story-recap__list">
 				{lesson.exercises.map((exercise) => (
 					<RecapExercise
@@ -120,7 +120,7 @@ export function StoryRecapView({
 				<div className="story-recap__actions story-recap__actions--end">
 					<button
 						type="button"
-						className="lesson-doc__begin"
+						className="story-practice__button"
 						onClick={handleContinue}
 					>
 						Continue
@@ -217,16 +217,16 @@ function WordConnectRecap({
 	return (
 		<section className="story-recap__exercise">
 			<ExerciseHeader title={exercise.title} hint={exercise.hint} done={done} />
-			<div className="word-match__columns">
-				<div className="word-match__col">
+			<div className="story-practice__match-columns">
+				<div className="story-practice__match-column">
 					{terms.map((term) => (
 						<button
 							key={term}
 							type="button"
 							className={itemClass(
-								matched.has(term) && "word-match__item--matched",
-								selectedTerm === term && "lesson-choice--selected",
-								wrongPair?.term === term && "lesson-choice--wrong",
+								matched.has(term) && "story-practice__match-item--matched",
+								selectedTerm === term && "story-practice__choice--selected",
+								wrongPair?.term === term && "story-practice__choice--wrong",
 							)}
 							aria-pressed={matched.has(term) || selectedTerm === term}
 							disabled={done || matched.has(term)}
@@ -236,15 +236,18 @@ function WordConnectRecap({
 						</button>
 					))}
 				</div>
-				<div className="word-match__col">
+				<div className="story-practice__match-column">
 					{meanings.map((meaning) => (
 						<button
 							key={meaning}
 							type="button"
 							className={itemClass(
-								matchedMeanings.has(meaning) && "word-match__item--matched",
-								selectedMeaning === meaning && "lesson-choice--selected",
-								wrongPair?.meaning === meaning && "lesson-choice--wrong",
+								matchedMeanings.has(meaning) &&
+									"story-practice__match-item--matched",
+								selectedMeaning === meaning &&
+									"story-practice__choice--selected",
+								wrongPair?.meaning === meaning &&
+									"story-practice__choice--wrong",
 							)}
 							aria-pressed={
 								matchedMeanings.has(meaning) || selectedMeaning === meaning
@@ -288,14 +291,14 @@ function ChoiceRecap({
 		<section className="story-recap__exercise">
 			<ExerciseHeader title={title} hint={hint} done={done} />
 			<p className="story-recap__prompt">{prompt}</p>
-			<div className="word-match__col">
+			<div className="story-practice__match-column">
 				{shuffledChoices.map((choice) => (
 					<button
 						key={choice}
 						type="button"
 						className={itemClass(
-							done && choice === answer && "lesson-choice--correct",
-							wrongChoice === choice && "lesson-choice--wrong",
+							done && choice === answer && "story-practice__choice--correct",
+							wrongChoice === choice && "story-practice__choice--wrong",
 						)}
 						disabled={done}
 						onClick={() => choose(choice)}
@@ -320,7 +323,7 @@ function ExerciseHeader({
 	return (
 		<div className="story-recap__exercise-head">
 			<div>
-				<h3 className="lesson-doc__subheading">{title}</h3>
+				<h3 className="story-practice__subheading">{title}</h3>
 				<p>{hint}</p>
 			</div>
 			{done && <span className="story-recap__done-badge">Done</span>}

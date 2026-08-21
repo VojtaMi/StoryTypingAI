@@ -16,6 +16,7 @@ language registry → prepare complete story → reveal sections → recap
 | `src/home_menu/` | Language switch, settings, starting/resuming stories, and current-language saves. |
 | `src/story_session/` | Preparing, starting, advancing, resuming, persisting, and finalizing a story. |
 | `src/exercise_screen/` | Reading, word popovers, tutor chat, recap, and feedback interactions. |
+| `src/exercise_screen/story/storyPractice.css` | The recap, completion, and feedback visual system for reading-story practice. |
 | `src/reading_story/`, `src/story.ts` | Whole-story generation contracts, validation, splitting, and visual plan. |
 | `src/server/` | Provider calls, prepared queues, saved files, evidence, and generated media. |
 

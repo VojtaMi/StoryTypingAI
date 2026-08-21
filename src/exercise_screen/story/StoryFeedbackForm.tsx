@@ -41,13 +41,15 @@ export function StoryFeedbackForm({
 
 	if (submitted) {
 		return (
-			<p className="lesson-doc__paragraph">Thanks — noted for next time.</p>
+			<p className="story-practice__paragraph">Thanks — noted for next time.</p>
 		);
 	}
 
 	return (
 		<div className="story-completion__feedback">
-			<p className="lesson-doc__subheading">How was this story's difficulty?</p>
+			<p className="story-practice__subheading">
+				How was this story's difficulty?
+			</p>
 			<div className="story-completion__feedback-options">
 				{STORY_DIFFICULTIES.map((option) => (
 					<button
@@ -55,8 +57,8 @@ export function StoryFeedbackForm({
 						key={option}
 						className={
 							difficulty === option
-								? "lesson-choice lesson-choice--selected story-completion__feedback-option"
-								: "lesson-choice story-completion__feedback-option"
+								? "story-practice__choice story-practice__choice--selected story-completion__feedback-option"
+								: "story-practice__choice story-completion__feedback-option"
 						}
 						aria-pressed={difficulty === option}
 						onClick={() => setDifficulty(option)}
@@ -66,7 +68,7 @@ export function StoryFeedbackForm({
 				))}
 			</div>
 
-			<p className="lesson-doc__subheading">
+			<p className="story-practice__subheading">
 				What felt tricky, or what would you like to practice next?
 			</p>
 			<textarea
@@ -77,7 +79,7 @@ export function StoryFeedbackForm({
 				rows={2}
 			/>
 
-			<p className="lesson-doc__subheading">Theme for your next story</p>
+			<p className="story-practice__subheading">Theme for your next story</p>
 			<textarea
 				className="story-completion__note"
 				value={nextStoryTheme}
@@ -88,7 +90,7 @@ export function StoryFeedbackForm({
 
 			<button
 				type="button"
-				className="lesson-doc__begin"
+				className="story-practice__button"
 				disabled={!difficulty}
 				onClick={() => difficulty && onSubmit(record)}
 			>
