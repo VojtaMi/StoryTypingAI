@@ -40,6 +40,7 @@ import {
 	bundleIdPattern,
 	createBundleId,
 	pathExists,
+	storyBundlePath,
 } from "./storyBundleStore";
 import { readFinishEvidence } from "./storyFinishEvidenceStore";
 
@@ -197,13 +198,9 @@ export async function readStoryImage(relativePath: string) {
 }
 
 export async function listStoryImages(storyId: string): Promise<string[]> {
-	const bundledFolder = join(process.cwd(), "stories", storyId, "images");
-	const legacyFolder = join(storyImagesDir, storyId);
+	const bundledFolder = join(storyBundlePath(storyId), "images");
 	try {
-		const files = [
-			...(await readdir(bundledFolder).catch(() => [])),
-			...(await readdir(legacyFolder).catch(() => [])),
-		];
+		const files = await readdir(bundledFolder).catch(() => []);
 		return [...new Set(files)]
 			.filter((f) => imageFilePattern.test(f))
 			.sort()
