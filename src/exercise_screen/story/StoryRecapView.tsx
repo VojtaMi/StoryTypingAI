@@ -221,41 +221,42 @@ function WordConnectRecap({
 				<div className="story-practice__match-column">
 					{terms.map((term) => (
 						<button
-							key={term}
+							key={term.id}
 							type="button"
 							className={itemClass(
-								matched.has(term) && "story-practice__match-item--matched",
-								selectedTerm === term && "story-practice__choice--selected",
-								wrongPair?.term === term && "story-practice__choice--wrong",
+								matched.has(term.id) && "story-practice__match-item--matched",
+								selectedTerm === term.id && "story-practice__choice--selected",
+								wrongPair?.term === term.id && "story-practice__choice--wrong",
 							)}
-							aria-pressed={matched.has(term) || selectedTerm === term}
-							disabled={done || matched.has(term)}
-							onClick={() => chooseTerm(term)}
+							aria-pressed={matched.has(term.id) || selectedTerm === term.id}
+							disabled={done || matched.has(term.id)}
+							onClick={() => chooseTerm(term.id)}
 						>
-							{term}
+							{term.value}
 						</button>
 					))}
 				</div>
 				<div className="story-practice__match-column">
 					{meanings.map((meaning) => (
 						<button
-							key={meaning}
+							key={meaning.id}
 							type="button"
 							className={itemClass(
-								matchedMeanings.has(meaning) &&
+								matchedMeanings.has(meaning.id) &&
 									"story-practice__match-item--matched",
-								selectedMeaning === meaning &&
+								selectedMeaning === meaning.id &&
 									"story-practice__choice--selected",
-								wrongPair?.meaning === meaning &&
+								wrongPair?.meaning === meaning.id &&
 									"story-practice__choice--wrong",
 							)}
 							aria-pressed={
-								matchedMeanings.has(meaning) || selectedMeaning === meaning
+								matchedMeanings.has(meaning.id) ||
+								selectedMeaning === meaning.id
 							}
-							disabled={done || matchedMeanings.has(meaning)}
-							onClick={() => chooseMeaning(meaning)}
+							disabled={done || matchedMeanings.has(meaning.id)}
+							onClick={() => chooseMeaning(meaning.id)}
 						>
-							{meaning}
+							{meaning.value}
 						</button>
 					))}
 				</div>
