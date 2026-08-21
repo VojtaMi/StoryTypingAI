@@ -2,6 +2,7 @@ import type { ChatMessage, ReadingStory } from "./ai";
 import type { StoryPhase, StorySegment } from "./exercise_screen/types";
 import type { LanguageId } from "./languages";
 import type { NarrationVoiceId } from "./narrationVoice";
+import { localStoryStore } from "./storage/storyStore";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
 import type { StoryRecapExerciseResult, StoryRecapLesson } from "./storyRecap";
@@ -45,9 +46,7 @@ export interface SavedStorySummary {
 export async function listSavedStories(
 	genreId?: LanguageId,
 ): Promise<SavedStorySummary[]> {
-	const query = genreId ? `?language=${encodeURIComponent(genreId)}` : "";
-	const response = await fetch(`/api/saves${query}`);
-	return parseResponse<SavedStorySummary[]>(response);
+	return localStoryStore.list(genreId);
 }
 
 /**
@@ -66,8 +65,9 @@ export function findUnfinishedReadingSave(
 }
 
 export async function loadSavedStory(id: string): Promise<SavedStory> {
-	const response = await fetch(`/api/saves/${encodeURIComponent(id)}`);
-	return parseResponse<SavedStory>(response);
+	const story = await localStoryStore.get(id);
+	if (!story) throw new Error("That story is not available in this browser.");
+	return story;
 }
 
 /**
@@ -85,35 +85,15 @@ export async function saveStoryMedia(
 	id: string,
 	media: Partial<StoryBackgroundImage> & Partial<StoryOpeningAudio>,
 ): Promise<SavedStory> {
-	const stored = await loadSavedStory(id);
-	return saveStory({
-		...stored,
-		...media,
-		updatedAt: new Date().toISOString(),
-	});
+	const story = await localStoryStore.patch(id, media);
+	if (!story) throw new Error("That story is not available in this browser.");
+	return story;
 }
 
 export async function saveStory(story: SavedStory): Promise<SavedStory> {
-	const response = await fetch(`/api/saves/${encodeURIComponent(story.id)}`, {
-		method: "PUT",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(story),
-	});
-	return parseResponse<SavedStory>(response);
+	return localStoryStore.save(story);
 }
 
 export async function deleteSavedStory(id: string): Promise<void> {
-	const response = await fetch(`/api/saves/${encodeURIComponent(id)}`, {
-		method: "DELETE",
-	});
-	if (!response.ok) {
-		throw new Error(await response.text());
-	}
-}
-
-async function parseResponse<T>(response: Response): Promise<T> {
-	if (!response.ok) {
-		throw new Error(await response.text());
-	}
-	return response.json() as Promise<T>;
+	return localStoryStore.delete(id);
 }

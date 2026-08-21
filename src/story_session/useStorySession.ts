@@ -65,7 +65,7 @@ interface UseStorySessionOptions {
 	view: View;
 	/** The unfinished reading-story save, if any — see `findUnfinishedReadingSave`. */
 	unfinishedReadingSaveId: string | null;
-	onViewChange: (view: View) => void;
+	onViewChange: (view: View, storyId?: string) => void;
 	onSavedStoriesChanged: () => Promise<void>;
 	onSavesError: (error: string | null) => void;
 }
@@ -527,7 +527,6 @@ export function useStorySession({
 		storyRecapLessonRef.current = null;
 		setStoryRecapError(null);
 		setPhase("loading");
-		onViewChange("story");
 		try {
 			const nextNarrationVoice = isNarrationVoiceId(
 				preparedOpening.narrationVoice,
@@ -547,6 +546,7 @@ export function useStorySession({
 			activeSaveIdRef.current = saveId;
 			setActiveSaveId(saveId);
 			setActiveTitle(title);
+			onViewChange("story", saveId);
 
 			const seeded = readingStoryMessages(selected, story, 1);
 			const firstSection = readingMediaSection(
@@ -1117,7 +1117,7 @@ export function useStorySession({
 						: null,
 				);
 				setError(null);
-				onViewChange("story");
+				onViewChange("story", save.id);
 
 				const story = save.readingStory;
 				const partIndex = save.readingPartIndex;
@@ -1167,6 +1167,8 @@ export function useStorySession({
 				prepareNextReadingSection(selected, save.id, story, partIndex);
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
+				setGenre(null);
+				setError(`Could not load story: ${message}`);
 				onSavesError(`Could not load story: ${message}`);
 			}
 		},

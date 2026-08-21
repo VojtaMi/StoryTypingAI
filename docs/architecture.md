@@ -25,7 +25,7 @@ code resolves the canonical registry entry rather than trusting browser-supplied
 prompt text. Adding a language should extend that registry and provide its hero
 and bot assets, without adding a parallel application.
 
-The selected language is part of the URL, so two tabs can practice different
+The selected language is part of the URL (`/<language>`), so two tabs can practice different
 languages. Changing it returns that tab to its menu and remounts its reading
 session. Shared taste settings intentionally do not change; language-specific
 stories and progression are selected or keyed by `genreId`.
@@ -38,8 +38,9 @@ word lookups, tutor questions, recap, and feedback into one validated successor
 brief. Story memory records include `genreId` and generation sees only matching
 records.
 
-A saved story lives at `stories/<language>/<story-id>/`, contains the complete manuscript and its section cursor. Resume
-restores it without prose generation. The session's media owner deduplicates
+A saved story lives in the browser's IndexedDB store and is addressed by
+`/<language>/story/<story-id>`. It contains the complete manuscript and its
+section cursor. Resume restores it without prose generation. The session's media owner deduplicates
 narration and illustration work, seeds already-generated media, and prepares the
 next section while the current one is read.
 

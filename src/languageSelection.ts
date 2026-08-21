@@ -6,23 +6,15 @@ import {
 	languageFaviconUrl,
 } from "./languages";
 
-const LANGUAGE_QUERY_KEY = "language";
 const LAST_LANGUAGE_KEY = "last-learning-language";
 
 export function readSelectedLanguage(): LanguageId {
-	const url = new URL(window.location.href);
-	const fromUrl = url.searchParams.get(LANGUAGE_QUERY_KEY);
-	if (isLanguageId(fromUrl)) return fromUrl;
 	const remembered = localStorage.getItem(LAST_LANGUAGE_KEY);
 	return isLanguageId(remembered) ? remembered : DEFAULT_LANGUAGE.id;
 }
 
 export function selectLanguage(languageId: LanguageId): void {
 	localStorage.setItem(LAST_LANGUAGE_KEY, languageId);
-	const url = new URL(window.location.href);
-	url.pathname = "/";
-	url.searchParams.set(LANGUAGE_QUERY_KEY, languageId);
-	window.history.pushState(null, "", url);
 }
 
 export function syncLanguageDocument(languageId: LanguageId): void {

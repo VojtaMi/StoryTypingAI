@@ -1,3 +1,4 @@
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import ExerciseScreen from "./exercise_screen/ExerciseScreen";
 import MainMenu from "./home_menu/MainMenu";
@@ -6,7 +7,7 @@ import {
 	selectLanguage,
 	syncLanguageDocument,
 } from "./languageSelection";
-import { getLanguage, type LanguageId } from "./languages";
+import { getLanguage, isLanguageId, type LanguageId } from "./languages";
 import {
 	readSelectedStoryGenerationPreset,
 	saveSelectedStoryGenerationPreset,
@@ -27,41 +28,57 @@ import {
 } from "./story_session/background";
 import { useStorySession } from "./story_session/useStorySession";
 
-const MAIN_MENU_PATH = "/";
-
-function canonicalAppPath(path: string) {
-	return path === MAIN_MENU_PATH ? path : MAIN_MENU_PATH;
+function parseAppPath(pathname: string): {
+	languageId: LanguageId | null;
+	storyId: string | null;
+} {
+	const parts = pathname.split("/").filter(Boolean);
+	if (parts.length === 1 && isLanguageId(parts[0])) {
+		return { languageId: parts[0], storyId: null };
+	}
+	if (
+		parts.length === 3 &&
+		isLanguageId(parts[0]) &&
+		parts[1] === "story" &&
+		parts[2]
+	) {
+		return { languageId: parts[0], storyId: parts[2] };
+	}
+	return { languageId: null, storyId: null };
 }
 
 export default function App() {
-	const [languageId, setLanguageId] = useState(readSelectedLanguage);
+	const pathname = useRouterState({
+		select: (state) => state.location.pathname,
+	});
+	const navigate = useNavigate();
+	const parsedPath = parseAppPath(pathname);
+	const languageId = parsedPath.languageId ?? readSelectedLanguage();
 
 	useEffect(() => {
 		syncLanguageDocument(languageId);
-		const url = new URL(window.location.href);
-		if (url.searchParams.get("language") !== languageId) {
-			url.searchParams.set("language", languageId);
-			window.history.replaceState(null, "", url);
-		}
 	}, [languageId]);
 
 	useEffect(() => {
-		function handlePopState() {
-			setLanguageId(readSelectedLanguage());
+		if (pathname === "/") {
+			void navigate({ to: `/${readSelectedLanguage()}`, replace: true });
+			return;
 		}
-		window.addEventListener("popstate", handlePopState);
-		return () => window.removeEventListener("popstate", handlePopState);
-	}, []);
+		if (!parsedPath.languageId) {
+			void navigate({ to: `/${readSelectedLanguage()}`, replace: true });
+		}
+	}, [navigate, parsedPath.languageId, pathname]);
 
 	function changeLanguage(nextLanguageId: LanguageId) {
 		selectLanguage(nextLanguageId);
-		setLanguageId(nextLanguageId);
+		void navigate({ to: `/${nextLanguageId}` });
 	}
 
 	return (
 		<ReadingApp
 			key={languageId}
 			languageId={languageId}
+			storyId={parsedPath.storyId}
 			onLanguageChange={changeLanguage}
 		/>
 	);
@@ -69,39 +86,21 @@ export default function App() {
 
 function ReadingApp({
 	languageId,
+	storyId,
 	onLanguageChange,
 }: {
 	languageId: LanguageId;
+	storyId: string | null;
 	onLanguageChange: (languageId: LanguageId) => void;
 }) {
 	const language = getLanguage(languageId);
-	const [location, setLocation] = useState<string>(() =>
-		canonicalAppPath(window.location.pathname),
-	);
-	const [inStory, setInStory] = useState(false);
+	const navigate = useNavigate();
+	const inStory = storyId !== null;
 	const [savedStories, setSavedStories] = useState<SavedStorySummary[]>([]);
 	const [savesError, setSavesError] = useState<string | null>(null);
 	const [storyGenerationPresetId, setStoryGenerationPresetId] =
 		useState<StoryGenerationPresetId>(readSelectedStoryGenerationPreset);
 	const storyGeneration = getStoryGenerationPreset(storyGenerationPresetId);
-
-	const goto = useCallback((path: string, options?: { replace?: boolean }) => {
-		const canonical = canonicalAppPath(path);
-		setInStory(false);
-		setLocation(canonical);
-		if (window.location.pathname !== canonical) {
-			const method = options?.replace ? "replaceState" : "pushState";
-			window.history[method](null, "", canonical);
-		}
-	}, []);
-
-	const enterStory = useCallback(() => {
-		setInStory(true);
-		setLocation(MAIN_MENU_PATH);
-		if (window.location.pathname !== MAIN_MENU_PATH) {
-			window.history.pushState(null, "", MAIN_MENU_PATH);
-		}
-	}, []);
 
 	const refreshSavedStories = useCallback(async () => {
 		try {
@@ -164,33 +163,20 @@ function ReadingApp({
 		storyGeneration,
 		view: sessionView,
 		unfinishedReadingSaveId: unfinishedReadingSave?.id ?? null,
-		onViewChange: (nextView) => {
-			if (nextView === "story") enterStory();
-			else if (nextView === "menu") goto(MAIN_MENU_PATH);
+		onViewChange: (nextView, nextStoryId) => {
+			if (nextView === "story" && nextStoryId) {
+				void navigate({ to: `/${language.id}/story/${nextStoryId}` });
+			} else if (nextView === "menu") {
+				void navigate({ to: `/${language.id}` });
+			}
 		},
 		onSavedStoriesChanged: refreshSavedStories,
 		onSavesError: setSavesError,
 	});
 
 	useEffect(() => {
-		function handlePopState() {
-			const canonical = canonicalAppPath(window.location.pathname);
-			setInStory(false);
-			setLocation(canonical);
-			if (canonical !== window.location.pathname) {
-				window.history.replaceState(null, "", canonical);
-			}
-		}
-
-		window.addEventListener("popstate", handlePopState);
-		return () => window.removeEventListener("popstate", handlePopState);
-	}, []);
-
-	useEffect(() => {
-		const canonical = canonicalAppPath(window.location.pathname);
-		if (canonical === window.location.pathname) return;
-		window.history.replaceState(null, "", canonical);
-	}, []);
+		if (storyId && !activeSaveId) void resumeStory(storyId);
+	}, [activeSaveId, resumeStory, storyId]);
 
 	const { visibleBackgroundUrl, previousBackgroundUrl, isBackgroundFading } =
 		useBackgroundLayers(sessionView, backgroundImage);
@@ -211,7 +197,7 @@ function ReadingApp({
 		}
 	}
 
-	const showMainMenu = !inStory && location === MAIN_MENU_PATH;
+	const showMainMenu = !inStory;
 	const appClassName = `app${
 		inStory && visibleBackgroundUrl ? " app--story-has-background" : ""
 	}`;
@@ -296,6 +282,11 @@ function ReadingApp({
 					onStoryFeedbackDraftChange={onStoryFeedbackDraftChange}
 					onCaptureBotQuestions={captureBotQuestions}
 				/>
+			)}
+			{inStory && !genre && (
+				<main className="story__error">
+					{error ?? savesError ?? "Loading story…"}
+				</main>
 			)}
 		</div>
 	);
