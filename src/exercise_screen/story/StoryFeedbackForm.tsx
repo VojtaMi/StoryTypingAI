@@ -48,15 +48,15 @@ export function StoryFeedbackForm({
 	return (
 		<div className="story-completion__feedback">
 			<p className="lesson-doc__subheading">How was this story's difficulty?</p>
-			<div className="phrase-builder__tiles">
+			<div className="story-completion__feedback-options">
 				{STORY_DIFFICULTIES.map((option) => (
 					<button
 						type="button"
 						key={option}
 						className={
 							difficulty === option
-								? "lesson-choice lesson-choice--selected phrase-builder__selected"
-								: "lesson-choice phrase-builder__tile"
+								? "lesson-choice lesson-choice--selected story-completion__feedback-option"
+								: "lesson-choice story-completion__feedback-option"
 						}
 						aria-pressed={difficulty === option}
 						onClick={() => setDifficulty(option)}
